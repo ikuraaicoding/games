@@ -360,7 +360,7 @@ margin: 0 0 28px; text-shadow:0 0 14px rgba(245,166,35,0.45);
 <button class="btn-start" id="start-btn">START</button>
 <div class="rules">
 コアに触れ、長押しせよ。<br>
-最低 1.00 秒 ── それ未満で離せば、終わる。<br>
+最低 1.50 秒 ── それ未満で離せば、終わる。<br>
 押し続ける時間が長いほど、限界は近づく。<br>
 次の者へ、コアを渡せ。<br>
 <span style="color:#7a5a20">コアを爆発させた者の、負け。</span>
@@ -476,20 +476,23 @@ d.g.gain.setTargetAtTime(0.0001, t, 0.05);
 d.o.stop(t + 0.3);
 }
 
-// 1.00秒を超えたかどうかが分かる演出は入れない（赤い縁は押し始めからなだらかに強まるだけ）
+// 1.50秒を超えたかどうかが分かる演出は入れない（赤い縁は押し始めからなだらかに強まるだけ）
 function resetRing(){
 vignette.style.opacity = 0;
 }
 
-// ---- 偽のヒビ割れ（限界とは無関係。ランダムに脅かすだけ） ----
-let fakeCrackUntil = 0;
-function maybeFakeCrack(now, held){
-if(now < fakeCrackUntil) return;
-// 長押しが長いほど少しだけ頻度UP。しきい値の情報は使わない
-if(Math.random() < 0.004 + Math.min(held, 10) * 0.0008){
+// ---- 偽のヒビ割れ（限界とは無関係。押し始めの0.5〜0.7秒後に1回だけ光らせて脅かす） ----
+let fakeCrackTimer = null;
+function cancelFakeCrack(){
+if(fakeCrackTimer){ clearTimeout(fakeCrackTimer); fakeCrackTimer = null; }
+}
+function scheduleFakeCrack(){
+cancelFakeCrack();
+fakeCrackTimer = setTimeout(() => {
+fakeCrackTimer = null;
+if(!holding || !gameActive) return;
 const level = 0.35 + Math.random() * 0.65;
 const dur = 120 + Math.random() * 260;
-fakeCrackUntil = now + dur + 400;
 cracks.forEach(c => {
 if(Math.random() < 0.6){
 c.el.style.opacity = level;
@@ -498,7 +501,7 @@ c.el.style.strokeWidth = (c.maxWidth * level).toFixed(2);
 });
 vibrateBeat(20);
 setTimeout(() => { if(gameActive) setCrackRatio(0); }, dur);
-}
+}, 500 + Math.random() * 200);
 }
 
 // ---- 爆発の破片 ----
@@ -651,7 +654,7 @@ cancelScare();
 stopDrone();
 clearDebris();
 resetRing();
-fakeCrackUntil = 0;
+cancelFakeCrack();
 clearPulseTimers();
 clearResultTimers();
 if(cooldownTimerId){ clearTimeout(cooldownTimerId); cooldownTimerId = null; }
@@ -916,7 +919,6 @@ const projected = totalHeld + currentHeld;
 
 vignette.style.opacity = Math.min(1, currentHeld / 9).toFixed(3);
 updateDrone(currentHeld);
-maybeFakeCrack(now, currentHeld);
 
 if(projected >= threshold){
 holdLog.push({ text: (turn + 1) + '回目: ' + currentHeld.toFixed(2) + '秒（爆発）', danger:true });
@@ -936,6 +938,7 @@ hint.textContent = '長押し中……';
 core.classList.add('holding');
 startDrone();
 scheduleScare();
+scheduleFakeCrack();
 beatLoop();
 rafId = requestAnimationFrame(frameLoop);
 }
@@ -951,6 +954,7 @@ if(rafId) cancelAnimationFrame(rafId);
 if(beatTimeoutId) clearTimeout(beatTimeoutId);
 clearPulseTimers();
 cancelScare();
+cancelFakeCrack();
 stopDrone();
 resetRing();
 setCrackRatio(0);
@@ -958,7 +962,7 @@ core.style.transition = 'transform 0.2s ease-in';
 core.style.transform = 'scale(1)';
 core.classList.remove('holding');
 
-if(currentHeld < 1.0){
+if(currentHeld < 1.5){
 holdLog.push({ text: (turn + 1) + '回目: ' + currentHeld.toFixed(2) + '秒（早離れ）', danger:true });
 renderLog();
 triggerExplosion('early', currentHeld);
@@ -987,6 +991,7 @@ if(rafId) cancelAnimationFrame(rafId);
 if(beatTimeoutId) clearTimeout(beatTimeoutId);
 clearPulseTimers();
 cancelScare();
+cancelFakeCrack();
 stopDrone();
 resetRing();
 core.classList.remove('holding');
@@ -1034,7 +1039,7 @@ blackout.classList.add('on');
 
 resultTimers.push(setTimeout(() => {
 reasonText.textContent = reason === 'early'
-? '1.00秒に満たず、' + duration.toFixed(2) + '秒で指が離れた'
+? '1.50秒に満たず、' + duration.toFixed(2) + '秒で指が離れた'
 : duration.toFixed(2) + '秒で限界を超え、コアが弾けた';
 document.getElementById('penalty').textContent = '💀 爆発させた人の負け!';
 showScreen(resultScreen);

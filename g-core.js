@@ -18,6 +18,83 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   const timers = [];
   const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
 
+  // ---- 元のCOREのドッキリ演出(持ち主の端末の中だけで起きる。通信には影響しない) ----
+  const crackSvg = $('c-crack'), fxCv = $('fx'), fxCtx = fxCv.getContext('2d'), scan = $('scanlines');
+  let cracks = [], fakeT = null, scareT = null, debris = [], debrisRaf = 0;
+  const rr = (a, b) => a + Math.random() * (b - a);
+  function genCracks(){
+    crackSvg.textContent = ''; cracks = [];
+    const count = 7 + Math.floor(Math.random() * 3), cx = 110, cy = 110, base = Math.random() * 360;
+    for(let i = 0; i < count; i++){
+      const ang = (base + (360 / count) * i + rr(-16, 16)) * Math.PI / 180, dx = Math.cos(ang), dy = Math.sin(ang), px = -dy, py = dx;
+      const segs = 3 + Math.floor(Math.random() * 3);
+      let rad = rr(12, 26), x = cx + dx * rad, y = cy + dy * rad, d = 'M' + x.toFixed(1) + ',' + y.toFixed(1);
+      for(let s = 0; s < segs; s++){ rad += rr(14, 26); const perp = rr(-13, 13); x = cx + dx * rad + px * perp; y = cy + dy * rad + py * perp; d += ' L' + x.toFixed(1) + ',' + y.toFixed(1); }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', d); crackSvg.appendChild(path);
+      cracks.push({ el: path, max: rr(2.0, 3.5) });
+    }
+  }
+  function setCrack(ratio){
+    ratio = Math.max(0, Math.min(1, ratio)); core.style.setProperty('--crack-ratio', ratio.toFixed(3));
+    cracks.forEach(c => { c.el.style.opacity = ratio; c.el.style.strokeWidth = (c.max * ratio).toFixed(2); });
+  }
+  // ニセのヒビ割れ(限界とは無関係。押し始めの0.5〜0.7秒後に1回だけ光らせて脅かす)
+  function cancelFake(){ if(fakeT){ clearTimeout(fakeT); fakeT = null; } }
+  function scheduleFake(){
+    cancelFake();
+    fakeT = setTimeout(() => {
+      fakeT = null;
+      if(!localHolding || stopped) return;
+      const level = 0.35 + Math.random() * 0.65, dur = 120 + Math.random() * 260;
+      cracks.forEach(c => { if(Math.random() < 0.6){ c.el.style.opacity = level; c.el.style.strokeWidth = (c.max * level).toFixed(2); } });
+      E.vibrate(20); core.dataset.fake = String((+core.dataset.fake || 0) + 1);
+      later(() => { if(localHolding) setCrack(0); }, dur);
+    }, 500 + Math.random() * 200);
+  }
+  // ドッキリ罠: 押し始めの1秒以内に、思わず離させる(約35%・種類もタイミングもランダム。限界時間とは無関係)
+  function cancelScare(){ if(scareT){ clearTimeout(scareT); scareT = null; } }
+  function scheduleScare(){ cancelScare(); if(Math.random() >= 0.35) return; scareT = setTimeout(doScare, 200 + Math.random() * 650); }
+  function shakePulse(a){ shake(a); later(() => shake(0), 90); }
+  function doScare(){
+    scareT = null;
+    if(!localHolding || stopped) return;
+    core.dataset.scare = String((+core.dataset.scare || 0) + 1);
+    const kind = Math.floor(Math.random() * 3);
+    E.audio.scare(); E.vibrate([80, 30, 120]); shakePulse(34);
+    if(kind === 0){ const s = $('strobe'); s.classList.remove('on'); void s.offsetWidth; s.classList.add('on'); }
+    else if(kind === 1){
+      setCrack(1); const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+      later(() => { if(localHolding) setCrack(0); }, 350);
+    }else{
+      core.style.transition = 'transform .06s ease-out'; core.style.transform = 'scale(1.18)';
+      later(() => { core.style.transition = 'transform .25s ease-in'; core.style.transform = 'scale(1)'; }, 120);
+      shakePulse(48);
+    }
+  }
+  // 爆発の破片
+  function resizeFx(){ const dpr = window.devicePixelRatio || 1; fxCv.width = Math.floor(window.innerWidth * dpr); fxCv.height = Math.floor(window.innerHeight * dpr); fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  function spawnDebris(){
+    const r = wrap.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for(let i = 0; i < 90; i++){
+      const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 14;
+      debris.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2, size: 2 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .5, life: 1, hue: Math.random() < .6 ? 12 + Math.random() * 30 : 0, dark: Math.random() < .4 });
+    }
+    if(!debrisRaf) debrisRaf = requestAnimationFrame(stepDebris);
+  }
+  function stepDebris(){
+    fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    debris.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vx *= .975; p.vy = p.vy * .975 + .35; p.rot += p.vr; p.life -= .012;
+      if(p.life <= 0) return;
+      fxCtx.save(); fxCtx.translate(p.x, p.y); fxCtx.rotate(p.rot); fxCtx.globalAlpha = Math.max(0, p.life);
+      fxCtx.fillStyle = p.dark ? '#1a1a1a' : 'hsl(' + p.hue + ',100%,55%)'; fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * .6); fxCtx.restore();
+    });
+    debris = debris.filter(p => p.life > 0);
+    if(debris.length) debrisRaf = requestAnimationFrame(stepDebris);
+    else{ debrisRaf = 0; fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+  }
+  function clearDebris(){ debris = []; if(debrisRaf){ cancelAnimationFrame(debrisRaf); debrisRaf = 0; } fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+
   function render(){
     const mine = G.holder === E.myId, hn = E.nameOf(G.holder);
     core.classList.toggle('mine', mine);
@@ -25,7 +102,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     core.classList.toggle('holding', mine && localHolding);
     $('c-top').textContent = mine ? 'あなたがコアを持っている' : hn + ' がコアを持っている';
     let hint = '';
-    if(G.ph === 'idle') hint = mine ? 'コアに触れ、1秒以上 長押し\n離したら、次の者へ渡せ' : hn + ' が触れるのを待っている…';
+    if(G.ph === 'idle') hint = mine ? 'コアに触れ、1.5秒以上 長押し\n離したら、次の者へ渡せ' : hn + ' が触れるのを待っている…';
     if(G.ph === 'hold') hint = mine ? '長押し中……' : hn + ' が長押し中…';
     if(G.ph === 'choose') hint = mine ? '' : hn + ' が渡す相手を選んでいる…';
     $('c-hint').textContent = hint;
@@ -60,12 +137,14 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
 
   function onBegin(){
     G = { ph: 'idle', holder: -1, turn: 0, elig: [] }; localHolding = false; stopped = false;
-    resetLocalFx(); E.show('s-core'); render();
+    resetLocalFx(); genCracks(); setCrack(0); resizeFx(); scan.style.display = 'block'; E.show('s-core'); render();
   }
-  function resetLocalFx(){
+  function resetLocalFx(keepDebris){
     clearInterval(shakeT); $('app').style.setProperty('--sx', '0px'); $('app').style.setProperty('--sy', '0px');
     core.classList.remove('burst'); $('blackout').classList.remove('on'); vignette.style.opacity = 0;
     wrap.querySelectorAll('.ring').forEach(r => r.remove());
+    core.style.transition = ''; core.style.transform = ''; setCrack(0);
+    if(keepDebris !== true) clearDebris();
   }
   function onMsg(m){
     if(stopped || !m || typeof m.t !== 'string') return;
@@ -89,6 +168,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function endLocalHold(send){
     if(!localHolding) return;
     localHolding = false; clearInterval(kaT); kaT = null; core.classList.remove('holding'); E.audio.stopDrone();
+    cancelFake(); cancelScare(); setCrack(0); core.style.transition = ''; core.style.transform = '';
     if(send) E.send({ t: 'release', n: pn }, true);
   }
   const onDown = e => {
@@ -96,6 +176,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(stopped || G.holder !== E.myId || G.ph !== 'idle' || localHolding) return;
     localHolding = true; pn++; E.audio.init(); E.audio.startDrone(); core.classList.add('holding'); holdSince = performance.now();
     E.send({ t: 'press', n: pn }, true);
+    scheduleScare(); scheduleFake();
     clearInterval(kaT); kaT = setInterval(() => E.send({ t: 'ka', n: pn }, false), 400);
   };
   const rel = e => { if(e && e.cancelable) e.preventDefault(); endLocalHold(true); };
@@ -110,7 +191,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function shake(a){ $('app').style.setProperty('--sx', ((Math.random() - .5) * a).toFixed(1) + 'px'); $('app').style.setProperty('--sy', ((Math.random() - .5) * a).toFixed(1) + 'px'); }
   function explode(m){
     E.audio.init(); E.audio.boom(); E.vibrate([0, 120, 50, 120, 80, 300, 100, 500, 150, 600]);
-    core.classList.add('burst');
+    core.classList.add('burst'); setCrack(1); spawnDebris();
     let k = 0; clearInterval(shakeT);
     shakeT = setInterval(() => { k++; shake(Math.max(3, 40 * (1 - k / 24))); if(k >= 24){ clearInterval(shakeT); shake(0); } }, 25);
     [0, 70, 140, 220].forEach(d => later(() => { const r = document.createElement('div'); r.className = 'ring'; wrap.appendChild(r); requestAnimationFrame(() => r.classList.add('go')); later(() => r.remove(), 700); }, d));
@@ -120,12 +201,12 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
       const me = m.loser === E.myId, ln = clean2(m.name, 8) || E.nameOf(m.loser);
       E.showResult({
         title: 'CORE CRACKED',
-        reason: m.reason === 'early' ? '1秒に満たず、指が離れた' : 'コアが限界を超えて、弾けた',
+        reason: m.reason === 'early' ? '1.5秒に満たず、指が離れた' : 'コアが限界を超えて、弾けた',
         pen: me ? '💀 あなたが爆発させた!' : '💀 ' + ln + ' が爆発させた!',
         lines: [],
         stats: (Number.isFinite(m.turns) ? m.turns : 0) + ' TURN 生還 ／ 累計 ' + (Number.isFinite(m.sec) ? m.sec.toFixed(2) : '0.00') + ' SEC'
       });
-      resetLocalFx(); $('flash').classList.remove('on'); $('strobe').classList.remove('on');
+      resetLocalFx(true); $('flash').classList.remove('on'); $('strobe').classList.remove('on');
     }, 1100);
   }
 
@@ -158,7 +239,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function doRelease(endT){
     stopTick();
     const el = ((endT || performance.now()) - H.holdStart) / 1000;
-    const minHold = H.holder === 0 ? 1.0 : 0.8;      // 参加者は通信の遅れの揺れがあるので少し余裕をもたせる
+    const minHold = H.holder === 0 ? 1.5 : 1.3;      // 参加者は通信の遅れの揺れがあるので0.2秒だけ余裕をもたせる
     if(el < minHold){ boom(H.holder, 'early'); return; }
     H.total += el; H.turn++; H.sub = 'choose';
     E.hostBcast(stMsg('choose'), true);
@@ -197,7 +278,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     stopped = true; stopBeat(); endLocalHold(false); clearInterval(shakeT); stopTick(); clearTimeout(H.choose);
     core.removeEventListener('pointerdown', onDown); core.removeEventListener('pointerup', rel);
     core.removeEventListener('pointercancel', rel); core.removeEventListener('pointerleave', rel); core.removeEventListener('contextmenu', noCtx);
-    timers.forEach(clearTimeout); resetLocalFx(); $('picker').classList.remove('on');
+    timers.forEach(clearTimeout); cancelScare(); cancelFake(); resetLocalFx(); scan.style.display = 'none'; $('picker').classList.remove('on');
     $('flash').classList.remove('on'); $('strobe').classList.remove('on');
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop };

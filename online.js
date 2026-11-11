@@ -54,6 +54,16 @@ const audio = {
       gg.gain.setValueAtTime(.25, t); gg.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gg); gg.connect(ac.destination); o.start(t); o.stop(t + .4);
     });
   },
+  scare(){
+    if(!ac) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
+    const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    const n = ac.createBufferSource(), ng = ac.createGain(); n.buffer = buf;
+    ng.gain.setValueAtTime(1.4, t); ng.gain.exponentialRampToValueAtTime(.001, t + .5); n.connect(ng); ng.connect(ac.destination); n.start(t);
+    const o = ac.createOscillator(), og = ac.createGain(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(60, t + .25);
+    og.gain.setValueAtTime(.5, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
+  },
   beep(freq, len, vol){
     if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
     o.type = 'square'; o.frequency.setValueAtTime(freq, t); g.gain.setValueAtTime(vol || .2, t); g.gain.exponentialRampToValueAtTime(.0001, t + len);
