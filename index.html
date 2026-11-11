@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -13,488 +15,62 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>のみのみパック</title>
 <style>
-:root{
-  --bg:#0e0b08; --panel:#1a1510; --panel2:#241c14; --line:#3a2d1e;
-  --amber:#f5a623; --amber2:#ffcf6b; --text:#f3e9d8; --sub:#a89880; --red:#e5483a;
-}
+:root{ --bg:#0e0b08; --panel:#1a1510; --panel2:#241c14; --line:#3a2d1e; --amber:#f5a623; --amber2:#ffcf6b; --text:#f3e9d8; --sub:#a89880; --red:#e5483a; }
 *{ box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
-html,body{ margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden;
-  font-family:'Hiragino Sans','Yu Gothic','Segoe UI',sans-serif; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden; font-family:'Hiragino Sans','Yu Gothic','Segoe UI',sans-serif; }
 button{ font:inherit; color:inherit; cursor:pointer; }
-.screen{ position:fixed; inset:0; display:none; flex-direction:column; overflow-y:auto;
-  padding:max(18px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom)); }
-.screen.active{ display:flex; }
-.top{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-.top h2{ margin:0; font-size:1.15rem; letter-spacing:.05em; flex:1; }
-.ib{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; font-size:.9rem; }
-.ib:active{ background:var(--panel2); }
-
-/* HOME */
+.screen{ position:fixed; inset:0; display:flex; flex-direction:column; overflow-y:auto; padding:max(18px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom)); }
 .logo{ text-align:center; margin:6px 0 4px; }
 .logo img{ width:84px; height:84px; border-radius:20px; box-shadow:0 0 30px rgba(245,166,35,.25); }
 .logo h1{ margin:8px 0 2px; font-size:1.7rem; letter-spacing:.12em; color:var(--amber2); }
 .logo p{ margin:0; font-size:.78rem; color:var(--sub); letter-spacing:.1em; }
 .cards{ display:grid; gap:12px; margin-top:18px; }
-.gcard{ display:flex; align-items:center; gap:14px; text-align:left; width:100%;
-  background:linear-gradient(135deg,var(--panel),var(--panel2)); border:1px solid var(--line);
-  border-radius:16px; padding:16px; }
+.gcard{ display:flex; align-items:center; gap:14px; text-align:left; width:100%; text-decoration:none; color:inherit; background:linear-gradient(135deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:16px; padding:16px; }
 .gcard:active{ transform:scale(.98); }
 .gcard .em{ font-size:2rem; width:48px; text-align:center; }
 .gcard b{ display:block; font-size:1.05rem; }
 .gcard small{ color:var(--sub); font-size:.75rem; line-height:1.5; }
 .gcard.core{ background:linear-gradient(135deg,#1c0707,#050505); border-color:#5a1414; box-shadow:0 0 22px rgba(200,20,20,.22); }
-.gcard.core b{ color:#ff5a46; letter-spacing:.2em; }
-.badge{ display:inline-block; font-size:.62rem; background:var(--red); color:#fff; padding:2px 7px; border-radius:99px; margin-left:6px; vertical-align:middle; letter-spacing:.05em; }
-.modeline{ text-align:center; font-size:.75rem; color:var(--sub); margin-top:16px; }
-.note{ text-align:center; font-size:.68rem; color:#6f6250; margin-top:auto; padding-top:20px; line-height:1.7; }
-
-/* common */
-.big{ background:var(--amber); color:#1a1000; border:none; font-weight:700; border-radius:14px;
-  padding:15px 22px; font-size:1.05rem; width:100%; }
-.big:active{ filter:brightness(.9); }
-.big.ghost{ background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:400; }
-.row{ display:flex; gap:10px; }
-.row > *{ flex:1; }
-.panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; }
-.panel h3{ margin:0 0 10px; font-size:.9rem; color:var(--amber2); }
+.gcard.core b{ color:#ff5a46; letter-spacing:.15em; }
+.badge{ display:inline-block; font-size:.62rem; background:var(--red); color:#fff; padding:2px 7px; border-radius:99px; margin-left:6px; vertical-align:middle; }
+.badge.on{ background:#2a6a8a; }
+.set{ margin-top:18px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; }
+.set h3{ margin:0 0 10px; font-size:.9rem; color:var(--amber2); }
 .seg{ display:flex; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:3px; gap:3px; }
 .seg button{ flex:1; background:none; border:none; border-radius:9px; padding:10px 4px; font-size:.85rem; color:var(--sub); }
 .seg button.on{ background:var(--amber); color:#1a1000; font-weight:700; }
-.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
-.chip{ background:var(--panel2); border:1px solid var(--line); border-radius:99px; padding:7px 8px 7px 14px; font-size:.85rem; display:flex; gap:8px; align-items:center; }
-.chip i{ font-style:normal; color:var(--sub); padding:0 6px; }
-input[type=text]{ -webkit-user-select:text; user-select:text; background:var(--bg); border:1px solid var(--line); color:var(--text);
-  border-radius:12px; padding:12px; font-size:1rem; width:100%; }
 .help{ color:var(--sub); font-size:.74rem; line-height:1.7; margin:8px 0 0; }
-
-/* KING */
-.grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 14px; }
-.pcard{ background:linear-gradient(160deg,var(--panel2),var(--panel)); border:1px solid var(--line); border-radius:14px;
-  padding:18px 4px; text-align:center; font-size:.9rem; min-height:76px; word-break:break-all; }
-.pcard.seen{ opacity:.45; }
-.pcard .ck{ display:block; font-size:.7rem; color:var(--amber2); margin-top:4px; }
-.stepper{ display:flex; align-items:center; justify-content:center; gap:18px; }
-.stepper button{ width:44px; height:44px; border-radius:50%; background:var(--panel2); border:1px solid var(--line); font-size:1.4rem; }
-.stepper span{ font-size:1.3rem; min-width:80px; text-align:center; }
-.order{ background:linear-gradient(160deg,#2b1d08,#150f05); border:1px solid #6b4a14; border-radius:18px; padding:22px 16px;
-  text-align:center; font-size:1.2rem; line-height:1.7; min-height:130px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; }
-.order b{ color:var(--amber2); }
-#reveal{ position:fixed; inset:0; z-index:20; background:rgba(8,6,4,.97); display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; }
-#reveal.on{ display:flex; }
-#reveal .who{ color:var(--sub); font-size:1rem; margin-bottom:14px; }
-#reveal .num{ font-size:5rem; font-weight:800; color:var(--amber2); line-height:1.1; }
-#reveal .num.king{ color:#ffd84a; text-shadow:0 0 30px rgba(255,200,40,.6); font-size:3.4rem; }
-#reveal .tip{ color:var(--sub); font-size:.8rem; margin-top:34px; }
-
-/* TAP */
-#tap-area{ position:relative; flex:1; border:2px dashed var(--line); border-radius:20px; touch-action:none; overflow:hidden; margin-bottom:12px; transition:background .15s; }
-#tap-area.go{ background:rgba(60,200,100,.25); border-color:#3cc864; }
-#tap-area.count{ background:rgba(229,72,58,.08); }
-#tap-msg{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; pointer-events:none; padding:0 18px; }
-#tap-msg b{ display:block; font-size:1.6rem; margin-bottom:8px; }
-#tap-msg span{ color:var(--sub); font-size:.85rem; line-height:1.7; }
-.finger{ position:absolute; width:96px; height:96px; margin:-48px 0 0 -48px; border-radius:50%; pointer-events:none;
-  display:flex; align-items:center; justify-content:center; font-size:2rem; border:4px solid #fff; box-shadow:0 0 24px currentColor; }
-.finger.lose{ width:150px; height:150px; margin:-75px 0 0 -75px; background:rgba(229,72,58,.85)!important; color:#fff; font-size:3rem; }
-.finger.dim{ opacity:.25; }
-
-/* NEVER */
-.qcard{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
-  background:linear-gradient(160deg,var(--panel2),var(--panel)); border:1px solid var(--line); border-radius:20px;
-  padding:24px 18px; margin-bottom:12px; }
-.qcard .q{ font-size:1.5rem; line-height:1.6; font-weight:700; }
-.qcard .p{ margin-top:22px; color:var(--amber2); font-size:1rem; }
-.qcard .c{ margin-top:14px; font-size:.72rem; color:var(--sub); }
+.note{ text-align:center; font-size:.68rem; color:#6f6250; margin-top:auto; padding-top:20px; line-height:1.7; }
 </style>
 </head>
 <body>
-
-<!-- HOME -->
-<div class="screen active" id="s-home">
+<div class="screen">
   <div class="logo">
     <img src="icons/icon-192.png" alt="">
     <h1>のみのみパック</h1>
-    <p>スマホ1台で盛り上がる 飲みゲー詰め合わせ</p>
+    <p>スマホで盛り上がる 飲みゲー</p>
   </div>
   <div class="cards">
-    <a class="gcard core" id="g-core" href="core.html" style="text-decoration:none;color:inherit">
+    <a class="gcard core" href="core.html">
       <div class="em">💣</div>
-      <div><b>CORE<span class="badge">看板</span></b><small>コアを長押しして次の人へ。限界は誰にも分からない。爆発させた人が罰!</small></div>
+      <div><b>CORE<span class="badge on">1台で</span></b><small>コアを長押しして次の人へ。限界は誰にも分からない。スマホ1台を回して遊ぶよ(通信なし)。</small></div>
     </a>
-    <a class="gcard core" href="core-net.html" style="text-decoration:none;color:inherit">
+    <a class="gcard core" href="online.html#core">
       <div class="em">📡</div>
-      <div><b>CORE オンライン<span class="badge">NEW</span></b><small>みんなが自分のスマホで! QRでつなぐと、コアが人から人へ渡っていく。サーバー不要。</small></div>
+      <div><b>CORE オンライン<span class="badge">みんなで</span></b><small>各自のスマホで! コアが人から人へ渡っていく。QRを1回読むだけ。</small></div>
     </a>
-    <button class="gcard" data-go="king">
-      <div class="em">👑</div>
-      <div><b>王様ゲーム</b><small>番号くじ + 命令ガチャ。命令の強さは3段階。</small></div>
-    </button>
-    <button class="gcard" data-go="tap">
+    <a class="gcard" href="online.html#tap">
       <div class="em">⚡</div>
-      <div><b>全員タップ対決</b><small>みんなで画面に指を置いて、合図で離す。早離しと最後の人が負け。</small></div>
-    </button>
-    <button class="gcard" data-go="never">
-      <div class="em">🫵</div>
-      <div><b>やったことある人 飲む!</b><small>お題に当てはまる人が飲む。お題は自分でも追加できるよ。</small></div>
-    </button>
+      <div><b>全員タップ対決 オンライン<span class="badge">みんなで</span></b><small>合図で一斉に指を離す反応勝負。通信の遅れで不利にならない設計だよ。</small></div>
+    </a>
   </div>
-  <div class="modeline" id="modeline"></div>
-  <div class="row" style="margin-top:12px"><button class="big ghost" data-go="settings">⚙ 設定(強さ・ノンアル・名前)</button></div>
-  <div class="note">飲めない人に無理に飲ませない・飲み過ぎない・飲んだら乗らない。<br>ノンアルモードなら「飲む」が「ペナルティ点」に変わるよ。</div>
-</div>
-
-<!-- SETTINGS -->
-<div class="screen" id="s-settings">
-  <div class="top"><button class="ib" data-go="home">‹ もどる</button><h2>設定</h2></div>
-  <div class="panel">
-    <h3>お題・命令の強さ</h3>
-    <div class="seg" id="seg-level"><button data-v="0">ゆるい</button><button data-v="1">ふつう</button><button data-v="2">ガチ</button></div>
-    <p class="help">強さを上げると、きわどいお題・命令も出てくるよ(ゆるい → ふつう → ガチの順に追加)。</p>
-  </div>
-  <div class="panel">
-    <h3>ノンアルモード</h3>
+  <div class="set">
+    <h3>設定</h3>
     <div class="seg" id="seg-alc"><button data-v="0">🍺 お酒あり</button><button data-v="1">🥤 ノンアル</button></div>
-    <p class="help">ノンアルだと「○口飲む」が「○点ペナルティ」になるよ。</p>
+    <p class="help">ノンアルだと「○口飲む」が「○点ペナルティ」に変わるよ。この端末の表示だけが変わるよ。</p>
   </div>
-  <div class="panel">
-    <h3>参加者の名前(なくてもOK)</h3>
-    <div class="chips" id="chips"></div>
-    <div class="row"><input type="text" id="pname" maxlength="8" placeholder="名前を入力"><button class="big" id="padd" style="flex:0 0 90px">追加</button></div>
-    <p class="help">王様ゲームのくじ引きで名前が表示されるよ。</p>
-  </div>
+  <div class="note">飲めない人に無理に飲ませない・飲み過ぎない・飲んだら乗らない。<br>オンラインの通信は暗号化して、公開の中継サーバーを通すよ(QRは目の前の人にだけ見せてね)。</div>
 </div>
-
-<!-- KING -->
-<div class="screen" id="s-king">
-  <div class="top"><button class="ib" data-go="home">‹ もどる</button><h2>👑 王様ゲーム</h2></div>
-  <div class="panel">
-    <div class="stepper"><button id="k-minus">−</button><span id="k-n">4人</span><button id="k-plus">＋</button></div>
-    <p class="help" style="text-align:center">人数を決めて「くじを配る」。自分の名前をタップして番号を確認し、隠してね。</p>
-  </div>
-  <div class="grid" id="k-grid"></div>
-  <div class="order" id="k-order">くじを配ってから、王様が「命令をつくる」を押してね</div>
-  <div class="row">
-    <button class="big ghost" id="k-deal">🎴 くじを配る</button>
-    <button class="big" id="k-make">命令をつくる</button>
-  </div>
-</div>
-<div id="reveal"><div class="who" id="rv-who"></div><div class="num" id="rv-num"></div><div class="tip">タップして隠す</div></div>
-
-<!-- TAP -->
-<div class="screen" id="s-tap">
-  <div class="top"><button class="ib" data-go="home">‹ もどる</button><h2>⚡ 全員タップ対決</h2></div>
-  <div id="tap-area"><div id="tap-msg"></div></div>
-  <button class="big ghost" id="tap-reset">やり直す</button>
-</div>
-
-<!-- NEVER -->
-<div class="screen" id="s-never">
-  <div class="top"><button class="ib" data-go="home">‹ もどる</button><h2>🫵 やったことある人</h2></div>
-  <div class="seg" id="seg-nmode" style="margin-bottom:12px"><button data-v="0">ある人が飲む</button><button data-v="1">ない人が飲む</button></div>
-  <div class="qcard" id="qcard"></div>
-  <button class="big" id="n-next">次のお題 ▶</button>
-  <div class="panel" style="margin-top:12px">
-    <h3>自分のお題を追加</h3>
-    <div class="row"><input type="text" id="n-input" maxlength="40" placeholder="例: カラオケで一人で歌った"><button class="big" id="n-add" style="flex:0 0 90px">追加</button></div>
-    <p class="help" id="n-custom-info"></p>
-  </div>
-</div>
-
-<script>
-(function(){
-"use strict";
-const $ = s => document.querySelector(s);
-const $$ = s => Array.from(document.querySelectorAll(s));
-const rnd = n => Math.floor(Math.random() * n);
-const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; };
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-// ---------- 設定(端末内のみ保存・無料) ----------
-let S = { players:[], noalc:false, level:1 };
-try{
-  const j = JSON.parse(localStorage.getItem('nomi-settings') || 'null');
-  if(j){
-    if(Array.isArray(j.players)) S.players = j.players.filter(x => typeof x === 'string').slice(0,12);
-    S.noalc = !!j.noalc;
-    if([0,1,2].includes(j.level)) S.level = j.level;
-  }
-}catch(e){}
-function save(){ try{ localStorage.setItem('nomi-settings', JSON.stringify(S)); }catch(e){} }
-const dr = n => S.noalc ? n + '点ペナルティ' : n + '口飲む';
-const LEVELS = ['ゆるい','ふつう','ガチ'];
-
-// ---------- 画面切り替え ----------
-let current = 'home';
-function go(name){
-  $$('.screen').forEach(s => s.classList.remove('active'));
-  $('#s-' + name).classList.add('active');
-  current = name;
-  if(name === 'home') renderHome();
-  if(name === 'settings') renderSettings();
-  if(name === 'king') initKing();
-  if(name === 'tap') resetTap();
-  if(name === 'never') initNever();
-}
-$$('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
-
-function renderHome(){
-  $('#modeline').textContent = '強さ: ' + LEVELS[S.level] + ' ／ ' + (S.noalc ? 'ノンアルモード' : 'お酒あり');
-}
-
-// ---------- 設定画面 ----------
-function setSeg(id, v){ $$('#' + id + ' button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === v)); }
-function renderSettings(){
-  setSeg('seg-level', S.level);
-  setSeg('seg-alc', S.noalc ? 1 : 0);
-  $('#chips').innerHTML = S.players.length
-    ? S.players.map((p,i) => '<div class="chip">' + esc(p) + '<i data-del="' + i + '">✕</i></div>').join('')
-    : '<span class="help">まだ誰もいないよ</span>';
-}
-$('#seg-level').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.level = Number(b.dataset.v); save(); renderSettings(); });
-$('#seg-alc').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.noalc = b.dataset.v === '1'; save(); renderSettings(); });
-$('#chips').addEventListener('click', e => { const i = e.target.dataset.del; if(i === undefined) return; S.players.splice(Number(i),1); save(); renderSettings(); });
-function addPlayer(){
-  const v = $('#pname').value.trim();
-  if(!v || S.players.length >= 12) return;
-  S.players.push(v); $('#pname').value = ''; save(); renderSettings();
-}
-$('#padd').addEventListener('click', addPlayer);
-$('#pname').addEventListener('keydown', e => { if(e.key === 'Enter') addPlayer(); });
-
-// ---------- 王様ゲーム ----------
-const ORDERS = [
-  [0,'{a}番は 今日いちばん嬉しかったことを発表'],
-  [0,'{a}番と{b}番は 見つめ合って、先に笑った方が{d1}'],
-  [0,'{a}番は 隣の人を10秒間ほめまくる'],
-  [0,'{a}番は 好きな食べ物を熱く語る'],
-  [0,'全員で乾杯! 王様以外は{d1}'],
-  [0,'{a}番は 変顔をキメる。笑った人は{d1}'],
-  [0,'{a}番は 次の王様が決まるまで語尾を「にゃ」にする'],
-  [0,'{a}番は 好きな動物のものまねをする'],
-  [1,'{a}番は {b}番のものまねをする。似てなければ{d2}'],
-  [1,'{a}番は 初恋の話をする。断るなら{d2}'],
-  [1,'{a}番と{b}番は 握手して「好きです」と言う。照れたら{d1}'],
-  [1,'{a}番は 最近のやらかしを告白。断るなら{d2}'],
-  [1,'{a}番は {b}番に一言ツッコミ。スベったら{d1}'],
-  [1,'{a}番は 上司のものまねをする。ウケなければ{d2}'],
-  [1,'{a}番は スマホの最新の写真を見せる。断るなら{d2}'],
-  [1,'{a}番と{b}番は 席を交換する。できなければ{d1}'],
-  [2,'{a}番は {b}番に全力で告白する。{b}番がOKなら{b}番が{d2}、NGなら{a}番が{d3}'],
-  [2,'{a}番は 恥ずかしい過去を暴露する。断るなら{d3}'],
-  [2,'{a}番と{b}番は お互いを5秒間ほめ合う。照れて笑ったら{d2}'],
-  [2,'{a}番は ここにいる人で一番タイプな人を指名する。断るなら{d3}'],
-  [2,'{a}番は {b}番の良いところを3つ即答する。詰まったら{d3}'],
-  [2,'王様以外の全員でじゃんけん。負けた人は{d2}']
-];
-let kN = Math.min(12, Math.max(3, S.players.length || 4));
-let kDeal = null, kSeen = [];
-function kName(i){ return S.players[i] || ((i+1) + '人目'); }
-function initKing(){
-  kN = Math.min(12, Math.max(3, S.players.length || kN));
-  kDeal = null; kSeen = [];
-  $('#k-order').textContent = 'くじを配ってから、王様が「命令をつくる」を押してね';
-  renderKing();
-}
-function renderKing(){
-  $('#k-n').textContent = kN + '人';
-  $('#k-grid').innerHTML = Array.from({length:kN}, (_,i) =>
-    '<button class="pcard' + (kSeen[i] ? ' seen' : '') + '" data-i="' + i + '">' + esc(kName(i)) +
-    (kSeen[i] ? '<span class="ck">✓ 確認ずみ</span>' : '') + '</button>').join('');
-}
-$('#k-minus').addEventListener('click', () => { if(kN > 3){ kN--; kDeal = null; kSeen = []; renderKing(); } });
-$('#k-plus').addEventListener('click', () => { if(kN < 12){ kN++; kDeal = null; kSeen = []; renderKing(); } });
-$('#k-deal').addEventListener('click', () => {
-  kDeal = shuffle(['K'].concat(Array.from({length:kN-1}, (_,i) => String(i+1))));
-  kSeen = [];
-  $('#k-order').innerHTML = '配ったよ! 自分の名前をタップして番号を見てね。<br>見たら隠して、次の人へ。';
-  renderKing();
-});
-$('#k-grid').addEventListener('click', e => {
-  const b = e.target.closest('.pcard'); if(!b) return;
-  if(!kDeal){ $('#k-order').textContent = '先に「くじを配る」を押してね'; return; }
-  const i = Number(b.dataset.i);
-  $('#rv-who').textContent = kName(i) + ' のくじ';
-  const v = kDeal[i];
-  const num = $('#rv-num');
-  num.className = 'num' + (v === 'K' ? ' king' : '');
-  num.textContent = v === 'K' ? '👑 王様' : v + '番';
-  $('#reveal').classList.add('on');
-  kSeen[i] = true;
-});
-$('#reveal').addEventListener('click', () => { $('#reveal').classList.remove('on'); renderKing(); });
-$('#k-make').addEventListener('click', () => {
-  if(!kDeal){ $('#k-order').textContent = '先に「くじを配る」を押してね'; return; }
-  const pool = ORDERS.filter(o => o[0] <= S.level && (S.level === 0 || o[0] >= Math.max(0, S.level - 1)));
-  const t = pool[rnd(pool.length)][1];
-  const nums = shuffle(Array.from({length:kN-1}, (_,i) => i+1));
-  const html = esc(t)
-    .replace(/\{a\}/g, '<b>' + nums[0] + '</b>')
-    .replace(/\{b\}/g, '<b>' + nums[1] + '</b>')
-    .replace(/\{d(\d)\}/g, (_,n) => '<b>' + dr(n) + '</b>');
-  $('#k-order').innerHTML = '<div>' + html + '</div>';
-});
-
-// ---------- 全員タップ対決 ----------
-const tapArea = $('#tap-area'), tapMsg = $('#tap-msg');
-let tPhase = 'wait', tPtr = new Map(), tStable = null, tGoTimer = null;
-const COLORS = ['#ff5a5a','#ffb03a','#ffe14a','#5ee27a','#4ad0ff','#7a8bff','#c26bff','#ff6bd0','#9be5d0','#d0a070'];
-function msg(title, sub){ tapMsg.innerHTML = '<b>' + title + '</b><span>' + (sub || '') + '</span>'; }
-function resetTap(){
-  clearTimeout(tStable); clearTimeout(tGoTimer);
-  tPhase = 'wait'; tPtr.clear();
-  tapArea.className = '';
-  tapMsg.style.top = ''; tapMsg.style.transform = '';
-  tapArea.querySelectorAll('.finger').forEach(f => f.remove());
-  msg('全員、指を置いて!', '2人以上が画面に指を置いて、そのまま待つとスタート。<br>合図(緑)が出たら一斉に離す。<br>最後まで離さなかった人、早く離した人が負け!');
-}
-function addFinger(id){
-  const p = tPtr.get(id);
-  const el = document.createElement('div');
-  el.className = 'finger'; el.style.color = p.color; el.style.background = p.color + '55';
-  el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
-  tapArea.appendChild(el); p.el = el;
-}
-function pos(e){ const r = tapArea.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; }
-function armStart(){
-  clearTimeout(tStable);
-  if(tPhase !== 'wait') return;
-  if(tPtr.size >= 2){
-    msg(tPtr.size + '人 OK?', 'そのまま動かさずに待って…');
-    tStable = setTimeout(startCount, 1500);
-  }else{
-    msg('全員、指を置いて!', 'あと' + (2 - tPtr.size) + '人以上で始まるよ');
-  }
-}
-function startCount(){
-  if(tPhase !== 'wait' || tPtr.size < 2) return;
-  tPhase = 'count';
-  tapArea.classList.add('count');
-  msg('離すな…', '合図が出るまで、絶対に指を離さない');
-  tGoTimer = setTimeout(() => {
-    if(tPhase !== 'count') return;
-    tPhase = 'go';
-    tapArea.className = 'go';
-    msg('今だ! 離せ!!', '最後まで残った人が負け');
-    if(navigator.vibrate) navigator.vibrate(200);
-  }, 2000 + Math.random() * 4500);
-}
-function finish(loserId, why){
-  tPhase = 'done';
-  clearTimeout(tGoTimer);
-  tapArea.className = '';
-  tPtr.forEach((p, id) => {
-    if(!p.el){ addFinger(id); }
-    if(id === loserId){ p.el.classList.add('lose'); p.el.textContent = '💀'; p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; }
-    else p.el.classList.add('dim');
-  });
-  msg('', '');
-  tapMsg.style.top = '12%'; tapMsg.style.transform = 'none';
-  tapMsg.innerHTML = '<b>💀 ' + dr(2) + '!</b><span>' + why + '</span>';
-  if(navigator.vibrate) navigator.vibrate([100,50,300]);
-}
-tapArea.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  if(tPhase === 'done'){ return; }
-  if(tPhase !== 'wait') return;
-  if(tPtr.size >= 10) return;
-  const q = pos(e);
-  tPtr.set(e.pointerId, { x:q.x, y:q.y, color:COLORS[tPtr.size % COLORS.length], el:null });
-  addFinger(e.pointerId);
-  armStart();
-}, { passive:false });
-function onUp(e){
-  const p = tPtr.get(e.pointerId);
-  if(!p) return;
-  if(tPhase === 'wait'){
-    if(p.el) p.el.remove();
-    tPtr.delete(e.pointerId);
-    armStart();
-  }else if(tPhase === 'count'){
-    finish(e.pointerId, '合図の前に離しちゃった(フライング)');
-  }else if(tPhase === 'go'){
-    p.released = true;
-    if(p.el) p.el.classList.add('dim');
-    const left = Array.from(tPtr.entries()).filter(([,v]) => !v.released);
-    if(left.length === 1) finish(left[0][0], '最後まで離せなかった…!');
-    else if(left.length === 0) finish(e.pointerId, '最後に離した人が負け');
-  }
-}
-tapArea.addEventListener('pointerup', onUp);
-tapArea.addEventListener('pointercancel', onUp);
-tapArea.addEventListener('contextmenu', e => e.preventDefault());
-$('#tap-reset').addEventListener('click', resetTap);
-
-// ---------- やったことある人 飲む! ----------
-const QS = [
-  [0,'遅刻して、うその言い訳をしたことがある'],
-  [0,'電車で寝過ごして、終点まで行ったことがある'],
-  [0,'スマホか財布を落としたことがある'],
-  [0,'好きな人の前でカッコつけたことがある'],
-  [0,'「今から行く」と言って、まだ家にいたことがある'],
-  [0,'ゲームやアニメで夜更かしして朝になったことがある'],
-  [0,'推しがいる'],
-  [0,'人に言えない口ぐせがある'],
-  [1,'元恋人のSNSをこっそり見に行ったことがある'],
-  [1,'うその理由で飲み会を断ったことがある'],
-  [1,'仕事中・授業中に寝たことがある'],
-  [1,'酔って記憶がなくなったことがある'],
-  [1,'告白して振られたことがある'],
-  [1,'同時に2人以上を気になったことがある'],
-  [1,'道に迷って、遅刻したことがある'],
-  [1,'人のスマホの画面を、つい見てしまったことがある'],
-  [2,'既読スルーされて、一晩中ひきずったことがある'],
-  [2,'職場や学校に、気になる人がいる(いた)'],
-  [2,'一目ぼれをしたことがある'],
-  [2,'酔った勢いで、連絡してしまったことがある'],
-  [2,'人の悪口を、本人に聞かれたことがある'],
-  [2,'うそをついて、仕事や学校を休んだことがある']
-];
-let custom = [];
-try{ const c = JSON.parse(localStorage.getItem('nomi-custom') || '[]'); if(Array.isArray(c)) custom = c.filter(x => typeof x === 'string').slice(0,50); }catch(e){}
-let nMode = 0, nDeck = [], nCurrent = null;
-function saveCustom(){ try{ localStorage.setItem('nomi-custom', JSON.stringify(custom)); }catch(e){} }
-function nPool(){
-  return QS.filter(q => q[0] <= S.level).map(q => ({ t:q[1], c:false })).concat(custom.map(t => ({ t, c:true })));
-}
-function initNever(){
-  nDeck = shuffle(nPool());
-  setSeg('seg-nmode', nMode);
-  $('#n-custom-info').textContent = '追加したお題: ' + custom.length + '個(この端末に保存)。強さに関係なく出るよ。';
-  nextQ(true);
-}
-function renderQ(){
-  if(!nCurrent){ $('#qcard').innerHTML = '<div class="q">お題がないよ</div>'; return; }
-  const who = nMode === 0 ? '当てはまる人は' : '当てはまらない人は';
-  $('#qcard').innerHTML = '<div class="q">' + esc(nCurrent.t) + '</div>' +
-    '<div class="p">' + who + ' <b>' + dr(1) + '</b></div>' +
-    '<div class="c">' + (nCurrent.c ? '★ 追加したお題' : '') + '</div>';
-}
-function nextQ(first){
-  if(!nDeck.length) nDeck = shuffle(nPool());
-  nCurrent = nDeck.pop() || null;
-  renderQ();
-  if(!first && navigator.vibrate) navigator.vibrate(20);
-}
-$('#n-next').addEventListener('click', () => nextQ(false));
-$('#seg-nmode').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; nMode = Number(b.dataset.v); setSeg('seg-nmode', nMode); renderQ(); });
-function addCustom(){
-  const v = $('#n-input').value.trim();
-  if(!v || custom.length >= 50) return;
-  custom.push(v); saveCustom();
-  $('#n-input').value = '';
-  $('#n-custom-info').textContent = '追加したお題: ' + custom.length + '個(この端末に保存)。強さに関係なく出るよ。';
-  nDeck.push({ t:v, c:true });
-}
-$('#n-add').addEventListener('click', addCustom);
-$('#n-input').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(); });
-
-// ---------- 起動 ----------
-document.addEventListener('gesturestart', e => e.preventDefault());
-renderHome();
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
-}
-})();
-</script>
+<script src="hub.js"></script>
 </body>
 </html>

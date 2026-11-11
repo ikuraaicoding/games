@@ -1,12 +1,16 @@
 // キャッシュバージョン: 更新を配るときはこの数字を上げる
-const CACHE_VERSION = 'nomi-v2';
+const CACHE_VERSION = 'nomi-v3';
 const FILES = [
   './',
   './index.html',
+  './hub.js',
   './core.html',
-  './core-net.html',
-  './core-net.js',
-  './net.js',
+  './online.html',
+  './online.js',
+  './room.js',
+  './mqtt.js',
+  './g-core.js',
+  './g-tap.js',
   './lib/qrcode.js',
   './lib/jsQR.js',
   './manifest.json',

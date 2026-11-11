@@ -1,7 +1,7 @@
 {
   "name": "のみのみパック",
   "short_name": "のみのみ",
-  "description": "みんなで遊ぶ飲みゲー詰め合わせ(CORE・王様ゲーム・全員タップ対決など)",
+  "description": "スマホで遊ぶ飲みゲー(CORE・CORE オンライン・全員タップ対決 オンライン)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
