@@ -187,6 +187,16 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   core.addEventListener('pointerleave', rel, { passive: false });
   core.addEventListener('contextmenu', noCtx);
 
+  // 結果の秒数: 「生き残った分」と「最後の長押し」を分けて、爆発までの本当の合計も出す
+  function statsText(m){
+    const turns = Number.isFinite(m.turns) ? m.turns : 0;
+    const surv = Number.isFinite(m.sec) ? m.sec : 0, last = Number.isFinite(m.last) ? m.last : 0;
+    const head = m.reason === 'early'
+      ? 'ここまでの合計 ' + surv.toFixed(2) + ' 秒 ／ 最後の長押し ' + last.toFixed(2) + ' 秒(1.5秒未満)'
+      : '爆発までの合計 ' + (surv + last).toFixed(2) + ' 秒\n(生き残り ' + surv.toFixed(2) + ' ＋ 最後の長押し ' + last.toFixed(2) + ')';
+    return head + '\n' + turns + ' TURN 生還';
+  }
+
   // ---- 爆発演出 ----
   function shake(a){ $('app').style.setProperty('--sx', ((Math.random() - .5) * a).toFixed(1) + 'px'); $('app').style.setProperty('--sy', ((Math.random() - .5) * a).toFixed(1) + 'px'); }
   function explode(m){
@@ -204,7 +214,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
         reason: m.reason === 'early' ? '1.5秒に満たず、指が離れた' : 'コアが限界を超えて、弾けた',
         pen: me ? '💀 あなたが爆発させた!' : '💀 ' + ln + ' が爆発させた!',
         lines: [],
-        stats: (Number.isFinite(m.turns) ? m.turns : 0) + ' TURN 生還 ／ 累計 ' + (Number.isFinite(m.sec) ? m.sec.toFixed(2) : '0.00') + ' SEC'
+        stats: statsText(m)
       });
       resetLocalFx(true); $('flash').classList.remove('on'); $('strobe').classList.remove('on');
     }, 1100);
@@ -233,14 +243,14 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   }
   function hostTick(){
     const now = performance.now();
-    if(H.total + (now - H.holdStart) / 1000 >= H.threshold){ boom(H.holder, 'limit'); return; }
+    if(H.total + (now - H.holdStart) / 1000 >= H.threshold){ boom(H.holder, 'limit', (now - H.holdStart) / 1000); return; }
     if(H.holder !== 0 && now - H.lastKa > 1600) doRelease(H.lastKa);   // 合図が途絶えた = もう離している
   }
   function doRelease(endT){
     stopTick();
     const el = ((endT || performance.now()) - H.holdStart) / 1000;
     const minHold = H.holder === 0 ? 1.5 : 1.3;      // 参加者は通信の遅れの揺れがあるので0.2秒だけ余裕をもたせる
-    if(el < minHold){ boom(H.holder, 'early'); return; }
+    if(el < minHold){ boom(H.holder, 'early', el); return; }
     H.total += el; H.turn++; H.sub = 'choose';
     E.hostBcast(stMsg('choose'), true);
     clearTimeout(H.choose);
@@ -252,10 +262,10 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     H.last = H.holder; H.holder = to; H.sub = 'idle';
     E.hostBcast(stMsg('idle'), true);
   }
-  function boom(loser, reason){
+  function boom(loser, reason, lastSec){
     if(H.phase !== 'play') return;
     H.phase = 'result'; stopTick(); clearTimeout(H.choose);
-    E.hostBcast({ t: 'boom', loser, name: E.nameOf(loser), reason, turns: H.turn, sec: Math.round(H.total * 100) / 100 }, true);
+    E.hostBcast({ t: 'boom', loser, name: E.nameOf(loser), reason, turns: H.turn, sec: Math.round(H.total * 100) / 100, last: Math.round((lastSec || 0) * 100) / 100 }, true);
   }
   function hostOnMsg(id, m){
     if(!m || typeof m.t !== 'string' || H.phase !== 'play' || H.holder !== id) return;

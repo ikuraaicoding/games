@@ -1008,8 +1008,10 @@ best = { turns: turn, total: survivedTotal };
 saveBest();
 renderBestStart();
 }
-statsText.innerHTML =
-'生還 <b>' + turn + '</b> TURN ／ 累計 <b>' + survivedTotal.toFixed(2) + '</b> SEC' +
+statsText.innerHTML = (reason === 'early'
+? 'ここまでの合計 <b>' + survivedTotal.toFixed(2) + '</b> SEC ／ 最後の長押し <b>' + duration.toFixed(2) + '</b> SEC（1.50秒未満）'
+: '爆発までの合計 <b>' + (survivedTotal + duration).toFixed(2) + '</b> SEC<br>（生き残り ' + survivedTotal.toFixed(2) + ' ＋ 最後の長押し ' + duration.toFixed(2) + '）') +
+'<br>生還 <b>' + turn + '</b> TURN' +
 '<br>BEST ' + best.turns + ' TURN ／ ' + best.total.toFixed(2) + ' SEC' +
 (isNewBest && turn > 0 ? '<br><b>NEW RECORD</b>' : '');
 
