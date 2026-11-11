@@ -1,4 +1,4 @@
-/* のみのみ ONLINE: 部屋(ロビー・QR・参加)と、ゲームの切り替え
+/* ONLINE: 部屋(ロビー・QR・参加)と、ゲームの切り替え
  * 方針: 受け取ったデータは型を検証し、画面には textContent だけで出す(innerHTMLは使わない)
  */
 (function(){
@@ -13,13 +13,10 @@ function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){
 function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 
 // ---------- 設定(端末内) ----------
-let noalc = false;
-try{ const st = JSON.parse(localStorage.getItem('nomi-settings') || 'null'); noalc = !!(st && st.noalc); }catch(e){}
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
 let wantGame = (location.hash === '#tap') ? 'tap' : 'core';
-const penalty = n => noalc ? n + '点ペナルティ' : n + '口飲む';
 
 // ---------- 音 ----------
 let ac = null;
@@ -131,11 +128,10 @@ function onNet(s){
 
 // ゲームに渡す道具
 const E = {
-  $, audio, vibrate, penalty, show, nameOf,
+  $, audio, vibrate, show, nameOf,
   get isHost(){ return role === 'host'; },
   get myId(){ return myId; },
   players: () => roster.slice(),
-  noalc: () => noalc,
   send(obj, rel){ obj.g = curId; if(role === 'host'){ if(game && game.hostOnMsg) game.hostOnMsg(0, obj); } else if(guest) guest.send(obj, !!rel); },
   hostSend(id, obj, rel){ obj.g = curId; if(id === 0){ if(game && game.onMsg) game.onMsg(obj); } else if(room) room.sendTo(id, obj, !!rel); },
   hostBcast(obj, rel){ obj.g = curId; if(room) room.bcast(obj, !!rel); if(game && game.onMsg) game.onMsg(obj); },

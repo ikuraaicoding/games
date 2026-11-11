@@ -1,13 +1,13 @@
 {
-  "name": "のみのみパック",
-  "short_name": "のみのみ",
-  "description": "スマホで遊ぶ飲みゲー(CORE・CORE オンライン・全員タップ対決 オンライン)",
+  "name": "パーティーパック",
+  "short_name": "パーティー",
+  "description": "スマホで遊ぶ度胸と反応のゲーム(CORE・CORE オンライン・全員タップ対決 オンライン)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0e0b08",
-  "theme_color": "#0e0b08",
+  "background_color": "#0b0b0e",
+  "theme_color": "#0b0b0e",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

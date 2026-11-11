@@ -119,7 +119,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       E.showResult({
         title: '⚡ 結果',
         reason,
-        pen: (me ? '💀 あなたの負け!\n' : '💀 ' + names + ' の負け!\n') + E.penalty(2),
+        pen: me ? '💀 あなたの負け!' : '💀 ' + names + ' の負け!',
         lines,
         stats: '反応時間は「合図が出た瞬間」からスマホの中で測っているよ(通信の遅れは入らない)\n' +
                (rtts ? '通信(往復): ' + rtts + '\n' : '') + (warn ? '⚠ ' + warn + ' は通信が遅めだから、時計のズレで数十msの誤差が出るかも' : '')

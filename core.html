@@ -363,7 +363,7 @@ margin: 0 0 28px; text-shadow:0 0 14px rgba(245,166,35,0.45);
 最低 1.00 秒 ── それ未満で離せば、終わる。<br>
 押し続ける時間が長いほど、限界は近づく。<br>
 次の者へ、コアを渡せ。<br>
-<span style="color:#7a5a20">コアを爆発させた者が、罰を受ける。</span>
+<span style="color:#7a5a20">コアを爆発させた者の、負け。</span>
 </div>
 <div class="best-line" id="best-start"></div>
 </div>
@@ -1036,9 +1036,7 @@ resultTimers.push(setTimeout(() => {
 reasonText.textContent = reason === 'early'
 ? '1.00秒に満たず、' + duration.toFixed(2) + '秒で指が離れた'
 : duration.toFixed(2) + '秒で限界を超え、コアが弾けた';
-let noalc = false;
-try{ const st = JSON.parse(localStorage.getItem('nomi-settings') || 'null'); noalc = !!(st && st.noalc); }catch(e){}
-document.getElementById('penalty').textContent = noalc ? '💀 爆発させた人は 2点ペナルティ!' : '💀 爆発させた人は 2口飲む!';
+document.getElementById('penalty').textContent = '💀 爆発させた人の負け!';
 showScreen(resultScreen);
 blackout.classList.remove('on');
 flashOverlay.classList.remove('flashing');
