@@ -64,11 +64,32 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
       box.appendChild(b);
     }
   }
+  // 左右の手。タップするたびに、その手の親指が上がる(👍)/下がる(✊)
+  function mkHands(){
+    const box = $('i-p'); box.textContent = '';
+    const up = [false, false]; selP = 0;
+    ['左手', '右手'].forEach((lbl, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'hand2' + (i === 0 ? ' left' : '');
+      const em = document.createElement('span'); em.className = 'em'; em.textContent = '✊';
+      const cap = document.createElement('span'); cap.className = 'cap'; cap.textContent = lbl + '(タップで親指を立てる)';
+      b.appendChild(em); b.appendChild(cap);
+      b.addEventListener('click', () => {
+        if(ph !== 'pick' || sent) return;
+        up[i] = !up[i]; selP = up.filter(Boolean).length;
+        em.textContent = up[i] ? '👍' : '✊'; b.classList.toggle('up', up[i]);
+        cap.textContent = lbl + (up[i] ? '(親指アップ!)' : '(タップで親指を立てる)');
+        b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+        E.audio.init(); E.audio.beep(up[i] ? 660 : 440, .06, .15); E.vibrate(15);
+        refreshSel();
+      });
+      box.appendChild(b);
+    });
+  }
   function refreshSel(){
-    document.querySelectorAll('#i-p button').forEach(b => b.classList.toggle('sel', Number(b.dataset.v) === selP));
+
     document.querySelectorAll('#i-g button').forEach(b => b.classList.toggle('sel', Number(b.dataset.v) === selG));
     $('i-ok').disabled = sent || selP === null || selG === null;
-    if(selP !== null && selG === null && !sent) $('i-ghint').textContent = '自分の ' + (selP === 0 ? '✊(0本)' : selP === 1 ? '👍(1本)' : '👍👍(2本)') + ' も合計に入るよ';
+    if(!sent) $('i-ghint').textContent = '今の自分: 親指 ' + selP + '本(これも合計に入るよ)';
   }
   function submit(){
     if(sent || selP === null || selG === null || ph !== 'pick') return;
@@ -86,7 +107,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     if(!alive.includes(E.myId)){ view('view'); $('i-bar').style.display = 'block'; say('💀 脱落…観戦中', 'みんなが考えてるよ'); }
     else{
       view('pick'); $('i-ok').textContent = '決定!';
-      mkBtns($('i-p'), 2, 'nb hand', v => { selP = v; refreshSel(); }, v => v === 0 ? '✊' : v === 1 ? '👍' : '👍👍');
+      mkHands();
       mkBtns($('i-g'), 2 * nAlive, 'nb sm', v => { selG = v; refreshSel(); });
       refreshSel();
     }
@@ -124,7 +145,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     const order = rows.filter(x => x.d !== 0).concat(exact);        // ピッタリの人は最後に発表(盛り上がる)
     const box = $('i-rows'); box.textContent = ''; view('view'); $('i-bar').style.display = 'none';
     const els = new Map();
-    const thumbs = p => p === 0 ? '✊' : p === 1 ? '👍' : '👍👍';
+    const thumbs = p => p === 0 ? '✊✊' : p === 1 ? '👍✊' : '👍👍';
     let t = 100;
     const at = (ms, fn) => later(() => { if(!stopped) fn(); }, ms);
 
