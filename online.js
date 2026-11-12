@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = (location.hash === '#tap') ? 'tap' : 'core';
+let wantGame = (location.hash === '#tap') ? 'tap' : (location.hash === '#stop') ? 'stop' : 'core';
 
 // ---------- 音 ----------
 let ac = null;
