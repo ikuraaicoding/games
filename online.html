@@ -129,12 +129,24 @@ summary{ font-size:.78rem; color:var(--sub); }
 #i-bar{ width:100%; max-width:420px; height:6px; background:#222; border-radius:3px; margin:2px 0 12px; overflow:hidden; }
 #i-bar i{ display:block; height:100%; width:100%; background:var(--amber); transform-origin:left; }
 #i-pick{ width:100%; max-width:420px; flex-direction:column; align-items:stretch; gap:6px; }
+#i-pick.locked .hand2{ opacity:.45; pointer-events:none; }
 #i-pick.locked .nb{ opacity:.45; pointer-events:none; }
 .ilab{ font-size:.85rem; color:var(--amber2); margin-top:8px; text-align:left; }
 #i-ghint{ font-size:.72rem; color:var(--sub); min-height:16px; text-align:left; }
 .ibtns{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .ibtns.grid{ grid-template-columns:repeat(6,1fr); gap:6px; }
 .nb{ background:#181818; border:1px solid #3a3a3a; border-radius:12px; padding:16px 0; font-size:1.4rem; font-weight:700; color:#ddd; }
+.hands{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.hand2{ background:#181818; border:2px solid #3a3a3a; border-radius:18px; padding:18px 6px 12px; display:flex; flex-direction:column; align-items:center; gap:6px; color:#ddd; transition:background .12s, border-color .12s; }
+.hand2 .em{ font-size:4.2rem; line-height:1.1; pointer-events:none; }
+.hand2.left .em{ transform:scaleX(-1); }
+.hand2 .cap{ font-size:.68rem; color:var(--sub); pointer-events:none; }
+.hand2.up{ border-color:var(--amber); background:rgba(245,166,35,.15); }
+.hand2.up .cap{ color:var(--amber2); }
+.hand2.bump .em{ animation:bump .22s ease-out; }
+.hand2.left.bump .em{ animation:bumpL .22s ease-out; }
+@keyframes bump{ 0%{transform:translateY(0)} 40%{transform:translateY(-10px) scale(1.12)} 100%{transform:none} }
+@keyframes bumpL{ 0%{transform:scaleX(-1)} 40%{transform:scaleX(-1) translateY(-10px) scale(1.12)} 100%{transform:scaleX(-1)} }
 .nb.sm{ padding:12px 0; font-size:1.05rem; }
 .nb.sel{ background:var(--amber); color:#1a1000; border-color:var(--amber); }
 #i-view{ width:100%; max-width:420px; flex-direction:column; align-items:center; }
@@ -241,8 +253,8 @@ summary{ font-size:.78rem; color:var(--sub); }
   <div id="i-chips"></div>
   <div id="i-bar"><i></i></div>
   <div id="i-pick">
-    <div class="ilab">① 親指を何本立てる?(こっそり)</div>
-    <div class="ibtns" id="i-p"></div>
+    <div class="ilab">① 手をタップして親指を立てる(こっそり)</div>
+    <div class="hands" id="i-p"></div>
     <div class="ilab">② みんなの合計は何本?</div>
     <div class="ibtns grid" id="i-g"></div>
     <div id="i-ghint"></div>
