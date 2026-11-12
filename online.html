@@ -135,6 +135,12 @@ summary{ font-size:.78rem; color:var(--sub); }
 .ibtns{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .ibtns.grid{ grid-template-columns:repeat(6,1fr); gap:6px; }
 .nb{ background:#181818; border:1px solid #3a3a3a; border-radius:12px; padding:16px 0; font-size:1.4rem; font-weight:700; color:#ddd; }
+.nb.hand{ font-size:2.4rem; padding:18px 0 14px; line-height:1.2; }
+.nb.hand::after{ display:block; margin-top:4px; font-size:.7rem; font-weight:400; color:var(--sub); }
+.nb.hand[data-v="0"]::after{ content:'立てない'; }
+.nb.hand[data-v="1"]::after{ content:'1本'; }
+.nb.hand[data-v="2"]::after{ content:'2本'; }
+.nb.hand.sel::after{ color:#3a2a00; }
 .nb.sm{ padding:12px 0; font-size:1.05rem; }
 .nb.sel{ background:var(--amber); color:#1a1000; border-color:var(--amber); }
 #i-view{ width:100%; max-width:420px; flex-direction:column; align-items:center; }
@@ -241,7 +247,7 @@ summary{ font-size:.78rem; color:var(--sub); }
   <div id="i-chips"></div>
   <div id="i-bar"><i></i></div>
   <div id="i-pick">
-    <div class="ilab">① 親指を何本立てる?(こっそり)</div>
+    <div class="ilab">① 親指を立てる?(こっそり)</div>
     <div class="ibtns" id="i-p"></div>
     <div class="ilab">② みんなの合計は何本?</div>
     <div class="ibtns grid" id="i-g"></div>

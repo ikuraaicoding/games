@@ -56,10 +56,10 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     chips(); view('view'); say('準備中…', ''); E.show('s-ise');
   }
 
-  function mkBtns(box, count, cls, onPick){
+  function mkBtns(box, count, cls, onPick, label){
     box.textContent = '';
     for(let v = 0; v <= count; v++){
-      const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = String(v); b.dataset.v = v;
+      const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = label ? label(v) : String(v); b.dataset.v = v;
       b.addEventListener('click', () => { if(ph !== 'pick' || sent) return; onPick(v); E.audio.init(); E.vibrate(15); });
       box.appendChild(b);
     }
@@ -68,7 +68,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     document.querySelectorAll('#i-p button').forEach(b => b.classList.toggle('sel', Number(b.dataset.v) === selP));
     document.querySelectorAll('#i-g button').forEach(b => b.classList.toggle('sel', Number(b.dataset.v) === selG));
     $('i-ok').disabled = sent || selP === null || selG === null;
-    if(selP !== null && selG === null) $('i-ghint').textContent = '自分の ' + selP + '本 も合計に入るよ';
+    if(selP !== null && selG === null && !sent) $('i-ghint').textContent = '自分の ' + (selP === 0 ? '✊(0本)' : selP === 1 ? '👍(1本)' : '👍👍(2本)') + ' も合計に入るよ';
   }
   function submit(){
     if(sent || selP === null || selG === null || ph !== 'pick') return;
@@ -86,7 +86,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     if(!alive.includes(E.myId)){ view('view'); $('i-bar').style.display = 'block'; say('💀 脱落…観戦中', 'みんなが考えてるよ'); }
     else{
       view('pick'); $('i-ok').textContent = '決定!';
-      mkBtns($('i-p'), 2, 'nb', v => { selP = v; refreshSel(); });
+      mkBtns($('i-p'), 2, 'nb hand', v => { selP = v; refreshSel(); }, v => v === 0 ? '✊' : v === 1 ? '👍' : '👍👍');
       mkBtns($('i-g'), 2 * nAlive, 'nb sm', v => { selG = v; refreshSel(); });
       refreshSel();
     }
