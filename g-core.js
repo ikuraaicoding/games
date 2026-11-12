@@ -14,7 +14,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
 
   // ---------------- 参加者側(ホスト自身もここを通る) ----------------
   let G = { ph: 'idle', holder: -1, turn: 0, elig: [] };
-  let localHolding = false, pn = 0, kaT = null, beatT = null, holdSince = 0, shakeT = null, pickBarT = null, stopped = false;
+  let localHolding = false, downAt = 0, pn = 0, kaT = null, beatT = null, holdSince = 0, shakeT = null, pickBarT = null, stopped = false;
   const timers = [];
   const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
 
@@ -103,7 +103,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     $('c-top').textContent = mine ? 'あなたがコアを持っている' : hn + ' がコアを持っている';
     let hint = '';
     if(G.ph === 'idle') hint = mine ? 'コアに触れ、1.5秒以上 長押し\n離したら、次の者へ渡せ' : hn + ' が触れるのを待っている…';
-    if(G.ph === 'hold') hint = mine ? '長押し中……' : hn + ' が長押し中…';
+    if(G.ph === 'hold') hint = mine ? (localHolding ? '長押し中……' : '離した! 判定中…') : hn + ' が長押し中…';
     if(G.ph === 'choose') hint = mine ? '' : hn + ' が渡す相手を選んでいる…';
     $('c-hint').textContent = hint;
     $('c-turn').textContent = 'TURN ' + G.turn;
@@ -152,7 +152,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
       if(!['idle', 'hold', 'choose'].includes(m.ph) || !Number.isInteger(m.holder)) return;
       const prev = G.ph;
       G = { ph: m.ph, holder: m.holder, turn: Number.isInteger(m.turn) ? m.turn : 0, elig: Array.isArray(m.elig) ? m.elig.filter(Number.isInteger) : [] };
-      if(m.ph === 'hold'){ if(prev !== 'hold') startBeat(); }
+      if(m.ph === 'hold'){ if(prev !== 'hold' && !(m.holder === E.myId && !localHolding)) startBeat(); }
       else { stopBeat(); if(m.holder !== E.myId) endLocalHold(false); }
       if(m.ph === 'choose' && m.holder === E.myId){ openPicker(G.elig); E.vibrate([60, 40, 60]); }
       if(m.ph === 'idle' && m.holder === E.myId) E.vibrate([80, 40, 80]);
@@ -169,12 +169,16 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(!localHolding) return;
     localHolding = false; clearInterval(kaT); kaT = null; core.classList.remove('holding'); E.audio.stopDrone();
     cancelFake(); cancelScare(); setCrack(0); core.style.transition = ''; core.style.transform = '';
-    if(send) E.send({ t: 'release', n: pn }, true);
+    if(send){
+      // 押していた時間は自分のスマホで測って送る(通信の遅れで長くならないように)
+      E.send({ t: 'release', n: pn, held: Math.round(performance.now() - downAt) }, true);
+      stopBeat(); $('c-hint').textContent = '離した! 判定中…';
+    }
   }
   const onDown = e => {
     e.preventDefault();
     if(stopped || G.holder !== E.myId || G.ph !== 'idle' || localHolding) return;
-    localHolding = true; pn++; E.audio.init(); E.audio.startDrone(); core.classList.add('holding'); holdSince = performance.now();
+    localHolding = true; downAt = performance.now(); pn++; E.audio.init(); E.audio.startDrone(); core.classList.add('holding'); holdSince = performance.now();
     E.send({ t: 'press', n: pn }, true);
     scheduleScare(); scheduleFake();
     clearInterval(kaT); kaT = setInterval(() => E.send({ t: 'ka', n: pn }, false), 400);
@@ -221,7 +225,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   }
 
   // ---------------- ホスト(審判) ----------------
-  const H = { phase: 'idle', sub: 'idle', holder: 0, last: -1, threshold: 0, total: 0, holdStart: 0, lastKa: 0, turn: 0, tick: null, choose: null };
+  const H = { phase: 'idle', sub: 'idle', holder: 0, last: -1, threshold: 0, total: 0, holdStart: 0, lastKa: 0, over: 0, turn: 0, tick: null, choose: null };
   const ids = () => E.players().map(p => p.id);
   function eligible(){
     let a = ids().filter(id => id !== H.holder && id !== H.last);
@@ -237,19 +241,33 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   }
   function stopTick(){ clearInterval(H.tick); H.tick = null; }
   function startHold(){
-    H.sub = 'hold'; H.holdStart = performance.now(); H.lastKa = H.holdStart;
+    H.sub = 'hold'; H.holdStart = performance.now(); H.lastKa = H.holdStart; H.over = 0;
     clearInterval(H.tick); H.tick = setInterval(hostTick, 25);
     E.hostBcast(stMsg('hold'), true);
   }
+  // 持ち主との通信の往復時間(わからなければ 400ms とみなす)
+  function peerRtt(){ const p = E.players().find(x => x.id === H.holder); return p && Number.isFinite(p.rtt) && p.rtt > 0 ? Math.min(p.rtt, 2000) : 400; }
   function hostTick(){
-    const now = performance.now();
-    if(H.total + (now - H.holdStart) / 1000 >= H.threshold){ boom(H.holder, 'limit', (now - H.holdStart) / 1000); return; }
-    if(H.holder !== 0 && now - H.lastKa > 1600) doRelease(H.lastKa);   // 合図が途絶えた = もう離している
+    const now = performance.now(), el = (now - H.holdStart) / 1000;
+    if(H.total + el >= H.threshold){
+      if(H.holder === 0){ boom(H.holder, 'limit', el); return; }
+      // 参加者は「離した」が通信で遅れているだけかもしれない。少しだけ待ってから爆発させる
+      if(!H.over) H.over = now;
+      if(now - H.over > Math.min(1200, peerRtt() / 2 + 400)){ boom(H.holder, 'limit', (H.over - H.holdStart) / 1000); return; }
+    }
+    if(H.holder !== 0 && now - H.lastKa > 1600) finishHold((H.lastKa - H.holdStart) / 1000, 1.3);   // 合図が途絶えた = もう離している
   }
-  function doRelease(endT){
-    stopTick();
-    const el = ((endT || performance.now()) - H.holdStart) / 1000;
-    const minHold = H.holder === 0 ? 1.5 : 1.3;      // 参加者は通信の遅れの揺れがあるので0.2秒だけ余裕をもたせる
+  // 「離した」が届いたとき。参加者は自分のスマホで測った時間を使う(通信の揺れの分だけは信じる)
+  function onRelease(m){
+    const arr = (performance.now() - H.holdStart) / 1000;
+    if(H.holder === 0){ finishHold(arr, 1.5); return; }
+    const slack = peerRtt() / 1000 + 0.5;
+    const el = Number.isFinite(m.held) && m.held >= 0 ? Math.max(arr - slack, Math.min(arr + slack, m.held / 1000)) : arr;
+    finishHold(el, 1.5);
+  }
+  function finishHold(el, minHold){
+    stopTick(); H.over = 0;
+    if(H.total + el >= H.threshold){ boom(H.holder, 'limit', el); return; }
     if(el < minHold){ boom(H.holder, 'early', el); return; }
     H.total += el; H.turn++; H.sub = 'choose';
     E.hostBcast(stMsg('choose'), true);
@@ -271,7 +289,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(!m || typeof m.t !== 'string' || H.phase !== 'play' || H.holder !== id) return;
     if(m.t === 'press'){ if(H.sub === 'idle') startHold(); else if(H.sub === 'hold') H.lastKa = performance.now(); }
     else if(m.t === 'ka'){ if(H.sub === 'hold') H.lastKa = performance.now(); else if(H.sub === 'idle') startHold(); }   // pressが落ちても、kaで開始できる
-    else if(m.t === 'release'){ if(H.sub === 'hold') doRelease(performance.now()); }
+    else if(m.t === 'release'){ if(H.sub === 'hold') onRelease(m); }
     else if(m.t === 'pass'){ if(H.sub === 'choose' && Number.isInteger(m.to)) doPass(m.to); }
   }
   function hostOnLeave(id){
