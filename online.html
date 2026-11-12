@@ -108,6 +108,19 @@ summary{ font-size:.78rem; color:var(--sub); }
 #t-big{ font-size:1.7rem; font-weight:700; margin-bottom:10px; line-height:1.4; white-space:pre-line; pointer-events:none; }
 #t-small{ font-size:.8rem; color:var(--sub); line-height:1.8; white-space:pre-line; pointer-events:none; }
 
+/* STOP(ピッタリ止めろ) */
+#s-stop{ padding-bottom:max(18px,env(safe-area-inset-bottom)); }
+#p-top{ font-size:.8rem; letter-spacing:.15em; color:#888; min-height:20px; margin-bottom:8px; }
+#p-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:10px; min-height:30px; }
+#p-target{ font-size:1.5rem; font-weight:700; color:var(--amber2); letter-spacing:.08em; min-height:36px; margin-bottom:8px; }
+#p-pad{ position:relative; flex:1; width:100%; max-width:460px; border:2px dashed #3a3a3a; border-radius:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; touch-action:none; padding:20px; transition:background .12s, border-color .12s; min-height:260px; }
+#p-pad.hold{ border-style:solid; border-color:var(--amber); background:rgba(245,166,35,.12); }
+#p-pad.down{ border-color:var(--green); background:rgba(60,200,100,.12); }
+#p-big{ font-size:3rem; font-weight:700; margin-bottom:12px; line-height:1.3; white-space:pre-line; pointer-events:none; font-variant-numeric:tabular-nums; }
+#p-small{ font-size:.85rem; color:var(--sub); line-height:1.8; white-space:pre-line; pointer-events:none; }
+.lines div.pop{ animation:rowpop .35s cubic-bezier(.2,1.4,.4,1); }
+@keyframes rowpop{ 0%{opacity:0;transform:translateY(14px) scale(.96)} 100%{opacity:1;transform:none} }
+
 /* RESULT */
 #s-result{ justify-content:center; background:#000; }
 #s-result h2{ font-size:1.8rem; letter-spacing:.08em; color:#e21b1b; text-shadow:0 0 30px rgba(255,0,0,.6); margin:0 0 8px; }
@@ -131,7 +144,7 @@ summary{ font-size:.78rem; color:var(--sub); }
   <h1 class="t">ONLINE</h1>
   <div class="sub">みんなのスマホで ／ 暗号化ずみ</div>
   <div class="field"><label for="name">ニックネーム(8文字まで・本名はNG)</label><input type="text" id="name" maxlength="8" placeholder="例: たろう" autocomplete="off"></div>
-  <div class="seg" id="seg-game"><button data-g="core">💣 CORE</button><button data-g="tap">⚡ タップ対決</button></div>
+  <div class="seg" id="seg-game"><button data-g="core">💣 CORE</button><button data-g="tap">⚡ タップ対決</button><button data-g="stop">🎯 ピッタリ</button></div>
   <div class="help" style="margin-top:6px">↑ ホストが遊ぶゲーム(あとでロビーでも変えられるよ)</div>
   <button class="btn main" id="b-host">🏠 部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">📷 参加する(QRを読む)</button>
@@ -167,7 +180,7 @@ summary{ font-size:.78rem; color:var(--sub); }
   <div class="plist" id="l-list"></div>
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
-    <div class="seg" id="l-seg"><button data-g="core">💣 CORE</button><button data-g="tap">⚡ タップ対決</button></div>
+    <div class="seg" id="l-seg"><button data-g="core">💣 CORE</button><button data-g="tap">⚡ タップ対決</button><button data-g="stop">🎯 ピッタリ</button></div>
     <div class="row2"><button class="btn" id="l-lock">🔒 受付を締める</button><button class="btn main" id="l-start" disabled>ゲーム開始</button></div>
   </div>
 </div>
@@ -185,6 +198,14 @@ summary{ font-size:.78rem; color:var(--sub); }
   <div id="t-top"></div>
   <div id="t-chips"></div>
   <div id="t-pad"><div id="t-big"></div><div id="t-small"></div></div>
+</div>
+
+<!-- ピッタリ止めろ -->
+<div class="screen" id="s-stop">
+  <div id="p-top"></div>
+  <div id="p-chips"></div>
+  <div id="p-target"></div>
+  <div id="p-pad"><div id="p-big"></div><div id="p-small"></div></div>
 </div>
 
 <!-- 結果 -->
@@ -208,6 +229,7 @@ summary{ font-size:.78rem; color:var(--sub); }
 <script src="room.js"></script>
 <script src="g-core.js"></script>
 <script src="g-tap.js"></script>
+<script src="g-stop.js"></script>
 <script src="online.js"></script>
 </body>
 </html>
