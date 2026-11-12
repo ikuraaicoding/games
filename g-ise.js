@@ -125,7 +125,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     const box = $('i-rows'); box.textContent = ''; view('view'); $('i-bar').style.display = 'none';
     const els = new Map();
     const thumbs = p => p === 0 ? '✊' : p === 1 ? '👍' : '👍👍';
-    let t = 300;
+    let t = 100;
     const at = (ms, fn) => later(() => { if(!stopped) fn(); }, ms);
 
     at(t, () => { say('いっ…', ''); E.audio.beep(330, .12, .22); E.vibrate(20); });
@@ -164,7 +164,8 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
       rows.forEach(x => {
         const e = els.get(x.id); if(!e) return;
         lives.set(x.id, x.life);
-        e.b.textContent = (x.dmg > 0 ? '−' + x.dmg : '±0') + '  →  ' + (x.life > 0 ? '♥' + x.life : '💀 脱落');
+        const own = x.d === 0 ? 0 : x.d, hit = x.dmg - own;           // 自分のズレ + ピッタリの人からの被弾
+        e.b.textContent = (x.dmg > 0 ? '−' + x.dmg : '±0') + (own > 0 && hit > 0 ? '(ズレ' + own + '+被弾' + hit + ')' : hit > 0 ? '(被弾)' : '') + ' → ' + (x.life > 0 ? '♥' + x.life : '💀 脱落');
         e.d.classList.remove('win'); if(x.dmg > 0) e.d.classList.add('hurt'); if(x.life <= 0) e.d.classList.add('lose');
       });
       alive = alive.filter(id => !dead.includes(id));
@@ -220,7 +221,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     if(!Number.isInteger(m.p) || m.p < 0 || m.p > 2 || !Number.isInteger(m.g) || m.g < 0 || m.g > 2 * n) return;
     H.picks.set(id, { p: m.p, g: m.g });
     E.hostBcast({ t: 'prog', r: H.round, ids: Array.from(H.picks.keys()) }, false);
-    if(H.alive.every(x => H.picks.has(x))){ clearTimeout(H.fin); H.fin = setTimeout(resolve, 500); }
+    if(H.alive.every(x => H.picks.has(x))){ clearTimeout(H.fin); resolve(); }
   }
   function hostOnLeave(id){
     if(!H.alive.includes(id)) return;
@@ -228,7 +229,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     H.life.set(id, 0); H.out.set(id, H.round);
     if(H.phase === 'pick'){
       if(H.alive.length < 2){ clearTimeout(H.fin); endGame(); return; }
-      if(H.alive.every(x => H.picks.has(x))){ clearTimeout(H.fin); H.fin = setTimeout(resolve, 500); }
+      if(H.alive.every(x => H.picks.has(x))){ clearTimeout(H.fin); resolve(); }
     }
   }
   function resolve(){
