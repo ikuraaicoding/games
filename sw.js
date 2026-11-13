@@ -1,9 +1,10 @@
-// キャッシュバージョン: 更新を配るときはこの数字を上げる
-const CACHE_VERSION = 'party-v26';
+// キャッシュバージョン: 更新を配るときはこの数字を上げる(version.js の更新日時も一緒に)
+const CACHE_VERSION = 'party-v27';
 const FILES = [
   './',
   './index.html',
   './hub.js',
+  './version.js',
   './ui.css',
   './core.html',
   './online.html',
