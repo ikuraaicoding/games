@@ -122,8 +122,8 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     const ok = rows.filter(x => x.st === 'ok' && Number.isFinite(x.ms)).sort((a, b) => a.ms - b.ms);
     const bad = rows.filter(x => x.st !== 'ok' || !Number.isFinite(x.ms));
     const lines = [];
-    ok.forEach((x, i) => lines.push({ a: E.nameOf(x.id) + (x.adj ? '(補正)' : ''), b: x.ms.toFixed(0) + ' ms', cls: losers.includes(x.id) ? 'lose' : (i === 0 ? 'win' : '') }));
-    bad.forEach(x => lines.push({ a: E.nameOf(x.id), b: x.st === 'foul' ? 'フライング' : '反応なし', cls: 'lose' }));
+    ok.forEach((x, i) => lines.push({ a: (i + 1) + '位  ' + E.nameOf(x.id) + (x.adj ? '(補正)' : ''), b: x.ms.toFixed(0) + ' ms', cls: losers.includes(x.id) ? 'lose' : (i === 0 ? 'win' : '') }));
+    bad.forEach(x => lines.push({ a: '—  ' + E.nameOf(x.id), b: x.st === 'foul' ? 'フライング' : '反応なし', cls: 'lose' }));
     const me = losers.includes(E.myId);
     const names = losers.map(id => E.nameOf(id)).join('・');
     const rounds = Number.isInteger(m.rounds) ? m.rounds : 1;
@@ -132,15 +132,40 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       : (rounds > 1 ? '同着の再戦で決着! 遅かった人が負け' : '一番遅かった人が負け');
     const warn = rows.filter(x => Number.isFinite(x.rtt) && x.rtt > 1200).map(x => E.nameOf(x.id)).join('・');
     const rtts = rows.filter(x => x.id !== 0 && Number.isFinite(x.rtt) && x.rtt > 0).map(x => E.nameOf(x.id) + ' ' + Math.round(x.rtt) + 'ms').join(' / ');
+    const pen = !losers.length ? '引き分け' : (me ? 'あなたの負け' : names + ' の負け');
+    const stats = '反応時間は「合図が出た瞬間」からスマホの中で測っているよ(通信の遅れは入らない)\n' +
+                  (rtts ? '通信(往復): ' + rtts + '\n' : '') + (warn ? warn + ' は通信が遅めだから、時計のズレで数十msの誤差が出るかも' : '');
     later(() => {
-      E.showResult({
-        title: 'DRAW',
-        reason,
-        pen: !losers.length ? '引き分け' : (me ? 'あなたの負け' : names + ' の負け'),
-        lines,
-        stats: '反応時間は「合図が出た瞬間」からスマホの中で測っているよ(通信の遅れは入らない)\n' +
-               (rtts ? '通信(往復): ' + rtts + '\n' : '') + (warn ? warn + ' は通信が遅めだから、時計のズレで数十msの誤差が出るかも' : '')
-      });
+      if(stopped) return;
+      if(lines.length < 2){ E.showResult({ title: 'DRAW', reason, pen, lines, stats }); return; }
+      // 順位発表: 1位から順に。最後の2人(最下位とその1つ上)は、ためてから同時に出す
+      E.showResult({ title: 'DRAW', reason, pen: '', lines: [], stats: '' });
+      const btns = ['r-again', 'r-lobby'].map(id => $(id));
+      btns.forEach(b => { b.style.display = 'none'; });
+      const box = $('r-lines'), penEl = $('r-pen'), n = lines.length;
+      const addRow = l => {
+        const d = document.createElement('div'); if(l.cls) d.className = l.cls;
+        const a = document.createElement('span'), b = document.createElement('span');
+        a.textContent = l.a; b.textContent = l.b; d.appendChild(a); d.appendChild(b); d.classList.add('pop'); box.appendChild(d);
+      };
+      const GAP = 900;
+      let i = 0;
+      const next = () => {
+        if(stopped) return;
+        if(i < n - 2){ addRow(lines[i]); E.audio.beep(i === 0 ? 988 : 700 - Math.min(i, 5) * 40, .14, .22); E.vibrate(30); i++; later(next, GAP); return; }
+        // ため(ドラムロール)
+        penEl.textContent = '……';
+        const DR = 2600, steps = Math.floor(DR / 130);
+        for(let k = 0; k < steps; k++) later(() => { E.audio.beep(300 + k * 22, .09, .12); if(k % 4 === 0) E.vibrate(25); penEl.textContent = k % 8 < 4 ? '……' : '… … …'; }, k * 130);
+        later(() => {
+          if(stopped) return;
+          addRow(lines[n - 2]); addRow(lines[n - 1]);
+          penEl.textContent = pen; $('r-stats').textContent = stats;
+          E.audio.scare(); E.vibrate(me ? [0, 200, 80, 400] : [0, 120]);
+          later(() => { if(E.isHost) btns.forEach(b => { b.style.display = 'block'; }); }, 900);
+        }, DR);
+      };
+      later(next, 700);
     }, 700);
   }
 
@@ -232,6 +257,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     stopped = true; cancelAnimationFrame(raf); clearTimeout(H.rdy); clearTimeout(H.fin);
     timers.forEach(t => { clearTimeout(t); clearInterval(t); });
     pad.removeEventListener('pointerdown', onDown); pad.removeEventListener('pointerup', onUp); pad.removeEventListener('pointercancel', onUp);
+    ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop };
 } };
