@@ -242,7 +242,9 @@ summary{ font-size:.76rem; color:var(--sub); }
 #a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; }
 .aopt{ width:100%; max-width:420px; display:flex; align-items:center; gap:10px; margin-top:10px; }
 .aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; }
-.aopt .seg2{ flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.aopt .seg2{ flex:1; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
+body:not(.solo) .solo-only{ display:none; }
+.btn.ghost{ border-style:dashed; color:var(--sub); }
 .aopt .seg2 button{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 0; font-size:.86rem; font-weight:700; }
 .aopt .seg2 button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 14%, transparent); color:var(--acc); }
 
@@ -283,6 +285,7 @@ summary{ font-size:.76rem; color:var(--sub); }
   <div class="help" style="margin-top:8px">ホストが遊ぶゲーム(ロビーでも変えられます)</div>
   <button class="btn main" id="b-host">部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">参加する(QRを読む)</button>
+  <button class="btn ghost" id="b-solo">ひとりで試す(CPU戦)</button>
   <div class="warn">ホストのスマホが審判なので、<b>ホストは画面を消したり別アプリを開いたりしないでね</b>(止まるとゲームも止まる)。<br>QRは<b>目の前の人にだけ</b>見せてね(写真に撮られると入られちゃう)。</div>
 </div>
 
@@ -316,7 +319,8 @@ summary{ font-size:.76rem; color:var(--sub); }
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
     <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
-    <div id="l-arena" class="aopt hide"><span>育成タイム</span><div class="seg2"><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+    <div id="l-arena" class="aopt hide"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+    <button class="btn" id="l-addbot">＋ CPUを増やす</button>
     <div class="row2"><button class="btn" id="l-lock">受付を締める</button><button class="btn main" id="l-start" disabled>ゲーム開始</button></div>
   </div>
 </div>
@@ -409,6 +413,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
 <script src="g-arena.js"></script>
+<script src="bots.js"></script>
 <script src="online.js"></script>
 </body>
 </html>

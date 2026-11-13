@@ -125,7 +125,7 @@ function camMsg(e){
 // =====================================================================
 let role = null, room = null, guest = null, myId = -1;
 let roster = [];                    // [{id,name,rtt}]
-let curId = null, game = null, lastGame = null, userLocked = false;
+let curId = null, game = null, lastGame = null, userLocked = false, solo = false;
 const nameOf = id => { const p = roster.find(r => r.id === id); return p ? p.name : '?'; };
 
 function showBanner(t){ const b = $('banner'); b.textContent = t; b.classList.add('on'); }
@@ -174,20 +174,23 @@ function renderLobby(){
     const row = document.createElement('div'); row.className = 'prow';
     const a = document.createElement('span'); a.textContent = p.name;
     const right = document.createElement('span');
-    const tag = document.createElement('small'); tag.textContent = p.id === 0 ? 'ホスト' : (p.id === myId ? 'あなた' : ''); right.appendChild(tag);
+    const tag = document.createElement('small'); tag.textContent = p.id === 0 ? (solo ? 'あなた' : 'ホスト') : (p.id === myId ? 'あなた' : (solo ? 'CPU' : '')); right.appendChild(tag);
     if(role === 'host' && p.id !== 0){
-      const k = document.createElement('button'); k.className = 'kick'; k.textContent = '✕ 外す'; k.style.marginLeft = '8px';
+      const k = document.createElement('button'); k.className = 'kick'; k.textContent = solo ? '✕ 減らす' : '✕ 外す'; k.style.marginLeft = '8px';
       k.addEventListener('click', () => { room.kick(p.id); }); right.appendChild(k);
     }
     row.appendChild(a); row.appendChild(right); list.appendChild(row);
   });
   const host = role === 'host';
-  vis('l-qrbox', host && !userLocked, 'flex');
+  vis('l-qrbox', host && !userLocked && !solo, 'flex');
   vis('l-hostctl', host, 'flex');
-  $('l-title').textContent = host ? 'ロビー(ホスト)' : 'ロビー';
+  vis('l-lock', !solo); vis('l-addbot', solo && roster.length < 8);
+  document.body.classList.toggle('solo', solo);
+  if(!solo && document.querySelector('#l-arena button.on[data-m="1"]')) document.querySelector('#l-arena button[data-m="3"]').click();
+  $('l-title').textContent = solo ? 'CPU戦' : host ? 'ロビー(ホスト)' : 'ロビー';
   $('l-lock').textContent = userLocked ? '受付を再開' : '受付を締める';
   $('l-start').disabled = !(host && roster.length >= 2);
-  $('l-help').textContent = host
+  $('l-help').textContent = solo ? 'スマホの中だけで動くお試しモード(通信なし)。CPUの人数を決めて、ゲームを選んで開始!' : host
     ? (roster.length < 2 ? 'QRを読んでもらってね(あと' + (2 - roster.length) + '人以上)。全員同じQRでOK!' : roster.length + '人いるよ。ゲームを選んで開始! 全員そろったら「受付を締める」を押すと安心だよ。')
     : 'ホストがゲームを始めるのを待っているよ…';
   document.querySelectorAll('#l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === wantGame));
@@ -196,20 +199,50 @@ function renderLobby(){
 // =====================================================================
 //  ホスト
 // =====================================================================
+function hostLeave(p, why){
+  roster = roster.filter(r => r.id !== p.id);
+  if(game && game.hostOnLeave) game.hostOnLeave(p.id);
+  pushRoster();
+  if(why !== 'kicked') flashBanner(p.name + ' が抜けたよ', 3000);
+  if(curId && roster.length < 2) toLobby('人数が足りなくなったので、ロビーにもどるよ');
+}
+// ---------- ひとりで試す(CPU戦): 通信の代わりに、スマホの中のCPUとやり取りする ----------
+function soloRoom(){
+  const S = { peers: new Map(), locked: true, qr: '', solo: true, next: 1 };
+  const deliver = (p, obj) => { const o = JSON.parse(JSON.stringify(obj)); setTimeout(() => { if(S.peers.get(p.id) === p) p.bot.recv(o); }, p.lat); };
+  S.sendTo = (id, obj) => { const p = S.peers.get(id); if(p) deliver(p, obj); };
+  S.bcast = obj => { S.peers.forEach(p => deliver(p, obj)); };
+  S.add = () => {
+    if(S.peers.size >= 7) return;
+    let id = 1; while(S.peers.has(id)) id++;
+    const p = { id, name: 'CPU' + id, lat: 25 + Math.floor(Math.random() * 40), rtt: 0 };
+    p.rtt = p.lat * 2;
+    p.bot = window.NomiBots.make(id, obj => {
+      const o = JSON.parse(JSON.stringify(obj)); o.g = curId;
+      setTimeout(() => { if(S.peers.get(id) !== p || role !== 'host') return; if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }, p.lat);
+    });
+    S.peers.set(id, p);
+  };
+  S.kick = id => { const p = S.peers.get(id); if(!p) return; S.peers.delete(id); p.bot.stop(); hostLeave(p, 'kicked'); };
+  S.setLocked = () => {};
+  S.close = () => { S.peers.forEach(p => p.bot.stop()); S.peers.clear(); };
+  return S;
+}
+function soloCreate(){
+  role = 'host'; myId = 0; curId = null; game = null; userLocked = true; solo = true;
+  room = soloRoom();
+  for(let i = 0; i < 3; i++) room.add();
+  roster = [{ id: 0, name: myName, rtt: 0 }];
+  keepAwake(); pushRoster(); renderLobby(); show('s-lobby');
+}
 async function hostCreate(){
-  role = 'host'; myId = 0; curId = null; game = null; userLocked = false;
+  role = 'host'; myId = 0; curId = null; game = null; userLocked = false; solo = false;
   roster = [{ id: 0, name: myName, rtt: 0 }];
   try{
     room = await R.host({
       onNet,
       onJoin: p => { pushRoster(); flashBanner(p.name + ' が参加したよ', 2500); vibrate(60); },
-      onLeave: (p, why) => {
-        roster = roster.filter(r => r.id !== p.id);
-        if(game && game.hostOnLeave) game.hostOnLeave(p.id);
-        pushRoster();
-        if(why !== 'kicked') flashBanner(p.name + ' が抜けたよ', 3000);
-        if(curId && roster.length < 2) toLobby('人数が足りなくなったので、ロビーにもどるよ');
-      },
+      onLeave: hostLeave,
       onMsg: (id, o) => { if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }
     });
   }catch(e){ role = null; flashBanner('部屋を作れなかった: ' + e.message, 5000); return; }
@@ -316,6 +349,8 @@ setWant(wantGame);
 
 $('b-host').addEventListener('click', () => { saveName(); audio.init(); hostCreate(); });
 $('b-join').addEventListener('click', () => { saveName(); audio.init(); guestBegin(); });
+$('b-solo').addEventListener('click', () => { saveName(); audio.init(); soloCreate(); });
+$('l-addbot').addEventListener('click', () => { if(solo && room){ room.add(); pushRoster(); } });
 $('sc-back').addEventListener('click', () => { stopScan(); show('s-menu'); });
 $('sc-go').addEventListener('click', () => { const t = $('sc-paste').value.trim(); if(t) joinWith(t); });
 $('l-quit').addEventListener('click', quitAll);
@@ -328,7 +363,8 @@ function quitAll(){
   stopScan();
   if(game && game.stop) game.stop();
   if(role === 'host' && room){ room.close(); } else if(guest){ guest.close(); }
-  room = null; guest = null; game = null; curId = null; role = null; roster = []; resetFx();
+  room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx();
+  document.body.classList.remove('solo');
   $('picker').classList.remove('on'); hideBanner(); show('s-menu');
 }
 document.addEventListener('gesturestart', e => e.preventDefault());
