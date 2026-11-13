@@ -2,7 +2,8 @@
  *
  * 流れ
  *  1. 育成タイム(3/5/7/10分・ロビーで選ぶ)。全員「攻3 防3 HP3」のキャラ1体からスタート
- *  2. 10秒ごとに「行動」が1回たまる(最大3回までストック)。行動ごとに次の1つを選ぶ
+ *  2. 10秒ごとに「行動」が1回たまる(最大3回までストック。満タンのまま次がたまると、あふれて無駄になる)
+ *     行動ごとに次の1つを選ぶ
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。固有スキルつき
  *       装備ガチャ : 攻撃か防御が上がる武器。特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
@@ -117,8 +118,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     $('a-time').textContent = fmt(rem);
     $('a-time').classList.toggle('hot', rem < 15000);
     const bar = $('a-tbar').firstElementChild;
-    if(nextAt > 0 && me && me.tk < CFG.CAP){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / CFG.TICK_MS) + ')'; }
-    else bar.style.transform = 'scaleX(' + (me && me.tk >= CFG.CAP ? 1 : 0) + ')';
+    // 満タンでもタイマーは止まらない(たまった分はあふれる)
+    if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / CFG.TICK_MS) + ')'; }
+    else bar.style.transform = 'scaleX(0)';
+    $('a-tbar').classList.toggle('over', !!(me && me.tk >= CFG.CAP && !me.pend));
   }
 
   // ---- 顔アイコン(avatar.js) ----
@@ -166,6 +169,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(!me) return;
     $('a-tk').textContent = String(me.tk);
     $('a-tk').parentElement.classList.toggle('full', me.tk >= CFG.CAP);
+    $('a-lost').textContent = me.lost ? 'あふれた ' + me.lost + '回' : '';
     const party = $('a-party'); party.textContent = '';
     me.p.forEach((c, i) => party.appendChild(charCard(c, me.flash === i ? 'flash' : '')));
     for(let i = me.p.length; i < 3; i++){ const e = el('div', 'ac empty', '空き枠 — キャラガチャで仲間が増える'); party.appendChild(e); }
@@ -200,6 +204,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       uiMode = '';
       const pd = me.pend;
       if(pd.k === 'ch'){
+        note.classList.remove('over');
         note.textContent = 'パーティがいっぱい。だれと入れ替える?(装備とスキルLvは引き継ぐ)';
         box.appendChild(charCard(pd.c, 'reveal'));
         const g = el('div', 'agrid');
@@ -208,6 +213,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         g.appendChild(bigBtn('捨てる', 'いまのパーティのまま', true, () => decide(-1)));
         box.appendChild(g);
       }else{
+        note.classList.remove('over');
         note.textContent = 'だれに装備する?(前の装備は捨てる)';
         box.appendChild(wCard(pd.w));
         const g = el('div', 'agrid');
@@ -218,6 +224,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       return;
     }
     if(uiMode === 'sk'){
+      note.classList.remove('over');
       note.textContent = 'どのキャラのスキルを強化する?';
       const g = el('div', 'agrid');
       me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); })); });
@@ -227,7 +234,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     }
     const can = me.tk > 0 && uiMode !== 'busy';
     const lastSec = localEnd - performance.now() < 20000;
-    note.textContent = me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(10秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
+    note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(10秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
+    note.classList.toggle('over', me.tk >= CFG.CAP);
     const skOk = me.p.some(c => c.sk.lv < SK_MAX);
     box.appendChild(bigBtn('キャラガチャ', 'ステ合計6〜21のキャラ。スキルつき', can, () => act('ch')));
     box.appendChild(bigBtn('装備ガチャ', '攻か防が上がる武器。特殊効果つき', can, () => act('wp')));
@@ -240,7 +248,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(m.rev && !rev){ rev = true; $('a-top').textContent = 'ARENA — 最下位決定戦(負け残り)'; }
     const pend = m.pend && ((m.pend.k === 'ch' && okC(m.pend.c)) || (m.pend.k === 'wp' && okW(m.pend.w) && m.pend.w)) ? m.pend : null;
     const prevLen = me ? me.p.length : 0;
-    me = { p: m.p, tk: m.tk, pend, flash: -1 };
+    me = { p: m.p, tk: m.tk, pend, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0 };
+    if(m.of === 1 && !m.end) overflow();
     if(Number.isFinite(m.rem)){ localEnd = performance.now() + m.rem; }
     nextAt = Number.isFinite(m.nx) && m.nx >= 0 ? performance.now() + m.nx : 0;
     if(m.end){ ph = 'ended'; $('a-note').textContent = '育成おわり! トーナメント表を作ってるよ…'; $('a-panel').textContent = ''; $('a-time').textContent = '0:00'; renderPartyOnly(); return; }
@@ -259,6 +268,13 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     lastPendKey = pk;
     if(prevLen && m.p.length > prevLen) E.vibrate([30, 40, 60]);
     renderBuild();
+  }
+  // 満タンのまま次の行動がたまった → あふれて無駄になった
+  function overflow(){
+    const box = $('a-tk').parentElement;
+    box.classList.remove('spill'); void box.offsetWidth; box.classList.add('spill');
+    E.audio.init(); E.audio.beep(220, .18, .22); later(() => E.audio.beep(160, .22, .22), 140);
+    E.vibrate([60, 40, 60]);
   }
   function renderPartyOnly(){
     if(!me) return;
@@ -499,7 +515,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now();
-    const o = { t: 'me', s: ++H.seq, p: p.party, tk: p.tk, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const o = { t: 'me', s: ++H.seq, p: p.party, tk: p.tk, lost: p.lost, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
     if(extra) Object.assign(o, extra);
@@ -513,12 +529,13 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const buildMs = CFG.BUILD_MS || readMins() * 60000;
     const now = performance.now();
     H.endAt = now + buildMs; H.nextTick = now + CFG.TICK_MS;
-    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, pend: null, n: 0, rv: null }));
+    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null }));
     H.P.forEach((_, id) => sendMe(id));
     H.tickT = setInterval(() => {
       if(H.phase !== 'build') return;
       H.nextTick = performance.now() + CFG.TICK_MS;
-      H.P.forEach((p, id) => { if(p.tk < CFG.CAP){ p.tk++; sendMe(id); } else sendMe(id); });
+      // 満タンなら、たまった分はあふれて無駄になる
+      H.P.forEach((p, id) => { if(p.tk < CFG.CAP){ p.tk++; sendMe(id); } else { p.lost++; sendMe(id, { of: 1 }); } });
     }, CFG.TICK_MS);
     H.endT = setTimeout(endBuild, buildMs);
   }
