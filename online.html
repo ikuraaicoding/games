@@ -136,7 +136,8 @@ summary{ font-size:.78rem; color:var(--sub); }
 .ibtns{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .ibtns.grid{ grid-template-columns:repeat(6,1fr); gap:6px; }
 .nb{ background:#181818; border:1px solid #3a3a3a; border-radius:12px; padding:16px 0; font-size:1.4rem; font-weight:700; color:#ddd; }
-.hands{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.hands{ display:grid; grid-template-columns:1fr 1fr; gap:10px; touch-action:none; }
+.hand2{ touch-action:none; }
 .hand2{ background:#181818; border:2px solid #3a3a3a; border-radius:18px; padding:18px 6px 12px; display:flex; flex-direction:column; align-items:center; gap:6px; color:#ddd; transition:background .12s, border-color .12s; }
 .hand2 .em{ font-size:4.2rem; line-height:1.1; pointer-events:none; }
 .hand2.left .em{ transform:scaleX(-1); }
