@@ -209,6 +209,9 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .br-m span:last-child{ text-align:right; }
 .br-m i{ font-style:normal; font-size:.62rem; color:var(--dim); letter-spacing:.14em; }
 .br-m .w{ color:var(--acc); } .br-m .l{ color:var(--dim); text-decoration:line-through; } .br-m .tbd{ color:var(--dim); }
+.br-m .safe{ color:var(--dim); } .br-m .safe::after{ content:' 抜け'; font-size:.62rem; color:var(--green); }
+.br-m .stay{ color:#ff8a80; }
+.br-rule{ font-size:.74rem; color:var(--sub); line-height:1.7; margin-bottom:4px; }
 .br-m.cur{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
 .br-next{ margin-top:10px; font-size:1rem; font-weight:800; }
 .br-next.me{ color:var(--acc); }
@@ -264,7 +267,7 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 #a-log div.win{ font-size:1.6rem; color:var(--acc); }
 #a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; white-space:pre-line; line-height:1.7; }
 .aopt{ width:100%; max-width:420px; display:flex; align-items:center; gap:10px; margin-top:10px; }
-.aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; }
+.aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; width:5.2em; text-align:left; }
 .aopt .seg2{ flex:1; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
 body:not(.solo) .solo-only{ display:none; }
 .btn.ghost{ border-style:dashed; color:var(--sub); }
@@ -342,7 +345,10 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
     <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
-    <div id="l-arena" class="aopt hide"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+    <div id="l-arena" class="hide" style="width:100%;max-width:420px">
+      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位(負け残り)</button></div></div>
+    </div>
     <button class="btn" id="l-addbot">＋ CPUを増やす</button>
     <div class="row2"><button class="btn" id="l-lock">受付を締める</button><button class="btn main" id="l-start" disabled>ゲーム開始</button></div>
   </div>

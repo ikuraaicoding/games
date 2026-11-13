@@ -97,12 +97,12 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   //  参加者側(表示)
   // =====================================================================
   let ph = 'wait', me = null, meSeq = -1, lastRv = 0, lastPendKey = '', nonce = 0, localEnd = 0, nextAt = 0;
-  let uiMode = '', clockT = 0;
+  let uiMode = '', clockT = 0, rev = false;
   let br = null, bt = null;           // トーナメント表 / いまの試合
 
   function view(v){ ['a-build', 'a-br', 'a-bt'].forEach(id => { $(id).style.display = id === v ? 'flex' : 'none'; }); }
   function onBegin(){
-    stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
+    stopped = false; rev = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
     $('a-top').textContent = 'ARENA — 育成バトル';
     view('a-build'); $('a-party').textContent = ''; $('a-info').classList.remove('on'); $('a-panel').textContent = '';
     $('a-time').textContent = '--:--'; $('a-tk').textContent = '0';
@@ -237,6 +237,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(!Number.isInteger(m.s) || m.s <= meSeq) return;
     if(!Array.isArray(m.p) || m.p.length < 1 || m.p.length > 3 || !m.p.every(okC) || !isInt(m.tk, 0, 9)) return;
     meSeq = m.s;
+    if(m.rev && !rev){ rev = true; $('a-top').textContent = 'ARENA — 最下位決定戦(負け残り)'; }
     const pend = m.pend && ((m.pend.k === 'ch' && okC(m.pend.c)) || (m.pend.k === 'wp' && okW(m.pend.w) && m.pend.w)) ? m.pend : null;
     const prevLen = me ? me.p.length : 0;
     me = { p: m.p, tk: m.tk, pend, flash: -1 };
@@ -273,23 +274,26 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
 
   // ---- トーナメント表 ----
   const nmOf = id => { if(br && br.nm){ const x = br.nm.find(p => p[0] === id); if(x) return x[1]; } return E.nameOf(id); };
-  function rLabel(r, R){ return r === R - 1 ? '決勝' : r === R - 2 ? '準決勝' : (r + 1) + '回戦'; }
+  function rLabel(r, R, rv){ return r === R - 1 ? (rv ? '最下位決定戦' : '決勝') : r === R - 2 ? (rv ? '準・最下位決定戦' : '準決勝') : (r + 1) + '回戦'; }
   function onBr(m){
     if(!Array.isArray(m.rs) || !Array.isArray(m.nm)) return;
+    if(m.rev) rev = true;
     br = { rs: m.rs, nm: m.nm.filter(p => Array.isArray(p) && Number.isInteger(p[0])).map(p => [p[0], s60(String(p[1]))]) };
     ph = 'br'; view('a-br');
     const box = $('a-br'); box.textContent = '';
-    box.appendChild(el('div', 'br-h', m.first ? 'トーナメント表' : '途中経過'));
+    box.appendChild(el('div', 'br-h', (rev ? '負け残りトーナメント' : 'トーナメント表') + (m.first ? '' : '(途中経過)')));
+    if(rev) box.appendChild(el('div', 'br-rule', '勝ったら抜け。負けたら次の試合へ。最後まで負け残った人が最下位'));
     const R = m.rs.length;
     m.rs.forEach((round, r) => {
       if(!Array.isArray(round)) return;
       const sec = el('div', 'br-r');
-      sec.appendChild(el('div', 'eyebrow', rLabel(r, R)));
+      sec.appendChild(el('div', 'eyebrow', rLabel(r, R, rev)));
       round.forEach((mt, j) => {
         if(!Array.isArray(mt)) return;
         const [a, b, w] = mt;
         const row = el('div', 'br-m' + (m.cur && m.cur[0] === r && m.cur[1] === j ? ' cur' : ''));
-        const side = id => { const s = el('span', id === null || id === undefined || id === -1 ? 'tbd' : (w !== null && w !== undefined ? (id === w ? 'w' : 'l') : '')); s.textContent = id === -1 ? 'シード' : (id === null || id === undefined ? '?' : nmOf(id) + (id === E.myId ? '(あなた)' : '')); return s; };
+        const bye = a === -1 || b === -1;
+        const side = id => { const s = el('span', id === null || id === undefined || id === -1 ? 'tbd' : (w !== null && w !== undefined && !bye ? (id === w ? (rev ? 'stay' : 'w') : (rev ? 'safe' : 'l')) : '')); s.textContent = id === -1 ? 'シード' : (id === null || id === undefined ? '?' : nmOf(id) + (id === E.myId ? '(あなた)' : '')); return s; };
         row.appendChild(side(a)); row.appendChild(el('i', '', 'vs')); row.appendChild(side(b));
         sec.appendChild(row);
       });
@@ -424,7 +428,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     bt.cards.forEach(cd => { if(cd && cd.btn.tagName === 'BUTTON') cd.btn.disabled = true; });
     const won = m.w === E.myId, lost = bt.mySide >= 0 && !won;
     const lg = $('a-log'); lg.textContent = '';
-    lg.appendChild(el('div', 'big win', nmOf(m.w) + ' の勝ち!'));
+    const loser = bt.ids[0] === m.w ? bt.ids[1] : bt.ids[0];
+    lg.appendChild(el('div', 'big win', nmOf(m.w) + (rev ? ' の勝ち抜け!' : ' の勝ち!')));
+    if(rev) lg.appendChild(el('div', '', m.last ? nmOf(loser) + ' が最下位…' : nmOf(loser) + ' は負け残り。次の試合へ…'));
     if(s60(m.why)) lg.appendChild(el('div', '', s60(m.why)));
     if(won){ E.vibrate([60, 40, 60, 40, 160]); [660, 880, 1100, 1320].forEach((f, i) => later(() => E.audio.beep(f, .14, .22), i * 120)); }
     else if(lost){ E.vibrate([0, 300]); E.audio.beep(200, .4, .25); }
@@ -432,8 +438,17 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function onFin(m){
     if(!Array.isArray(m.rk)) return;
     ph = 'fin';
-    const lines = m.rk.slice(0, 8).filter(x => Array.isArray(x) && Number.isInteger(x[0])).map((x, i) => ({ a: s60(String(x[1])) + '  ' + nmOf(x[0]), b: s60(String(x[2] || '')), cls: i === 0 ? 'win' : '' }));
+    const lines = m.rk.slice(0, 8).filter(x => Array.isArray(x) && Number.isInteger(x[0])).map((x, i) => ({ a: s60(String(x[1])) + '  ' + nmOf(x[0]), b: s60(String(x[2] || '')), cls: i === 0 ? (m.rev ? 'lose' : 'win') : '' }));
     const champ = m.rk[0] && m.rk[0][0];
+    if(m.rev){
+      E.showResult({
+        title: 'ARENA', reason: '負け残りトーナメント',
+        pen: champ === E.myId ? 'あなたが最下位…' : nmOf(champ) + ' が最下位!',
+        lines, stats: s60(m.cp) ? '最下位のパーティ\n' + String(m.cp).slice(0, 300) : ''
+      });
+      E.audio.scare(); E.vibrate(champ === E.myId ? [0, 200, 80, 400] : [0, 120]);
+      return;
+    }
     E.showResult({
       title: 'ARENA', reason: '育成バトル トーナメント',
       pen: champ === E.myId ? 'あなたの優勝!' : nmOf(champ) + ' の優勝!',
@@ -455,7 +470,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   // =====================================================================
   //  ホスト(審判): 育成
   // =====================================================================
-  const H = { phase: 'idle', P: new Map(), names: [], endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, rs: null, B: null, stepT: 0, mi: 0, outR: new Map() };
+  const H = { rev: false, phase: 'idle', P: new Map(), names: [], endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, rs: null, B: null, stepT: 0, mi: 0, outR: new Map() };
 
   function rollChar(){
     let r = rndF(), tot = 6;
@@ -476,20 +491,23 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function starter(){ return { nm: 'ルーキー', a: 3, d: 3, h: 3, sk: { t: 'pow', lv: 1 }, w: null, av: 0 }; }
   function readMins(){
     let v = 5;
-    try{ const b = document.querySelector('#l-arena button.on'); if(b) v = parseInt(b.dataset.m, 10); }catch(e){}
+    try{ const b = document.querySelector('#l-arena button[data-m].on'); if(b) v = parseInt(b.dataset.m, 10); }catch(e){}
     if(v === 1 && !document.body.classList.contains('solo')) v = 3;
     return MINS.includes(v) ? v : 5;
   }
+  function readRev(){ try{ const b = document.querySelector('#l-arena button[data-v].on'); return !!(b && b.dataset.v === 'last'); }catch(e){ return false; } }
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now();
     const o = { t: 'me', s: ++H.seq, p: p.party, tk: p.tk, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(p.rv) o.rv = p.rv;
+    if(H.rev) o.rev = 1;
     if(extra) Object.assign(o, extra);
     E.hostSend(id, o, true);
   }
   function hostStart(){
     stopHost();
+    H.rev = readRev();
     H.phase = 'build'; H.P = new Map(); H.seq = 0; H.rvn = 0; H.rs = null; H.B = null; H.mi = 0; H.outR = new Map();
     H.names = E.players().map(p => [p.id, p.name]);
     const buildMs = CFG.BUILD_MS || readMins() * 60000;
@@ -566,6 +584,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function bcastBr(first){
     const o = { t: 'br', rs: H.rs, nm: H.names, cur: findNext() };
+    if(H.rev) o.rev = 1;
     if(first) o.first = 1;
     E.hostBcast(o, true);
   }
@@ -711,7 +730,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const mt = H.rs[r][j], R = H.rs.length;
     const B = newBattle(mt[0], mt[1], rndF);
     B.mi = ++H.mi; B.r = r; B.j = j; H.B = B;
-    const lbl = (r === R - 1 ? '決勝' : r === R - 2 ? '準決勝' : (r + 1) + '回戦') + (H.rs[r].length > 1 ? '  第' + (j + 1) + '試合' : '');
+    const lbl = (r === R - 1 ? (H.rev ? '最下位決定戦' : '決勝') : r === R - 2 ? (H.rev ? '準・最下位決定戦' : '準決勝') : (r + 1) + '回戦') + (H.rs[r].length > 1 ? '  第' + (j + 1) + '試合' : '');
     E.hostBcast({ t: 'ms', mi: B.mi, lbl, a: { id: mt[0], u: B.u.slice(0, 3).map(pubU) }, b: { id: mt[1], u: B.u.slice(3).map(pubU) } }, true);
     later(() => {
       if(stopped || H.B !== B) return;
@@ -726,10 +745,12 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(!B.done) return;
     clearInterval(H.stepT);
     const mt = H.rs[B.r][B.j], w = B.ids[B.w], l = B.ids[1 - B.w];
-    mt[2] = w; H.outR.set(l, B.r); propagate();
+    // 普通: 勝った人が次へ進む / 負け残り: 勝った人は抜けて、負けた人が次へ進む
+    mt[2] = H.rev ? l : w; H.outR.set(H.rev ? w : l, B.r); propagate();
+    const lastMatch = B.r === H.rs.length - 1;
     later(() => {
       if(stopped || H.B !== B) return;
-      E.hostBcast({ t: 'mend', mi: B.mi, w, why: B.timeUp ? '時間切れ(残りHPの割合で判定)' : '' }, true);
+      E.hostBcast({ t: 'mend', mi: B.mi, w, why: B.timeUp ? '時間切れ(残りHPの割合で判定)' : '', last: H.rev && lastMatch ? 1 : 0 }, true);
       later(() => { if(stopped) return; if(findNext()){ bcastBr(false); later(nextMatch, CFG.BR_MS); } else nextMatch(); }, CFG.END_MS);
     }, 500);
   }
@@ -748,6 +769,14 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(H.phase !== 'tour') return;
     H.phase = 'done';
     const R = H.rs.length, champ = H.rs[R - 1][0][2];
+    if(H.rev){
+      // 負け残り: 最下位から順に。抜けたのが遅い人ほど下の順位
+      const n = H.outR.size + 1, rk = [[champ, n + '位', '最下位']];
+      const outs = Array.from(H.outR.entries()).sort((a, b) => b[1] - a[1]);
+      outs.forEach(([id, r]) => { const better = outs.filter(x => x[1] < r).length; rk.push([id, (better + 1) + '位', r === R - 1 ? '最下位決定戦で勝ち抜け' : (r + 1) + '回戦で勝ち抜け']); });
+      E.hostBcast({ t: 'fin', rev: 1, rk, cp: partyText(champ) }, true);
+      return;
+    }
     const rk = [[champ, '1位', '優勝']];
     const others = Array.from(H.outR.entries()).sort((a, b) => b[1] - a[1]);
     others.forEach(([id, r]) => { rk.push([id, (H.rs[r].length + 1) + '位', r === R - 1 ? '決勝で敗退' : (r === R - 2 ? '準決勝' : (r + 1) + '回戦') + 'で敗退']); });
