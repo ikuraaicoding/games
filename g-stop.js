@@ -26,7 +26,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   let ph = 'wait', T = 0, t0 = 0, raf = 0, myMs = null, done = [];
 
   function setPad(cls, big, small){
-    pad.className = cls || '';
+    pad.className = 'pad ' + (cls || '');
     $('p-big').textContent = big || ''; $('p-small').textContent = small || '';
   }
   function setTarget(){ $('p-target').textContent = T ? '目標 ' + T + '.00 秒' : ''; }
@@ -39,7 +39,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   }
   function onBegin(){
     stopped = false; ph = 'wait'; T = 0; t0 = 0; myMs = null; done = [];
-    $('p-top').textContent = '🎯 ピッタリ止めろ'; setTarget(); chips();
+    $('p-top').textContent = 'BLIND — 見えないタイマー'; setTarget(); chips();
     setPad('', '準備中…', ''); E.show('s-stop');
   }
   const nowTs = e => {
@@ -104,7 +104,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     if(!n) return;
     const wrap = () => { const b = $('r-again'), c = $('r-lobby'); return [b, c]; };
 
-    E.showResult({ title: '🎯 結果発表', reason: '目標 ' + m.T + '.00 秒 に どれだけ近いか', pen: '', lines: [], stats: '' });
+    E.showResult({ title: 'BLIND', reason: '目標 ' + m.T + '.00 秒 に どれだけ近いか', pen: '', lines: [], stats: '' });
     wrap().forEach(b => { b.style.display = 'none'; });          // 発表がおわるまで、ボタンは隠す
     const box = $('r-lines'), pen = $('r-pen');
     const lastId = rank[n - 1].id;
@@ -114,14 +114,14 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
       const d = document.createElement('div');
       if(last) d.className = 'lose'; else if(i === 0) d.className = 'win';
       const a = document.createElement('span'), b = document.createElement('span');
-      a.textContent = (i === 0 ? '👑 ' : '') + (i + 1) + '位  ' + E.nameOf(x.id);
+      a.textContent = (i + 1) + '位  ' + E.nameOf(x.id);
       if(x.none) b.textContent = '押さなかった';
       else{ const df = (x.ms - tgt) / 1000; b.textContent = (x.ms / 1000).toFixed(2) + '秒 (' + (df >= 0 ? '+' : '−') + Math.abs(df).toFixed(2) + ')'; }
       d.appendChild(a); d.appendChild(b); d.classList.add('pop'); box.appendChild(d);
       return x;
     }
     function finish(){
-      pen.textContent = lastId === E.myId ? '💀 あなたが最下位!' : '💀 ' + E.nameOf(lastId) + ' が最下位!';
+      pen.textContent = lastId === E.myId ? 'あなたが最下位' : E.nameOf(lastId) + ' が最下位';
       E.audio.scare(); E.vibrate(lastId === E.myId ? [0, 200, 80, 400] : [0, 120]);
       later(() => { if(E.isHost){ wrap().forEach(b => { b.style.display = 'block'; }); } }, 900);
     }

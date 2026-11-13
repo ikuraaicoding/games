@@ -1,0 +1,59 @@
+/* PARTY PACK 共通デザイン
+ * 黒ベースのミニマル + ゲームごとのアクセントカラー(--acc)
+ */
+:root{
+  --bg:#09090b; --bg2:#111114;
+  --surface:rgba(255,255,255,.045); --surface2:rgba(255,255,255,.08);
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+  --text:#f4f4f6; --sub:#9a9aa6; --dim:#5f5f6a;
+  --c-core:#ff453a; --c-draw:#ffd60a; --c-blind:#8e7bff; --c-thumbs:#30e0a1;
+  --acc:#f4f4f6; --acc2:#ffffff; --acc-ink:#09090b;
+  --red:#ff453a; --green:#30d158;
+  --amber:var(--acc); --amber2:var(--acc2);
+  --r:18px;
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Segoe UI',sans-serif;
+}
+/* ゲームごとの色 */
+body[data-game="core"], .g-core{ --acc:var(--c-core); --acc2:#ff8a80; --acc-ink:#120403; }
+body[data-game="tap"], .g-tap{ --acc:var(--c-draw); --acc2:#ffe566; --acc-ink:#141000; }
+body[data-game="stop"], .g-stop{ --acc:var(--c-blind); --acc2:#b8acff; --acc-ink:#0b0720; }
+body[data-game="ise"], .g-ise{ --acc:var(--c-thumbs); --acc2:#8af0c8; --acc-ink:#03140d; }
+
+*{ box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }
+body::before{ content:''; position:fixed; inset:-20%; pointer-events:none; z-index:0;
+  background:radial-gradient(40% 35% at 15% 0%, rgba(255,255,255,.07), transparent 70%),
+             radial-gradient(45% 40% at 100% 100%, color-mix(in srgb, var(--acc) 14%, transparent), transparent 70%); }
+button{ font:inherit; color:inherit; cursor:pointer; }
+svg.ic{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+/* 文字 */
+.eyebrow{ font-size:.68rem; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:var(--sub); }
+.wordmark{ font-weight:800; letter-spacing:-.01em; line-height:1; }
+
+/* ボタン */
+.btn{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; max-width:420px; padding:16px 20px; border-radius:14px; border:1px solid var(--line2); background:var(--surface); font-size:.95rem; font-weight:600; letter-spacing:.04em; margin-top:10px; color:var(--text); transition:transform .08s, background .15s; }
+.btn:active{ transform:scale(.98); background:var(--surface2); }
+.btn.main{ background:var(--text); color:var(--bg); border-color:transparent; }
+.btn.main:active{ background:#d8d8de; }
+.btn[disabled]{ opacity:.3; pointer-events:none; }
+
+/* アイコンタイル(アクセント色を薄く敷く) */
+.tile{ position:relative; display:grid; place-items:center; width:52px; height:52px; border-radius:16px; color:var(--acc); flex:none; }
+.tile::before{ content:''; position:absolute; inset:0; border-radius:inherit; background:var(--acc); opacity:.14; }
+.tile::after{ content:''; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px var(--acc); opacity:.28; }
+.tile svg.ic{ position:relative; width:26px; height:26px; }
+
+/* ゲーム選択(2×2) */
+.gsel{ display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:420px; margin-top:10px; }
+.gsel button{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:14px; border:1px solid var(--line); background:var(--surface); text-align:left; transition:border-color .15s, background .15s; }
+.gsel button .tile{ width:38px; height:38px; border-radius:11px; }
+.gsel button .tile svg.ic{ width:20px; height:20px; }
+.gsel button b{ display:block; font-size:.92rem; font-weight:800; letter-spacing:.02em; }
+.gsel button small{ display:block; font-size:.66rem; color:var(--sub); margin-top:2px; }
+.gsel button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
+
+/* チップ(参加者) */
+.chip{ background:var(--surface); border:1px solid var(--line); border-radius:99px; padding:6px 12px; font-size:.76rem; color:var(--sub); font-weight:600; }
+.chip.on{ border-color:var(--acc); color:var(--text); background:color-mix(in srgb, var(--acc) 12%, transparent); }
+.chip.dead{ opacity:.35; text-decoration:line-through; }

@@ -216,7 +216,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
       E.showResult({
         title: 'CORE CRACKED',
         reason: m.reason === 'early' ? '1.5秒に満たず、指が離れた' : 'コアが限界を超えて、弾けた',
-        pen: me ? '💀 あなたが爆発させた!' : '💀 ' + ln + ' が爆発させた!',
+        pen: me ? 'あなたが爆発させた' : ln + ' が爆発させた',
         lines: [],
         stats: statsText(m)
       });
