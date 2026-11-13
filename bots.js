@@ -78,7 +78,7 @@ function make(id, send){
   };
 
   // ---------------- ARENA ----------------
-  const score = c => c.a + c.d + c.h + c.sk.lv * .5;
+  const score = c => c.a + c.d + c.h;
   const arena = {
     begin(){ S.ar = { n: 0, t: 0, mi: 0 }; },
     msg(m){
