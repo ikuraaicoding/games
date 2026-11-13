@@ -177,8 +177,12 @@ summary{ font-size:.76rem; color:var(--sub); }
 @keyframes acflash{ 0%{ background:color-mix(in srgb, var(--acc) 40%, transparent); transform:scale(1.02);} 100%{ background:var(--surface); transform:none; } }
 .ac.reveal{ animation:acrev .55s cubic-bezier(.2,1.4,.4,1); }
 @keyframes acrev{ 0%{ opacity:0; transform:rotateY(80deg) scale(.9);} 100%{ opacity:1; transform:none; } }
-.ac-h{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.ac-h b{ font-size:1.05rem; font-weight:800; flex:1; }
+.ac-h{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.ac-nm{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+.ac-nm b{ font-size:1.05rem; font-weight:800; }
+svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var(--rc,var(--dim)); }
+.r-SSR svg.face{ box-shadow:0 0 0 2px var(--rc), 0 0 14px color-mix(in srgb, var(--rc) 60%, transparent); }
+.bu svg.face{ border-radius:9px; box-shadow:0 0 0 1.5px var(--rc,var(--dim)); }
 .ac-h .tot{ font-size:.7rem; color:var(--sub); font-weight:700; font-variant-numeric:tabular-nums; }
 .rar{ font-size:.62rem; font-weight:900; letter-spacing:.06em; padding:3px 7px; border-radius:6px; color:#000; background:var(--rc,var(--dim)); }
 .st{ display:grid; grid-template-columns:26px 1fr 38px; align-items:center; gap:8px; margin:3px 0; }
@@ -217,7 +221,8 @@ summary{ font-size:.76rem; color:var(--sub); }
 .trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
 .bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
 .bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
-.bu-n{ display:flex; align-items:center; gap:4px; min-width:0; }
+.bu-n{ display:flex; align-items:center; gap:6px; min-width:0; }
+.bu-nn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .bu-n .rar{ font-size:.5rem; padding:2px 4px; }
 .bu-n b{ font-size:.78rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hp{ height:6px; background:var(--surface2); border-radius:99px; overflow:hidden; }
@@ -431,6 +436,7 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="g-tap.js"></script>
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
+<script src="avatar.js"></script>
 <script src="g-arena.js"></script>
 <script src="bots.js"></script>
 <script src="online.js"></script>

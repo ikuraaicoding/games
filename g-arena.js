@@ -80,7 +80,7 @@ const maxHp = h => Math.round(BAL.hp0 * Math.pow(BAL.base, h - 3));
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 function okW(w){ return w === null || (w && (w.t === 'a' || w.t === 'd') && isInt(w.v, 1, 3) && FX[w.fx]); }
-function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && okW(c.w === undefined ? null : c.w); }
+function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
 window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, make(E){
@@ -121,6 +121,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     else bar.style.transform = 'scaleX(' + (me && me.tk >= CFG.CAP ? 1 : 0) + ')';
   }
 
+  // ---- 顔アイコン(avatar.js) ----
+  const avOf = (c, size) => window.NomiAvatar ? window.NomiAvatar.make({ av: c.av || 0, a: c.a, d: c.d, h: c.h, sk: typeof c.sk === 'string' ? c.sk : c.sk.t }, size) : el('span');
   // ---- キャラカード(育成画面) ----
   function statRow(lab, base, add){
     const r = el('div', 'st');
@@ -137,7 +139,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const tot = c.a + c.d + c.h, rar = rarOf(tot);
     const d = el('div', 'ac r-' + rar + (extra ? ' ' + extra : ''));
     const h = el('div', 'ac-h');
-    h.appendChild(el('span', 'rar', rar)); h.appendChild(el('b', '', c.nm)); h.appendChild(el('span', 'tot', '合計 ' + tot));
+    h.appendChild(avOf(c, 44));
+    const nmb = el('div', 'ac-nm'); nmb.appendChild(el('span', 'rar', rar)); nmb.appendChild(el('b', '', c.nm)); h.appendChild(nmb);
+    h.appendChild(el('span', 'tot', '合計 ' + tot));
     d.appendChild(h);
     const w = c.w || null;
     d.appendChild(statRow('攻', c.a, w && w.t === 'a' ? w.v : 0));
@@ -299,7 +303,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
 
   // ---- 試合 ----
   const FL = { used: 1, armed: 2, wall: 4, taunt: 8, ctr: 16, first: 32, und: 64 };
-  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && (u.wt === 'a' || u.wt === 'd') && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
+  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && (u.wt === 'a' || u.wt === 'd') && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
   function onMs(m){
     if(!isInt(m.mi, 1, 1e6) || !m.a || !m.b || !Array.isArray(m.a.u) || !Array.isArray(m.b.u)) return;
     const us = m.a.u.concat(m.b.u);
@@ -330,7 +334,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       const ui = side * 3 + i, u = bt.us[ui];
       if(!u){ continue; }
       const c = el('div', 'bu r-' + u.r);
-      const n = el('div', 'bu-n'); n.appendChild(el('span', 'rar', u.r)); n.appendChild(el('b', '', u.nm)); c.appendChild(n);
+      const n = el('div', 'bu-n'); n.appendChild(avOf(u, 30));
+      const nn = el('div', 'bu-nn'); nn.appendChild(el('span', 'rar', u.r)); nn.appendChild(el('b', '', u.nm)); n.appendChild(nn); c.appendChild(n);
       const hp = el('div', 'hp'); const bar = el('i'); hp.appendChild(bar); c.appendChild(hp);
       const hpt = el('div', 'bu-hp', u.mhp + '/' + u.mhp); c.appendChild(hpt);
       c.appendChild(el('div', 'bu-s', '攻' + u.A + ' 防' + u.D));
@@ -358,7 +363,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function showInfo(u){
     const box = $('a-info'); box.textContent = '';
     const card = el('div', 'ac r-' + u.r);
-    const h = el('div', 'ac-h'); h.appendChild(el('span', 'rar', u.r)); h.appendChild(el('b', '', u.nm)); h.appendChild(el('span', 'tot', '最大HP ' + u.mhp)); card.appendChild(h);
+    const h = el('div', 'ac-h'); h.appendChild(avOf(u, 56));
+    const nmb = el('div', 'ac-nm'); nmb.appendChild(el('span', 'rar', u.r)); nmb.appendChild(el('b', '', u.nm)); h.appendChild(nmb);
+    h.appendChild(el('span', 'tot', '最大HP ' + u.mhp)); card.appendChild(h);
     const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0;
     card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', u.h, 0));
     const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv))); card.appendChild(k);
@@ -460,13 +467,13 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       for(const i of idx){ if((x -= w[i]) < 0){ j = i; break; } }
       s[j]++;
     }
-    return { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(SK_KEYS), lv: 1 }, w: null };
+    return { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
   }
   function rollWeapon(){
     const r = rndF(), i = r < BAL.wv[0] ? 0 : r < BAL.wv[0] + BAL.wv[1] ? 1 : 2;
     return { t: rndF() < .5 ? 'a' : 'd', v: BAL.wAdd[i], fx: pick(FX_KEYS) };
   }
-  function starter(){ return { nm: 'ルーキー', a: 3, d: 3, h: 3, sk: { t: 'pow', lv: 1 }, w: null }; }
+  function starter(){ return { nm: 'ルーキー', a: 3, d: 3, h: 3, sk: { t: 'pow', lv: 1 }, w: null, av: 0 }; }
   function readMins(){
     let v = 5;
     try{ const b = document.querySelector('#l-arena button.on'); if(b) v = parseInt(b.dataset.m, 10); }catch(e){}
@@ -575,9 +582,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function mkUnit(c, side, i){
     const w = c.w || null;
     return { side, i, nm: c.nm, r: rarOf(c.a + c.d + c.h), A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp: maxHp(c.h), hp: maxHp(c.h),
-      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
+      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
   }
-  const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h } : null;
+  const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h, a: u.a, d: u.d, av: u.av } : null;
   function newBattle(idA, idB, rnd){
     const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return [0, 1, 2].map(i => party[i] ? mkUnit(party[i], side, i) : null); };
     return { ids: [idA, idB], u: mk(idA, 0).concat(mk(idB, 1)), round: 0, order: [], oi: 0, s0: rnd() < .5 ? 0 : 1, q: [], k: 0, preDone: false, done: false, w: -1, lastSide: 0, rnd };
