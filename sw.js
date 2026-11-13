@@ -1,5 +1,5 @@
 // キャッシュバージョン: 更新を配るときはこの数字を上げる
-const CACHE_VERSION = 'party-v24';
+const CACHE_VERSION = 'party-v25';
 const FILES = [
   './',
   './index.html',
@@ -26,7 +26,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_VERSION).then((c) => c.addAll(FILES)));
+  // ブラウザの一時保存を通さず、必ず最新のファイルを取りにいく(古いファイルが混ざらないように)
+  e.waitUntil(caches.open(CACHE_VERSION).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))));
   self.skipWaiting();
 });
 
