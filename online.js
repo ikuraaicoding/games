@@ -338,10 +338,15 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
 // ARENA の育成タイム
 (function(){
   let m = '5'; try{ m = localStorage.getItem('arena-min') || '5'; }catch(e){}
-  const bs = document.querySelectorAll('#l-arena button');
+  const bs = document.querySelectorAll('#l-arena button[data-m]');
   const set = v => { bs.forEach(b => b.classList.toggle('on', b.dataset.m === v)); try{ localStorage.setItem('arena-min', v); }catch(e){} };
   if(!Array.from(bs).some(b => b.dataset.m === m)) m = '5';
   set(m); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.m)));
+  // 決めるのは: 優勝 / 最下位(負け残りトーナメント)
+  let v = 'top'; try{ v = localStorage.getItem('arena-mode') || 'top'; }catch(e){}
+  const vs = document.querySelectorAll('#l-arena button[data-v]');
+  const setV = x => { vs.forEach(b => b.classList.toggle('on', b.dataset.v === x)); try{ localStorage.setItem('arena-mode', x); }catch(e){} };
+  setV(v === 'last' ? 'last' : 'top'); vs.forEach(b => b.addEventListener('click', () => setV(b.dataset.v)));
 })();
 document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));

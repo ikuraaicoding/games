@@ -177,8 +177,12 @@ summary{ font-size:.76rem; color:var(--sub); }
 @keyframes acflash{ 0%{ background:color-mix(in srgb, var(--acc) 40%, transparent); transform:scale(1.02);} 100%{ background:var(--surface); transform:none; } }
 .ac.reveal{ animation:acrev .55s cubic-bezier(.2,1.4,.4,1); }
 @keyframes acrev{ 0%{ opacity:0; transform:rotateY(80deg) scale(.9);} 100%{ opacity:1; transform:none; } }
-.ac-h{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.ac-h b{ font-size:1.05rem; font-weight:800; flex:1; }
+.ac-h{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.ac-nm{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+.ac-nm b{ font-size:1.05rem; font-weight:800; }
+svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var(--rc,var(--dim)); }
+.r-SSR svg.face{ box-shadow:0 0 0 2px var(--rc), 0 0 14px color-mix(in srgb, var(--rc) 60%, transparent); }
+.bu svg.face{ border-radius:9px; box-shadow:0 0 0 1.5px var(--rc,var(--dim)); }
 .ac-h .tot{ font-size:.7rem; color:var(--sub); font-weight:700; font-variant-numeric:tabular-nums; }
 .rar{ font-size:.62rem; font-weight:900; letter-spacing:.06em; padding:3px 7px; border-radius:6px; color:#000; background:var(--rc,var(--dim)); }
 .st{ display:grid; grid-template-columns:26px 1fr 38px; align-items:center; gap:8px; margin:3px 0; }
@@ -192,6 +196,11 @@ summary{ font-size:.76rem; color:var(--sub); }
 .ac-k, .ac-w{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; color:var(--sub); line-height:1.5; }
 .ac-k b, .ac-w b{ font-size:.78rem; color:var(--text); }
 .ac-w b{ color:var(--acc); }
+/* 武器のレア度: ★1=青 / ★2=紫 / ★3=金(キャラのR/SR/SSRと同じ色) */
+.wr1{ --wc:#64d2ff; } .wr2{ --wc:#bf5af2; } .wr3{ --wc:#ffd60a; }
+.ac-w.wr{ border-left:3px solid var(--wc); padding:4px 0 4px 9px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb, var(--wc) 14%, transparent), transparent 80%); }
+.ac-w.wr b{ color:var(--wc); }
+.ac-w.wr3{ box-shadow:-6px 0 16px -8px var(--wc); }
 #a-br{ gap:10px; }
 .br-h{ font-size:1.6rem; font-weight:800; margin:6px 0 4px; }
 .br-r{ display:grid; gap:6px; text-align:left; }
@@ -200,6 +209,9 @@ summary{ font-size:.76rem; color:var(--sub); }
 .br-m span:last-child{ text-align:right; }
 .br-m i{ font-style:normal; font-size:.62rem; color:var(--dim); letter-spacing:.14em; }
 .br-m .w{ color:var(--acc); } .br-m .l{ color:var(--dim); text-decoration:line-through; } .br-m .tbd{ color:var(--dim); }
+.br-m .safe{ color:var(--dim); } .br-m .safe::after{ content:' 抜け'; font-size:.62rem; color:var(--green); }
+.br-m .stay{ color:#ff8a80; }
+.br-rule{ font-size:.74rem; color:var(--sub); line-height:1.7; margin-bottom:4px; }
 .br-m.cur{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
 .br-next{ margin-top:10px; font-size:1rem; font-weight:800; }
 .br-next.me{ color:var(--acc); }
@@ -212,7 +224,8 @@ summary{ font-size:.76rem; color:var(--sub); }
 .trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
 .bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
 .bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
-.bu-n{ display:flex; align-items:center; gap:4px; min-width:0; }
+.bu-n{ display:flex; align-items:center; gap:6px; min-width:0; }
+.bu-nn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .bu-n .rar{ font-size:.5rem; padding:2px 4px; }
 .bu-n b{ font-size:.78rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hp{ height:6px; background:var(--surface2); border-radius:99px; overflow:hidden; }
@@ -223,6 +236,10 @@ summary{ font-size:.76rem; color:var(--sub); }
 .bu-w{ display:flex; flex-direction:column; min-width:0; }
 .bu-w b, .bu-w span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bu-w b{ font-size:.6rem; font-weight:800; color:var(--acc); }
+.bu-w.wr{ border:1px solid color-mix(in srgb, var(--wc) 55%, transparent); background:color-mix(in srgb, var(--wc) 13%, transparent); border-radius:7px; padding:2px 5px; margin:1px 0; }
+.bu-w.wr b{ color:var(--wc); }
+.bu-w.wr span{ color:color-mix(in srgb, var(--wc) 65%, var(--sub)); }
+.bu-w.wr3{ box-shadow:0 0 10px color-mix(in srgb, var(--wc) 35%, transparent); }
 .bu-w span{ font-size:.56rem; color:var(--sub); }
 .bu-w.none span{ color:var(--dim); }
 .ainfo{ position:fixed; inset:0; z-index:35; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:rgba(9,9,11,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
@@ -250,7 +267,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 #a-log div.win{ font-size:1.6rem; color:var(--acc); }
 #a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; white-space:pre-line; line-height:1.7; }
 .aopt{ width:100%; max-width:420px; display:flex; align-items:center; gap:10px; margin-top:10px; }
-.aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; }
+.aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; width:5.2em; text-align:left; }
 .aopt .seg2{ flex:1; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
 body:not(.solo) .solo-only{ display:none; }
 .btn.ghost{ border-style:dashed; color:var(--sub); }
@@ -328,7 +345,10 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
     <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
-    <div id="l-arena" class="aopt hide"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+    <div id="l-arena" class="hide" style="width:100%;max-width:420px">
+      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位(負け残り)</button></div></div>
+    </div>
     <button class="btn" id="l-addbot">＋ CPUを増やす</button>
     <div class="row2"><button class="btn" id="l-lock">受付を締める</button><button class="btn main" id="l-start" disabled>ゲーム開始</button></div>
   </div>
@@ -422,6 +442,7 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="g-tap.js"></script>
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
+<script src="avatar.js"></script>
 <script src="g-arena.js"></script>
 <script src="bots.js"></script>
 <script src="online.js"></script>
