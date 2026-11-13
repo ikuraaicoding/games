@@ -133,8 +133,8 @@ function hideBanner(){ $('banner').classList.remove('on'); }
 let bannerT = null;
 function flashBanner(t, ms){ showBanner(t); clearTimeout(bannerT); bannerT = setTimeout(hideBanner, ms || 4000); }
 function onNet(s){
-  $('netdot').textContent = '中継 ' + s.up + '/' + s.total;
-  if(s.up === 0) showBanner('中継サーバーにつながっていません…再接続中'); else if($('banner').textContent.indexOf('中継サーバー') === 0) hideBanner();
+  $('netdot').textContent = '接続 ' + s.up + '/' + s.total;
+  if(s.up === 0) showBanner('通信がつながっていません…再接続中'); else if($('banner').textContent.indexOf('通信がつながって') === 0) hideBanner();
 }
 
 // ゲームに渡す道具
