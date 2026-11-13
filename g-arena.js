@@ -51,17 +51,17 @@ const SK_NOW = { heal: 1, wall: 1, taunt: 1, ctr: 1 };
 
 // 武器の特殊効果
 const FX = {
-  dbl:     { nm: '双撃', d: '2回攻撃(1回60%)' },
-  first:   { nm: '守護', d: '最初に受けるダメージ −75%' },
-  vamp:    { nm: '吸血', d: '与えたダメージの25%回復' },
-  crit:    { nm: '会心', d: '25%の確率でダメージ2倍' },
-  thorn:   { nm: '茨',   d: '受けたダメージの30%を相手に返す' },
-  pre:     { nm: '先制', d: '試合開始の瞬間に先制攻撃' },
-  evade:   { nm: '疾風', d: '20%の確率で攻撃をかわす' },
-  regen:   { nm: '再生', d: '自分の手番ごとにHP6%回復' },
-  pierce:  { nm: '貫通', d: '相手の防御を半分無視' },
-  last:    { nm: '背水', d: 'HP半分以下で与ダメージ1.5倍' },
-  undying: { nm: '不死', d: '倒れる攻撃を1度だけHP1で耐える' }
+  dbl:     { nm: '双撃', d: '2回攻撃(1回60%)', s: '2回攻撃' },
+  first:   { nm: '守護', d: '最初に受けるダメージ −75%', s: '初撃ダメ−75%' },
+  vamp:    { nm: '吸血', d: '与えたダメージの25%回復', s: '与ダメ25%回復' },
+  crit:    { nm: '会心', d: '25%の確率でダメージ2倍', s: '25%で2倍' },
+  thorn:   { nm: '茨',   d: '受けたダメージの30%を相手に返す', s: '被ダメ30%返し' },
+  pre:     { nm: '先制', d: '試合開始の瞬間に先制攻撃', s: '開幕に先制' },
+  evade:   { nm: '疾風', d: '20%の確率で攻撃をかわす', s: '20%で回避' },
+  regen:   { nm: '再生', d: '自分の手番ごとにHP6%回復', s: '毎手番6%回復' },
+  pierce:  { nm: '貫通', d: '相手の防御を半分無視', s: '防御半分無視' },
+  last:    { nm: '背水', d: 'HP半分以下で与ダメージ1.5倍', s: 'HP半分以下1.5倍' },
+  undying: { nm: '不死', d: '倒れる攻撃を1度だけHP1で耐える', s: '1度だけ耐える' }
 };
 const FX_KEYS = Object.keys(FX);
 
@@ -97,7 +97,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
   function onBegin(){
     stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
     $('a-top').textContent = 'ARENA — 育成バトル';
-    view('a-build'); $('a-party').textContent = ''; $('a-panel').textContent = '';
+    view('a-build'); $('a-party').textContent = ''; $('a-info').classList.remove('on'); $('a-panel').textContent = '';
     $('a-time').textContent = '--:--'; $('a-tk').textContent = '0';
     $('a-note').textContent = '準備中…';
     E.show('s-arena');
@@ -165,15 +165,16 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
     if(ph !== 'build' || !me || me.tk <= 0 || me.pend) return;
     E.audio.init(); E.vibrate(20);
     const o = { t: 'act', a, n: ++nonce }; if(slot !== undefined) o.slot = slot;
-    E.send(o, true);
+    // ホスト自身は送った瞬間に返事(onMe)が届くので、状態は送る前に変えておく
     me.tk--; $('a-tk').textContent = String(me.tk);
     uiMode = 'busy'; renderPanel();
+    E.send(o, true);
   }
   function decide(slot){
     if(ph !== 'build' || !me || !me.pend) return;
     E.vibrate(20);
-    E.send({ t: 'dec', slot, n: ++nonce }, true);
     me.pend = null; uiMode = 'busy'; renderPanel();
+    E.send({ t: 'dec', slot, n: ++nonce }, true);
   }
   function bigBtn(title, sub, on, fn){
     const b = el('button', 'abtn');
@@ -290,14 +291,14 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
 
   // ---- 試合 ----
   const FL = { used: 1, armed: 2, wall: 4, taunt: 8, ctr: 16, first: 32, und: 64 };
-  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || FX[u.fx]) && typeof u.r === 'string'; }
+  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && (u.wt === 'a' || u.wt === 'd') && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
   function onMs(m){
     if(!isInt(m.mi, 1, 1e6) || !m.a || !m.b || !Array.isArray(m.a.u) || !Array.isArray(m.b.u)) return;
     const us = m.a.u.concat(m.b.u);
     if(us.length !== 6 || !us.every(u => u === null || okU(u))) return;
     const mySide = m.a.id === E.myId ? 0 : m.b.id === E.myId ? 1 : -1;
     bt = { mi: m.mi, k: -1, us, ids: [m.a.id, m.b.id], mySide, cards: [], done: false, log: [] };
-    ph = 'bt'; view('a-bt');
+    ph = 'bt'; view('a-bt'); $('a-info').classList.remove('on');
     $('a-bhead').textContent = '';
     $('a-bhead').appendChild(el('div', 'eyebrow', s60(m.lbl)));
     const vs = el('div', 'vs');
@@ -308,7 +309,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
     buildTeam($('a-t0'), top); buildTeam($('a-t1'), bot);
     $('a-log').textContent = '';
     $('a-log').appendChild(el('div', 'big', 'まもなく開始…'));
-    $('a-bhint').textContent = mySide >= 0 ? 'ここぞというときにスキルを押せ!(各キャラ1試合1回)' : '観戦中';
+    $('a-bhint').textContent = (mySide >= 0 ? 'ここぞというときにスキルを押せ!(各キャラ1試合1回)' : '観戦中') + '\nキャラをタップすると装備やスキルの詳細が見られる';
     E.vibrate(mySide >= 0 ? [80, 60, 80] : 30);
     E.audio.beep(520, .15, .2); later(() => E.audio.beep(780, .2, .2), 180);
   }
@@ -325,7 +326,11 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
       const hp = el('div', 'hp'); const bar = el('i'); hp.appendChild(bar); c.appendChild(hp);
       const hpt = el('div', 'bu-hp', u.mhp + '/' + u.mhp); c.appendChild(hpt);
       c.appendChild(el('div', 'bu-s', '攻' + u.A + ' 防' + u.D));
-      c.appendChild(el('div', 'bu-w', u.fx ? FX[u.fx].nm + (u.wt === 'a' ? 'の剣' : 'の盾') : '—'));
+      const wv = el('div', 'bu-w' + (u.fx ? '' : ' none'));
+      if(u.fx){ wv.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); wv.appendChild(el('span', '', FX[u.fx].s)); }
+      else wv.appendChild(el('span', '', '装備なし'));
+      c.appendChild(wv);
+      c.onclick = e => { if(e.target.closest('.bu-sk')) return; showInfo(u); };
       const st = el('div', 'bu-st'); c.appendChild(st);
       let btn;
       if(side === bt.mySide){
@@ -340,6 +345,22 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
       bt.cards[ui] = { c, bar, hpt, st, btn, hp: u.mhp, fl: 0 };
     }
     box.appendChild(row);
+  }
+  // キャラの詳細(試合中にタップで開く)
+  function showInfo(u){
+    const box = $('a-info'); box.textContent = '';
+    const card = el('div', 'ac r-' + u.r);
+    const h = el('div', 'ac-h'); h.appendChild(el('span', 'rar', u.r)); h.appendChild(el('b', '', u.nm)); h.appendChild(el('span', 'tot', '最大HP ' + u.mhp)); card.appendChild(h);
+    const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0;
+    card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', Math.round((u.mhp - 30) / 10), 0));
+    const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv))); card.appendChild(k);
+    const w = el('div', 'ac-w');
+    if(u.fx){ w.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); w.appendChild(el('span', '', FX[u.fx].d)); }
+    else w.appendChild(el('span', '', '装備なし'));
+    card.appendChild(w);
+    box.appendChild(card); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる'));
+    box.onclick = () => box.classList.remove('on');
+    box.classList.add('on');
   }
   function useSkill(ui){
     if(!bt || bt.done || bt.mySide < 0) return;
@@ -384,7 +405,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
   }
   function onMend(m){
     if(!bt || m.mi !== bt.mi || bt.done) return;
-    bt.done = true;
+    bt.done = true; $('a-info').classList.remove('on');
     bt.cards.forEach(cd => { if(cd && cd.btn.tagName === 'BUTTON') cd.btn.disabled = true; });
     const won = m.w === E.myId, lost = bt.mySide >= 0 && !won;
     const lg = $('a-log'); lg.textContent = '';
@@ -546,9 +567,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
   function mkUnit(c, side, i){
     const w = c.w || null;
     return { side, i, nm: c.nm, r: rarOf(c.a + c.d + c.h), A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp: maxHp(c.h), hp: maxHp(c.h),
-      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', used: false, armed: '', wall: 0, taunt: 0, ctr: 0, first: !!(w && w.fx === 'first'), und: !!(w && w.fx === 'undying') };
+      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, used: false, armed: '', wall: 0, taunt: 0, ctr: 0, first: !!(w && w.fx === 'first'), und: !!(w && w.fx === 'undying') };
   }
-  const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt } : null;
+  const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv } : null;
   function newBattle(idA, idB, rnd){
     const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return [0, 1, 2].map(i => party[i] ? mkUnit(party[i], side, i) : null); };
     return { ids: [idA, idB], u: mk(idA, 0).concat(mk(idB, 1)), round: 0, order: [], oi: 0, s0: rnd() < .5 ? 0 : 1, q: [], k: 0, preDone: false, done: false, w: -1, lastSide: 0, rnd };
@@ -720,7 +741,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
 
   function stopHost(){ clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.stepT); }
   function stop(){
-    stopped = true; stopHost(); clearInterval(clockT);
+    stopped = true; stopHost(); clearInterval(clockT); $('a-info').classList.remove('on');
     timers.forEach(t => clearTimeout(t));
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop, _t: { H, newBattle, step, rollChar, rollWeapon, starter } };

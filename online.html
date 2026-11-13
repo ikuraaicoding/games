@@ -219,7 +219,16 @@ summary{ font-size:.76rem; color:var(--sub); }
 .hp i{ display:block; height:100%; width:100%; background:var(--green); transform-origin:left; transition:transform .35s ease-out; }
 .hp i.low{ background:var(--red); }
 .bu-hp{ font-size:.68rem; font-weight:700; font-variant-numeric:tabular-nums; }
-.bu-s, .bu-w{ font-size:.6rem; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bu-s{ font-size:.6rem; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bu-w{ display:flex; flex-direction:column; min-width:0; }
+.bu-w b, .bu-w span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bu-w b{ font-size:.6rem; font-weight:800; color:var(--acc); }
+.bu-w span{ font-size:.56rem; color:var(--sub); }
+.bu-w.none span{ color:var(--dim); }
+.ainfo{ position:fixed; inset:0; z-index:35; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:rgba(9,9,11,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+.ainfo.on{ display:flex; }
+.ainfo .ac{ width:100%; max-width:380px; animation:acrev .3s ease-out; }
+.ainfo-x{ margin-top:14px; font-size:.72rem; color:var(--sub); }
 .bu-st{ display:flex; gap:3px; min-height:15px; }
 .bu-st span{ font-size:.56rem; font-weight:800; padding:1px 4px; border-radius:5px; background:color-mix(in srgb, var(--acc) 22%, transparent); color:var(--acc); }
 .bu-sk{ margin-top:3px; display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left; background:var(--acc); color:var(--acc-ink); border:0; border-radius:10px; padding:7px 7px; min-height:48px; }
@@ -239,7 +248,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 #a-log div{ font-size:.72rem; color:var(--dim); line-height:1.5; }
 #a-log div.big{ font-size:.95rem; color:var(--text); font-weight:800; }
 #a-log div.win{ font-size:1.6rem; color:var(--acc); }
-#a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; }
+#a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; white-space:pre-line; line-height:1.7; }
 .aopt{ width:100%; max-width:420px; display:flex; align-items:center; gap:10px; margin-top:10px; }
 .aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; }
 .aopt .seg2{ flex:1; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
@@ -387,6 +396,7 @@ body:not(.solo) .solo-only{ display:none; }
     <div class="team" id="a-t1"></div>
     <div id="a-bhint"></div>
   </div>
+  <div id="a-info" class="ainfo"></div>
 </div>
 
 <!-- 結果 -->
