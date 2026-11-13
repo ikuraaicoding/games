@@ -17,7 +17,7 @@
 window.NomiGames = window.NomiGames || {};
 
 const CFG = { TICK_MS: 10000, CAP: 3, STEP_MS: 650, VS_MS: 2800, END_MS: 2800, BR_MS: 4200, MAX_ROUNDS: 30, FATIGUE_FROM: 7, BUILD_MS: 0 };
-const MINS = [3, 5, 7, 10];
+const MINS = [1, 3, 5, 7, 10];      // 1分は「ひとりで試す」用
 const SK_MAX = 5;
 
 // ---------------- データ ----------------
@@ -441,6 +441,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, make(E){
   function readMins(){
     let v = 5;
     try{ const b = document.querySelector('#l-arena button.on'); if(b) v = parseInt(b.dataset.m, 10); }catch(e){}
+    if(v === 1 && !document.body.classList.contains('solo')) v = 3;
     return MINS.includes(v) ? v : 5;
   }
   function sendMe(id, extra){
