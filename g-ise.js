@@ -96,7 +96,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
   }
   function submit(){
     if(sent || selP === null || selG === null || ph !== 'pick') return;
-    sent = true; E.send({ t: 'pk', r: round, p: selP, g: selG }, true);
+    sent = true; E.send({ t: 'pk', r: round, p: selP, gs: selG }, true);      // 'g' は通信部品がゲームIDに使うので使わない
     $('i-ok').textContent = '決定ずみ!'; $('i-ok').disabled = true; E.vibrate(30); E.audio.beep(660, .1, .2); refreshSel();
     $('i-ghint').textContent = 'みんなを待ってるよ…'; $('i-pick').classList.add('locked');
   }
@@ -242,8 +242,8 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     if(!m || typeof m.t !== 'string' || H.phase !== 'pick' || m.t !== 'pk') return;
     const n = H.alive.length;
     if(m.r !== H.round || !H.alive.includes(id) || H.picks.has(id)) return;
-    if(!Number.isInteger(m.p) || m.p < 0 || m.p > 2 || !Number.isInteger(m.g) || m.g < 0 || m.g > 2 * n) return;
-    H.picks.set(id, { p: m.p, g: m.g });
+    if(!Number.isInteger(m.p) || m.p < 0 || m.p > 2 || !Number.isInteger(m.gs) || m.gs < 0 || m.gs > 2 * n) return;
+    H.picks.set(id, { p: m.p, g: m.gs });
     E.hostBcast({ t: 'prog', r: H.round, ids: Array.from(H.picks.keys()) }, false);
     if(H.alive.every(x => H.picks.has(x))){ clearTimeout(H.fin); resolve(); }
   }
