@@ -1,5 +1,5 @@
 // キャッシュバージョン: 更新を配るときはこの数字を上げる
-const CACHE_VERSION = 'party-v15';
+const CACHE_VERSION = 'party-v16';
 const FILES = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const FILES = [
   './g-tap.js',
   './g-stop.js',
   './g-ise.js',
+  './g-arena.js',
   './lib/qrcode.js',
   './lib/jsQR.js',
   './manifest.json',

@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = (location.hash === '#tap') ? 'tap' : (location.hash === '#stop') ? 'stop' : (location.hash === '#ise') ? 'ise' : 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 let ac = null;
@@ -301,7 +301,15 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); }
+// ARENA の育成タイム
+(function(){
+  let m = '5'; try{ m = localStorage.getItem('arena-min') || '5'; }catch(e){}
+  const bs = document.querySelectorAll('#l-arena button');
+  const set = v => { bs.forEach(b => b.classList.toggle('on', b.dataset.m === v)); try{ localStorage.setItem('arena-min', v); }catch(e){} };
+  if(!Array.from(bs).some(b => b.dataset.m === m)) m = '5';
+  set(m); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.m)));
+})();
 document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 setWant(wantGame);

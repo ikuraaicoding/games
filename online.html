@@ -146,6 +146,106 @@ summary{ font-size:.76rem; color:var(--sub); }
 #i-rows div.lose{ opacity:.45; }
 #i-rows div.pop{ animation:rowpop .35s cubic-bezier(.2,1.4,.4,1); }
 
+/* ARENA */
+#s-arena{ padding-bottom:max(18px,env(safe-area-inset-bottom)); }
+#a-top{ font-size:.72rem; font-weight:700; letter-spacing:.26em; color:var(--acc); min-height:20px; margin:4px 0 10px; text-transform:uppercase; }
+.av{ width:100%; max-width:460px; flex-direction:column; align-items:stretch; }
+.a-hud{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.a-hud > div{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:10px 14px; text-align:left; }
+.a-hud small{ display:block; font-size:.62rem; letter-spacing:.2em; color:var(--sub); font-weight:700; }
+.a-hud b{ font-size:1.7rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.a-hud b.hot{ color:var(--red); }
+.a-hud > div.full{ border-color:var(--acc); }
+.a-hud > div.full b{ color:var(--acc); }
+#a-tbar{ height:4px; background:var(--surface2); border-radius:99px; margin:8px 0 10px; overflow:hidden; }
+#a-tbar i{ display:block; height:100%; width:100%; background:var(--acc); transform-origin:left; transform:scaleX(0); transition:transform .2s linear; }
+#a-note{ font-size:.8rem; color:var(--sub); min-height:20px; margin-bottom:8px; text-align:left; }
+#a-panel{ display:grid; gap:8px; }
+.agrid{ display:grid; gap:8px; }
+.abtn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; background:var(--surface); border:1px solid var(--line2); border-radius:16px; padding:14px 16px; color:var(--text); transition:transform .08s, background .15s, border-color .15s; }
+.abtn b{ font-size:1rem; font-weight:800; }
+.abtn small{ font-size:.7rem; color:var(--sub); }
+.abtn:active{ transform:scale(.98); border-color:var(--acc); background:color-mix(in srgb, var(--acc) 12%, transparent); }
+.abtn[disabled]{ opacity:.3; pointer-events:none; }
+#a-party{ display:grid; gap:8px; }
+.ac{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:12px 14px; text-align:left; }
+.ac.r-R{ --rc:#64d2ff; } .ac.r-SR{ --rc:#bf5af2; } .ac.r-SSR{ --rc:#ffd60a; }
+.ac.r-SR, .ac.r-SSR{ border-color:color-mix(in srgb, var(--rc) 45%, transparent); }
+.ac.r-SSR{ box-shadow:0 0 30px color-mix(in srgb, var(--rc) 22%, transparent); }
+.ac.empty{ border-style:dashed; color:var(--dim); font-size:.76rem; text-align:center; padding:18px; }
+.ac.flash{ animation:acflash .9s ease-out; }
+@keyframes acflash{ 0%{ background:color-mix(in srgb, var(--acc) 40%, transparent); transform:scale(1.02);} 100%{ background:var(--surface); transform:none; } }
+.ac.reveal{ animation:acrev .55s cubic-bezier(.2,1.4,.4,1); }
+@keyframes acrev{ 0%{ opacity:0; transform:rotateY(80deg) scale(.9);} 100%{ opacity:1; transform:none; } }
+.ac-h{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.ac-h b{ font-size:1.05rem; font-weight:800; flex:1; }
+.ac-h .tot{ font-size:.7rem; color:var(--sub); font-weight:700; font-variant-numeric:tabular-nums; }
+.rar{ font-size:.62rem; font-weight:900; letter-spacing:.06em; padding:3px 7px; border-radius:6px; color:#000; background:var(--rc,var(--dim)); }
+.st{ display:grid; grid-template-columns:26px 1fr 38px; align-items:center; gap:8px; margin:3px 0; }
+.st .k{ font-size:.66rem; font-weight:700; color:var(--sub); }
+.st .pips{ display:grid; grid-template-columns:repeat(10,1fr); gap:3px; }
+.st .pips i{ height:7px; border-radius:2px; background:var(--surface2); }
+.st .pips i.on{ background:var(--rc); }
+.ac.r-N .st .pips i.on{ background:var(--sub); }
+.st .v{ font-size:.8rem; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; }
+.st .v em{ font-style:normal; color:var(--acc); font-size:.72rem; margin-left:2px; }
+.ac-k, .ac-w{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; color:var(--sub); line-height:1.5; }
+.ac-k b, .ac-w b{ font-size:.78rem; color:var(--text); }
+.ac-w b{ color:var(--acc); }
+#a-br{ gap:10px; }
+.br-h{ font-size:1.6rem; font-weight:800; margin:6px 0 4px; }
+.br-r{ display:grid; gap:6px; text-align:left; }
+.br-r .eyebrow{ margin:6px 2px 0; }
+.br-m{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 12px; font-size:.86rem; font-weight:700; }
+.br-m span:last-child{ text-align:right; }
+.br-m i{ font-style:normal; font-size:.62rem; color:var(--dim); letter-spacing:.14em; }
+.br-m .w{ color:var(--acc); } .br-m .l{ color:var(--dim); text-decoration:line-through; } .br-m .tbd{ color:var(--dim); }
+.br-m.cur{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
+.br-next{ margin-top:10px; font-size:1rem; font-weight:800; }
+.br-next.me{ color:var(--acc); }
+#a-bt{ gap:8px; }
+#a-bhead .vs{ display:flex; justify-content:center; align-items:baseline; gap:12px; font-size:1.2rem; font-weight:800; margin:4px 0; }
+#a-bhead .vs i{ font-style:normal; font-size:.7rem; color:var(--acc); letter-spacing:.2em; }
+.team{ text-align:left; }
+.tname{ font-size:.72rem; font-weight:700; color:var(--sub); margin:0 2px 6px; letter-spacing:.06em; }
+.team.mine .tname{ color:var(--acc); }
+.trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
+.bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
+.bu-n{ display:flex; align-items:center; gap:4px; min-width:0; }
+.bu-n .rar{ font-size:.5rem; padding:2px 4px; }
+.bu-n b{ font-size:.78rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hp{ height:6px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+.hp i{ display:block; height:100%; width:100%; background:var(--green); transform-origin:left; transition:transform .35s ease-out; }
+.hp i.low{ background:var(--red); }
+.bu-hp{ font-size:.68rem; font-weight:700; font-variant-numeric:tabular-nums; }
+.bu-s, .bu-w{ font-size:.6rem; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bu-st{ display:flex; gap:3px; min-height:15px; }
+.bu-st span{ font-size:.56rem; font-weight:800; padding:1px 4px; border-radius:5px; background:color-mix(in srgb, var(--acc) 22%, transparent); color:var(--acc); }
+.bu-sk{ margin-top:3px; display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left; background:var(--acc); color:var(--acc-ink); border:0; border-radius:10px; padding:7px 7px; min-height:48px; }
+.bu-sk b{ font-size:.72rem; font-weight:800; }
+.bu-sk small{ font-size:.54rem; line-height:1.35; opacity:.8; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.bu-sk.ro{ background:var(--surface2); color:var(--sub); }
+.bu-sk.fired, .bu-sk[disabled]{ background:var(--surface2); color:var(--dim); }
+.bu.dead{ opacity:.28; }
+.bu.hit{ animation:buhit .3s ease-out; }
+@keyframes buhit{ 0%,100%{ transform:none; } 25%{ transform:translateX(-4px); background:rgba(255,69,58,.25);} 60%{ transform:translateX(3px); } }
+.bu.glow{ animation:buglow .8s ease-out; }
+@keyframes buglow{ 0%{ box-shadow:0 0 0 2px var(--acc), 0 0 30px var(--acc); } 100%{ box-shadow:none; } }
+.fl{ position:absolute; left:50%; top:30%; transform:translateX(-50%); font-weight:900; font-size:1.1rem; pointer-events:none; animation:flup 1s ease-out forwards; text-shadow:0 2px 8px #000; white-space:nowrap; }
+.fl.dmg{ color:#fff; } .fl.crit{ color:#ffd60a; font-size:1.4rem; } .fl.heal{ color:var(--green); } .fl.miss{ color:var(--sub); font-size:.8rem; } .fl.sk{ color:var(--acc); font-size:.8rem; }
+@keyframes flup{ 0%{ opacity:0; transform:translate(-50%,8px) scale(.8);} 20%{ opacity:1; transform:translate(-50%,0) scale(1.1);} 100%{ opacity:0; transform:translate(-50%,-26px);} }
+#a-log{ min-height:92px; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:6px 4px; }
+#a-log div{ font-size:.72rem; color:var(--dim); line-height:1.5; }
+#a-log div.big{ font-size:.95rem; color:var(--text); font-weight:800; }
+#a-log div.win{ font-size:1.6rem; color:var(--acc); }
+#a-bhint{ font-size:.72rem; color:var(--sub); margin-top:4px; }
+.aopt{ width:100%; max-width:420px; display:flex; align-items:center; gap:10px; margin-top:10px; }
+.aopt > span{ font-size:.72rem; font-weight:700; color:var(--sub); white-space:nowrap; }
+.aopt .seg2{ flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.aopt .seg2 button{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 0; font-size:.86rem; font-weight:700; }
+.aopt .seg2 button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 14%, transparent); color:var(--acc); }
+
 /* RESULT */
 #s-result{ justify-content:center; }
 #s-result h2{ font-size:3rem; font-weight:800; letter-spacing:-.01em; color:var(--acc); margin:0 0 6px; }
@@ -164,6 +264,7 @@ summary{ font-size:.76rem; color:var(--sub); }
   <symbol id="i-draw" viewBox="0 0 24 24"><path d="M13.5 2.5 5 13.5h6l-1 8 8.5-11h-6z"/></symbol>
   <symbol id="i-blind" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M10 2.5h4M12 2.5V6"/><path d="M4.5 6 19.5 21"/></symbol>
   <symbol id="i-thumbs" viewBox="0 0 24 24"><path d="M7.5 12V5.5a2 2 0 0 1 4 0V12"/><rect x="5" y="12" width="14" height="9" rx="3"/><path d="M11.5 15.5H19M11.5 18.5H19"/></symbol>
+  <symbol id="i-arena" viewBox="0 0 24 24"><path d="M4 4l9.5 9.5M4 4v3.5M4 4h3.5"/><path d="M20 4l-9.5 9.5M20 4v3.5M20 4h-3.5"/><path d="M8 15l-3 3 1 1 3-3M16 15l3 3-1 1-3-3"/><path d="M6.5 13.5l4 4M17.5 13.5l-4 4"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
 </svg>
@@ -178,7 +279,7 @@ summary{ font-size:.76rem; color:var(--sub); }
   <h1 class="t">ONLINE</h1>
   <div class="sub">各自のスマホで遊ぶ。</div>
   <div class="field"><label for="name">ニックネーム(8文字まで・本名はNG)</label><input type="text" id="name" maxlength="8" placeholder="例: たろう" autocomplete="off"></div>
-  <div class="gsel" id="seg-game"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
+  <div class="gsel" id="seg-game"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
   <div class="help" style="margin-top:8px">ホストが遊ぶゲーム(ロビーでも変えられます)</div>
   <button class="btn main" id="b-host">部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">参加する(QRを読む)</button>
@@ -214,7 +315,8 @@ summary{ font-size:.76rem; color:var(--sub); }
   <div class="plist" id="l-list"></div>
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
-    <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
+    <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
+    <div id="l-arena" class="aopt hide"><span>育成タイム</span><div class="seg2"><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
     <div class="row2"><button class="btn" id="l-lock">受付を締める</button><button class="btn main" id="l-start" disabled>ゲーム開始</button></div>
   </div>
 </div>
@@ -262,6 +364,27 @@ summary{ font-size:.76rem; color:var(--sub); }
   </div>
 </div>
 
+<!-- ARENA -->
+<div class="screen" id="s-arena">
+  <div id="a-top"></div>
+  <div id="a-build" class="av">
+    <div class="a-hud"><div><small>残り時間</small><b id="a-time">--:--</b></div><div><small>行動ストック(最大3)</small><b id="a-tk">0</b></div></div>
+    <div id="a-tbar"><i></i></div>
+    <div id="a-note"></div>
+    <div id="a-panel"></div>
+    <div class="ilab">パーティ(最大3体)</div>
+    <div id="a-party" style="margin-top:6px"></div>
+  </div>
+  <div id="a-br" class="av"></div>
+  <div id="a-bt" class="av">
+    <div id="a-bhead"></div>
+    <div class="team" id="a-t0"></div>
+    <div id="a-log"></div>
+    <div class="team" id="a-t1"></div>
+    <div id="a-bhint"></div>
+  </div>
+</div>
+
 <!-- 結果 -->
 <div class="screen" id="s-result">
   <h2 id="r-title"></h2>
@@ -285,6 +408,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 <script src="g-tap.js"></script>
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
+<script src="g-arena.js"></script>
 <script src="online.js"></script>
 </body>
 </html>
