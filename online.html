@@ -157,6 +157,11 @@ summary{ font-size:.76rem; color:var(--sub); }
 .a-hud b.hot{ color:var(--red); }
 .a-hud > div.full{ border-color:var(--acc); }
 .a-hud > div.full b{ color:var(--acc); }
+#a-lost{ display:block; font-style:normal; font-size:.62rem; font-weight:700; color:var(--red); min-height:1em; }
+.a-hud > div.spill{ animation:spill .7s ease-out; }
+@keyframes spill{ 0%{ transform:none; } 15%{ transform:translateX(-6px); border-color:var(--red); background:color-mix(in srgb, var(--red) 30%, var(--surface)); } 30%{ transform:translateX(6px); } 45%{ transform:translateX(-4px); } 60%{ transform:translateX(3px); } 100%{ transform:none; } }
+#a-tbar.over i{ background:var(--red); }
+#a-note.over{ color:var(--red); font-weight:700; }
 #a-tbar{ height:4px; background:var(--surface2); border-radius:99px; margin:8px 0 10px; overflow:hidden; }
 #a-tbar i{ display:block; height:100%; width:100%; background:var(--acc); transform-origin:left; transform:scaleX(0); transition:transform .2s linear; }
 #a-note{ font-size:.8rem; color:var(--sub); min-height:20px; margin-bottom:8px; text-align:left; }
@@ -401,7 +406,7 @@ body:not(.solo) .solo-only{ display:none; }
 <div class="screen" id="s-arena">
   <div id="a-top"></div>
   <div id="a-build" class="av">
-    <div class="a-hud"><div><small>残り時間</small><b id="a-time">--:--</b></div><div><small>行動ストック(最大3)</small><b id="a-tk">0</b></div></div>
+    <div class="a-hud"><div><small>残り時間</small><b id="a-time">--:--</b></div><div><small>行動ストック(最大3)</small><b id="a-tk">0</b><em id="a-lost"></em></div></div>
     <div id="a-tbar"><i></i></div>
     <div id="a-note"></div>
     <div id="a-panel"></div>
