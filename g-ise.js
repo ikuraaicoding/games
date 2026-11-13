@@ -40,7 +40,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
       const c = document.createElement('span');
       const lf = lives.get(p.id), dead = lf !== undefined && (lf <= 0 || !alive.includes(p.id));
       c.className = 'chip' + (dead ? ' dead' : (ph === 'pick' && submitted.includes(p.id) ? ' on' : ''));
-      c.textContent = dead ? '💀 ' + p.name : (ph === 'pick' && submitted.includes(p.id) ? '✓ ' : '') + p.name + (lf !== undefined ? '  ♥' + lf : '');
+      c.textContent = dead ? p.name : (ph === 'pick' && submitted.includes(p.id) ? '✓ ' : '') + p.name + (lf !== undefined ? '  ♥' + lf : '');
       c.dataset.id = p.id; box.appendChild(c);
     });
   }
@@ -52,7 +52,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
   function say(big, sub){ $('i-big').textContent = big || ''; $('i-sub').textContent = sub || ''; }
   function onBegin(){
     stopped = false; ph = 'wait'; round = 0; alive = []; lives = new Map(); submitted = []; selP = selG = null; sent = false;
-    $('i-top').textContent = '👍 いっせーのーせ'; $('i-rows').textContent = '';
+    $('i-top').textContent = 'THUMBS — いっせーのーせ'; $('i-rows').textContent = '';
     chips(); view('view'); say('準備中…', ''); E.show('s-ise');
   }
 
@@ -107,7 +107,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     $('i-top').textContent = 'ROUND ' + round + '  ／  生き残り ' + nAlive + '人';
     $('i-rows').textContent = ''; $('i-pick').classList.remove('locked'); $('i-ghint').textContent = '';
     chips();
-    if(!alive.includes(E.myId)){ view('view'); $('i-bar').style.display = 'block'; say('💀 脱落…観戦中', 'みんなが考えてるよ'); }
+    if(!alive.includes(E.myId)){ view('view'); $('i-bar').style.display = 'block'; say('脱落 — 観戦中', 'みんなが考えてるよ'); }
     else{
       view('pick'); $('i-ok').textContent = '決定!';
       mkHands();
@@ -171,14 +171,14 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
       const myT = u; u += 450;
       at(myT, () => {
         const e = els.get(x.id); if(!e) return;
-        e.b.textContent = '予想 ' + x.g + (x.d === 0 ? '  🎯ピッタリ!' : '  ズレ ' + x.d);
+        e.b.textContent = '予想 ' + x.g + (x.d === 0 ? '  ピッタリ!' : '  ズレ ' + x.d);
         if(x.d === 0){ e.d.classList.add('win'); E.audio.beep(1175, .2, .3); E.vibrate([0, 60, 40, 60]); } else E.audio.beep(520 - Math.min(x.d, 6) * 30, .08, .18);
       });
     });
     if(anyExact){
       at(u + 200, () => {
         const names = exact.map(x => E.nameOf(x.id)).join('・');
-        say('🎯 ' + names + ' ピッタリ!!', 'ほかの全員に −' + (Number.isFinite(m.ex) ? m.ex : ex) + (exact.length > 1 ? '(人数ぶん重なる)' : ''));
+        say(names + ' ピッタリ!', 'ほかの全員に −' + (Number.isFinite(m.ex) ? m.ex : ex) + (exact.length > 1 ? '(人数ぶん重なる)' : ''));
         E.audio.beep(1397, .3, .3); E.vibrate([0, 120, 50, 200]);
       });
       u += 1500;
@@ -189,11 +189,11 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
         const e = els.get(x.id); if(!e) return;
         lives.set(x.id, x.life);
         const own = x.d === 0 ? 0 : x.d, hit = x.dmg - own;           // 自分のズレ + ピッタリの人からの被弾
-        e.b.textContent = (x.dmg > 0 ? '−' + x.dmg : '±0') + (own > 0 && hit > 0 ? '(ズレ' + own + '+被弾' + hit + ')' : hit > 0 ? '(被弾)' : '') + ' → ' + (x.life > 0 ? '♥' + x.life : '💀 脱落');
+        e.b.textContent = (x.dmg > 0 ? '−' + x.dmg : '±0') + (own > 0 && hit > 0 ? '(ズレ' + own + '+被弾' + hit + ')' : hit > 0 ? '(被弾)' : '') + ' → ' + (x.life > 0 ? '♥' + x.life : '脱落');
         e.d.classList.remove('win'); if(x.dmg > 0) e.d.classList.add('hurt'); if(x.life <= 0) e.d.classList.add('lose');
       });
       alive = alive.filter(id => !dead.includes(id));
-      say(m.over ? '決着!' : '', dead.length ? '💀 ' + dead.map(id => E.nameOf(id)).join('・') + ' が脱落' : '');
+      say(m.over ? '決着!' : '', dead.length ? dead.map(id => E.nameOf(id)).join('・') + ' が脱落' : '');
       chips(); E.audio.boom && E.audio.boom();
       const me = rows.find(x => x.id === E.myId);
       if(me && me.dmg > 0) E.vibrate([0, 150, 60, 250]);
@@ -207,15 +207,15 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     if(!rank.length) return;
     const top = rank.filter(x => x.life === rank[0].life && x.out === rank[0].out);
     const lines = rank.map((x, i) => ({
-      a: (i === 0 ? '👑 ' : '') + (i + 1) + '位  ' + E.nameOf(x.id),
+      a: (i + 1) + '位  ' + E.nameOf(x.id),
       b: x.out === 0 ? '♥' + x.life + ' 生き残り' : (x.out >= 1 ? 'ROUND ' + x.out + ' で脱落' : ''),
       cls: top.some(y => y.id === x.id) ? 'win' : (i === rank.length - 1 ? 'lose' : '')
     }));
     const iWin = top.some(x => x.id === E.myId);
-    const pen = top.length > 1 ? '🤝 引き分け: ' + top.map(x => E.nameOf(x.id)).join('・')
-      : (iWin ? '👑 あなたの勝ち!' : '👑 ' + E.nameOf(top[0].id) + ' の勝ち!');
+    const pen = top.length > 1 ? '引き分け: ' + top.map(x => E.nameOf(x.id)).join('・')
+      : (iWin ? 'あなたの勝ち' : E.nameOf(top[0].id) + ' の勝ち');
     E.showResult({
-      title: '👍 いっせーのーせ',
+      title: 'THUMBS',
       reason: (Number.isInteger(m.r) ? m.r : round) + 'ラウンドで決着(はじめのライフ ' + L + ')',
       pen, lines,
       stats: 'ピッタリ当てると、ほかの全員に −' + ex + ' ダメージ。\nズレた分だけ自分のライフが減るよ。'

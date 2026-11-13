@@ -27,7 +27,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
   let parts = null;                       // 同着の再戦に出る人のID(nullなら全員)
 
   function setPad(cls, big, small){
-    pad.className = cls || '';
+    pad.className = 'pad ' + (cls || '');
     $('t-big').textContent = big || ''; $('t-small').textContent = small || '';
   }
   function chips(){
@@ -39,12 +39,12 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
   }
   function idleText(){
     if(!E.clockReady()){ setPad('', '時計合わせ中…', 'ちょっと待ってね(数秒)'); return; }
-    if(down) setPad('down', '👆 OK!', '離さないで…\n他の人を待ってるよ');
+    if(down) setPad('down', 'OK', '離さないで…\n他の人を待ってるよ');
     else setPad('', '指を置いて\nそのまま待て', 'みんなが置くと始まるよ(2人以上)\n合図(緑)が出たら、すぐ離す!');
   }
   function onBegin(){
     stopped = false; ph = 'wait'; down = false; r = 0; ready = []; shownAt = null; myMs = null; parts = null;
-    $('t-top').textContent = '⚡ 全員タップ対決'; chips(); idleText(); E.show('s-tap');
+    $('t-top').textContent = 'DRAW — 早撃ち'; chips(); idleText(); E.show('s-tap');
     const chk = setInterval(() => { if(stopped){ clearInterval(chk); return; } if(ph === 'wait' && !down) idleText(); }, 700);
     timers.push(chk);
   }
@@ -80,11 +80,11 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       ph = 'tie'; down = false; ready = []; cancelAnimationFrame(raf); clearTimeout(fb);
       const names = parts.map(id => E.nameOf(id)).join('・');
       const ms = (Array.isArray(m.rows) ? m.rows : []).filter(x => x && Number.isInteger(x.id) && Number.isFinite(x.ms)).map(x => E.nameOf(x.id) + ' ' + Math.round(x.ms) + 'ms').join(' / ');
-      setPad('', '🤝 同着!', names + ' で再戦!' + (ms ? '\n(' + ms + ')' : '')); E.vibrate([60, 40, 60]); chips();
+      setPad('', '同着', names + ' で再戦!' + (ms ? '\n(' + ms + ')' : '')); E.vibrate([60, 40, 60]); chips();
       later(() => {
         if(stopped || ph !== 'tie') return;
         if(parts.includes(E.myId)){ ph = 'wait'; idleText(); }
-        else{ ph = 'watch'; setPad('', '👀 観戦中', names + ' の再戦を見ててね'); }
+        else{ ph = 'watch'; setPad('', '観戦中', names + ' の再戦を見ててね'); }
       }, 2200);
     }else if(m.t === 'res'){ showRes(m); }
   }
@@ -122,7 +122,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     const ok = rows.filter(x => x.st === 'ok' && Number.isFinite(x.ms)).sort((a, b) => a.ms - b.ms);
     const bad = rows.filter(x => x.st !== 'ok' || !Number.isFinite(x.ms));
     const lines = [];
-    ok.forEach((x, i) => lines.push({ a: (i === 0 ? '👑 ' : '') + E.nameOf(x.id) + (x.adj ? '(補正)' : ''), b: x.ms.toFixed(0) + ' ms', cls: losers.includes(x.id) ? 'lose' : (i === 0 ? 'win' : '') }));
+    ok.forEach((x, i) => lines.push({ a: E.nameOf(x.id) + (x.adj ? '(補正)' : ''), b: x.ms.toFixed(0) + ' ms', cls: losers.includes(x.id) ? 'lose' : (i === 0 ? 'win' : '') }));
     bad.forEach(x => lines.push({ a: E.nameOf(x.id), b: x.st === 'foul' ? 'フライング' : '反応なし', cls: 'lose' }));
     const me = losers.includes(E.myId);
     const names = losers.map(id => E.nameOf(id)).join('・');
@@ -134,12 +134,12 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     const rtts = rows.filter(x => x.id !== 0 && Number.isFinite(x.rtt) && x.rtt > 0).map(x => E.nameOf(x.id) + ' ' + Math.round(x.rtt) + 'ms').join(' / ');
     later(() => {
       E.showResult({
-        title: '⚡ 結果',
+        title: 'DRAW',
         reason,
-        pen: !losers.length ? '🤝 引き分け' : (me ? '💀 あなたの負け!' : '💀 ' + names + ' の負け!'),
+        pen: !losers.length ? '引き分け' : (me ? 'あなたの負け' : names + ' の負け'),
         lines,
         stats: '反応時間は「合図が出た瞬間」からスマホの中で測っているよ(通信の遅れは入らない)\n' +
-               (rtts ? '通信(往復): ' + rtts + '\n' : '') + (warn ? '⚠ ' + warn + ' は通信が遅めだから、時計のズレで数十msの誤差が出るかも' : '')
+               (rtts ? '通信(往復): ' + rtts + '\n' : '') + (warn ? warn + ' は通信が遅めだから、時計のズレで数十msの誤差が出るかも' : '')
       });
     }, 700);
   }

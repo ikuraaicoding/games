@@ -185,7 +185,7 @@ function renderLobby(){
   vis('l-qrbox', host && !userLocked, 'flex');
   vis('l-hostctl', host, 'flex');
   $('l-title').textContent = host ? 'ロビー(ホスト)' : 'ロビー';
-  $('l-lock').textContent = userLocked ? '🔓 受付を再開' : '🔒 受付を締める';
+  $('l-lock').textContent = userLocked ? '受付を再開' : '受付を締める';
   $('l-start').disabled = !(host && roster.length >= 2);
   $('l-help').textContent = host
     ? (roster.length < 2 ? 'QRを読んでもらってね(あと' + (2 - roster.length) + '人以上)。全員同じQRでOK!' : roster.length + '人いるよ。ゲームを選んで開始! 全員そろったら「受付を締める」を押すと安心だよ。')
@@ -231,7 +231,7 @@ function startGame(gid){
   if(role !== 'host' || roster.length < 2 || !window.NomiGames[gid]) return;
   if(game && game.stop) game.stop();
   room.setLocked(true);
-  curId = gid; lastGame = gid; game = window.NomiGames[gid].make(E);
+  curId = gid; lastGame = gid; document.body.dataset.game = gid; game = window.NomiGames[gid].make(E);
   room.bcast({ t: 'begin', g: gid }, true);
   audio.init(); keepAwake();
   game.onBegin(); game.hostStart();
@@ -287,7 +287,7 @@ function guestMsg(o){
     if($('s-lobby').classList.contains('active')) renderLobby();
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
     if(game && game.stop) game.stop();
-    curId = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
+    curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
   }else if(o.t === 'lobby'){
     if(game && game.stop) game.stop();
     game = null; curId = null; resetFx(); $('picker').classList.remove('on'); renderLobby(); show('s-lobby');
@@ -301,7 +301,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); }
 document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 setWant(wantGame);
