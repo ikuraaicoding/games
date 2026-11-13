@@ -192,6 +192,11 @@ summary{ font-size:.76rem; color:var(--sub); }
 .ac-k, .ac-w{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; color:var(--sub); line-height:1.5; }
 .ac-k b, .ac-w b{ font-size:.78rem; color:var(--text); }
 .ac-w b{ color:var(--acc); }
+/* 武器のレア度: ★1=青 / ★2=紫 / ★3=金(キャラのR/SR/SSRと同じ色) */
+.wr1{ --wc:#64d2ff; } .wr2{ --wc:#bf5af2; } .wr3{ --wc:#ffd60a; }
+.ac-w.wr{ border-left:3px solid var(--wc); padding:4px 0 4px 9px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb, var(--wc) 14%, transparent), transparent 80%); }
+.ac-w.wr b{ color:var(--wc); }
+.ac-w.wr3{ box-shadow:-6px 0 16px -8px var(--wc); }
 #a-br{ gap:10px; }
 .br-h{ font-size:1.6rem; font-weight:800; margin:6px 0 4px; }
 .br-r{ display:grid; gap:6px; text-align:left; }
@@ -223,6 +228,10 @@ summary{ font-size:.76rem; color:var(--sub); }
 .bu-w{ display:flex; flex-direction:column; min-width:0; }
 .bu-w b, .bu-w span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bu-w b{ font-size:.6rem; font-weight:800; color:var(--acc); }
+.bu-w.wr{ border:1px solid color-mix(in srgb, var(--wc) 55%, transparent); background:color-mix(in srgb, var(--wc) 13%, transparent); border-radius:7px; padding:2px 5px; margin:1px 0; }
+.bu-w.wr b{ color:var(--wc); }
+.bu-w.wr span{ color:color-mix(in srgb, var(--wc) 65%, var(--sub)); }
+.bu-w.wr3{ box-shadow:0 0 10px color-mix(in srgb, var(--wc) 35%, transparent); }
 .bu-w span{ font-size:.56rem; color:var(--sub); }
 .bu-w.none span{ color:var(--dim); }
 .ainfo{ position:fixed; inset:0; z-index:35; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:rgba(9,9,11,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }

@@ -144,8 +144,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     d.appendChild(statRow('防', c.d, w && w.t === 'd' ? w.v : 0));
     d.appendChild(statRow('HP', c.h, 0));
     const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[c.sk.t].nm + ' Lv' + c.sk.lv)); k.appendChild(el('span', '', SK[c.sk.t].d(c.sk.lv))); d.appendChild(k);
-    const wd = el('div', 'ac-w');
-    if(w){ wd.appendChild(el('b', '', wName(w) + ' ' + wStat(w))); wd.appendChild(el('span', '', FX[w.fx].d())); }
+    const wd = el('div', 'ac-w' + (w ? ' wr wr' + w.v : ''));
+    if(w){ wd.appendChild(el('b', '', '★'.repeat(w.v) + ' ' + wName(w) + ' ' + wStat(w))); wd.appendChild(el('span', '', FX[w.fx].d())); }
     else wd.appendChild(el('span', '', '装備なし'));
     d.appendChild(wd);
     return d;
@@ -207,7 +207,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         note.textContent = 'だれに装備する?(前の装備は捨てる)';
         box.appendChild(wCard(pd.w));
         const g = el('div', 'agrid');
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i))));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i))));
         g.appendChild(bigBtn('捨てる', '装備しない', true, () => decide(-1)));
         box.appendChild(g);
       }
@@ -334,8 +334,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       const hp = el('div', 'hp'); const bar = el('i'); hp.appendChild(bar); c.appendChild(hp);
       const hpt = el('div', 'bu-hp', u.mhp + '/' + u.mhp); c.appendChild(hpt);
       c.appendChild(el('div', 'bu-s', '攻' + u.A + ' 防' + u.D));
-      const wv = el('div', 'bu-w' + (u.fx ? '' : ' none'));
-      if(u.fx){ wv.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); wv.appendChild(el('span', '', FX[u.fx].s())); }
+      const wv = el('div', 'bu-w' + (u.fx ? ' wr wr' + u.wv : ' none'));
+      if(u.fx){ wv.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); wv.appendChild(el('span', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].s())); }
       else wv.appendChild(el('span', '', '装備なし'));
       c.appendChild(wv);
       c.onclick = e => { if(e.target.closest('.bu-sk')) return; showInfo(u); };
@@ -362,8 +362,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0;
     card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', u.h, 0));
     const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv))); card.appendChild(k);
-    const w = el('div', 'ac-w');
-    if(u.fx){ w.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); w.appendChild(el('span', '', FX[u.fx].d())); }
+    const w = el('div', 'ac-w' + (u.fx ? ' wr wr' + u.wv : ''));
+    if(u.fx){ w.appendChild(el('b', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); w.appendChild(el('span', '', FX[u.fx].d())); }
     else w.appendChild(el('span', '', '装備なし'));
     card.appendChild(w);
     box.appendChild(card); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる'));
