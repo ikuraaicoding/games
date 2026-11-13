@@ -371,6 +371,17 @@ function quitAll(){
   room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx();
   document.body.classList.remove('solo');
   $('picker').classList.remove('on'); hideBanner(); show('s-menu');
+  if(newVer) location.reload();
+}
+// 新しい版が届いたら読み込み直す(部屋に入っている間は待って、抜けたときに)
+let newVer = false;
+if('serviceWorker' in navigator){
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(!had) return;
+    if(!room && !guest) location.reload(); else newVer = true;
+  });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}); });
 }
 document.addEventListener('gesturestart', e => e.preventDefault());
 window.addEventListener('pagehide', stopScan);
