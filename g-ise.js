@@ -73,7 +73,9 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
       const em = document.createElement('span'); em.className = 'em'; em.textContent = '✊';
       const cap = document.createElement('span'); cap.className = 'cap'; cap.textContent = lbl + '(タップで親指を立てる)';
       b.appendChild(em); b.appendChild(cap);
-      b.addEventListener('click', () => {
+      // click ではなく「触れた瞬間」で反応させる(2本指で同時に押しても、指が少しずれても、両方とも効く)
+      b.addEventListener('pointerdown', e => {
+        e.preventDefault();
         if(ph !== 'pick' || sent) return;
         up[i] = !up[i]; selP = up.filter(Boolean).length;
         em.textContent = up[i] ? '👍' : '✊'; b.classList.toggle('up', up[i]);
@@ -82,6 +84,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
         E.audio.init(); E.audio.beep(up[i] ? 660 : 440, .06, .15); E.vibrate(15);
         refreshSel();
       });
+      b.addEventListener('contextmenu', e => e.preventDefault());
       box.appendChild(b);
     });
   }
