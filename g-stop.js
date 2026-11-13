@@ -4,6 +4,7 @@
  *  1. ホストが目標秒数(10〜20秒)を決めて、全員に配る
  *  2. 各自、ボタンを長押ししてスタート。最初の3秒だけタイマーが見えて、そのあと隠れる
  *  3. 目標だと思った瞬間に指を離す。離した瞬間にタイマーが止まって、自分の秒数が出る
+ *     ほかの人がいつ離したかは、発表まで分からない
  *  4. 全員が離したら、目標とのズレが小さい順に発表。最下位の発表の前に「ため」を入れる
  *
  * 公平さ: 秒数は各スマホの中(指を置いた瞬間→離した瞬間)で測る。通信の遅れは勝負に関係しない。
@@ -23,7 +24,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
 
   // ---------------- 参加者側 ----------------
-  let ph = 'wait', T = 0, t0 = 0, raf = 0, myMs = null, done = [];
+  let ph = 'wait', T = 0, t0 = 0, raf = 0, myMs = null;
 
   function setPad(cls, big, small){
     pad.className = 'pad ' + (cls || '');
@@ -33,12 +34,13 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   function chips(){
     const box = $('p-chips'); box.textContent = '';
     E.players().forEach(p => {
-      const c = document.createElement('span'); c.className = 'chip' + (done.includes(p.id) ? ' on' : '');
-      c.textContent = (done.includes(p.id) ? '✓ ' : '') + p.name; box.appendChild(c);
+      const me = p.id === E.myId && myMs !== null;      // ほかの人が離したかどうかは見せない(自分の分だけ)
+      const c = document.createElement('span'); c.className = 'chip' + (me ? ' on' : '');
+      c.textContent = (me ? '✓ ' : '') + p.name; box.appendChild(c);
     });
   }
   function onBegin(){
-    stopped = false; ph = 'wait'; T = 0; t0 = 0; myMs = null; done = [];
+    stopped = false; ph = 'wait'; T = 0; t0 = 0; myMs = null;
     $('p-top').textContent = 'BLIND — 見えないタイマー'; setTarget(); chips();
     setPad('', '準備中…', ''); E.show('s-stop');
   }
@@ -49,11 +51,10 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   function onMsg(m){
     if(stopped || !m || typeof m.t !== 'string') return;
     if(m.t === 'go' && Number.isInteger(m.T) && m.T >= 10 && m.T <= 60){
-      T = m.T; ph = 'ready'; myMs = null; done = []; setTarget(); chips();
+      T = m.T; ph = 'ready'; myMs = null; setTarget(); chips();
       setPad('', '長押しで スタート', '目標の秒数ぴったりで指を離せ!\n最初の3秒だけ時間が見えて、あとは隠れるよ');
       E.vibrate(40);
-    }else if(m.t === 'prog' && Array.isArray(m.ids)){ done = m.ids.filter(Number.isInteger); chips(); }
-    else if(m.t === 'res'){ showRes(m); }
+    }else if(m.t === 'res'){ showRes(m); }
   }
 
   function tick(){
@@ -67,7 +68,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   function release(e){
     cancelAnimationFrame(raf);
     const ms = Math.max(0, Math.round((e ? nowTs(e) - t0 : performance.now() - t0) * 10) / 10);
-    ph = 'done'; myMs = ms;
+    ph = 'done'; myMs = ms; chips();
     E.send({ t: 'rt', ms }, true);
     const d = ms / 1000 - T;
     setPad('down', (ms / 1000).toFixed(2) + ' 秒', '目標 ' + T + '.00 秒 との差 ' + (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(2) + '\nみんなを待ってるよ…');
@@ -156,7 +157,6 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   // ---------------- ホスト(審判) ----------------
   const H = { phase: 'wait', T: 0, reports: new Map(), fin: null };
   const players = () => E.players();
-  const bcastProg = () => E.hostBcast({ t: 'prog', ids: Array.from(H.reports.keys()) }, false);
   function hostStart(){
     H.phase = 'run'; H.reports = new Map();
     H.T = 10 + Math.floor(rndF() * 11);                 // 10〜20秒
@@ -167,8 +167,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   function hostOnMsg(id, m){
     if(!m || typeof m.t !== 'string' || H.phase !== 'run') return;
     if(m.t === 'rt' && !H.reports.has(id) && Number.isFinite(m.ms) && m.ms >= 0 && m.ms <= H.T * 1000 + OVER_MS + 2000){
-      H.reports.set(id, { ms: m.ms });
-      bcastProg();
+      H.reports.set(id, { ms: m.ms });           // 誰が離したかは発表まで配らない
       if(allIn()){ clearTimeout(H.fin); H.fin = setTimeout(finalize, 600); }
     }
   }
