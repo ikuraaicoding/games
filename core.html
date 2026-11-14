@@ -398,6 +398,7 @@ margin: 0 0 28px; text-shadow:0 0 14px rgba(245,166,35,0.45);
 
 </div>
 
+<script src="sound.js"></script>
 <script src="pfx.js"></script>
 <script>
 (function(){
@@ -603,7 +604,7 @@ if(!audioCtx){
 const AC = window.AudioContext || window.webkitAudioContext;
 audioCtx = new AC();
 }
-if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+if(window.NomiSound) window.NomiSound.track(audioCtx); else if(audioCtx.state !== 'running'){ audioCtx.resume(); }
 }
 
 function showScreen(el){

@@ -22,7 +22,7 @@ let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'aren
 // ---------- 音 ----------
 let ac = null;
 const audio = {
-  init(){ if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(ac && ac.state === 'suspended') ac.resume(); },
+  init(){ if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(!ac) return; if(window.NomiSound) window.NomiSound.track(ac); else if(ac.state !== 'running') ac.resume(); },
   heartbeat(vol){
     if(!ac) return; const t = ac.currentTime;
     [[58, 0, .22, .6], [46, .16, .2, .4]].forEach(([f, d, len, g]) => {
