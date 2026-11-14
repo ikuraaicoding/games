@@ -297,7 +297,7 @@ function miss(el){
   const d = center(el); if(!d) return;
   for(let i = 0; i < 4; i++) part({ t: tex.spark, x: d.x - d.w * .6, y: d.y + rnd(-d.h * .3, d.h * .3), vx: rnd(900, 1300), vy: 0, align: true, life: 260, s0: 1.4, s1: .6, a0: .7, tint: 0xcfe6ff, delay: i * 40 });
 }
-const SKC = { pow: 0xff453a, swp: 0xff9f0a, snp: 0x64d2ff, drain: 0xbf5af2, heal: 0x30d158, wall: 0x8e9aa6, taunt: 0xffd60a, ctr: 0xff375f };
+const SKC = { pow: 0xff453a, swp: 0xff9f0a, snp: 0x64d2ff, rush: 0xffd60a, drain: 0xbf5af2, heal: 0x30d158, rain: 0x64d2ff, rev: 0xfff4c2, wall: 0x8e9aa6, taunt: 0xffd60a, ctr: 0xff375f, fort: 0xa1a1aa };
 function skill(el, title, sub, sk){
   if(!ok() || !visible) return;
   const col = SKC[sk] || 0xff9f0a;

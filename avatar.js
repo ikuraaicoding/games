@@ -27,16 +27,19 @@ const SKIN = ['#ffdcbf', '#f6c79a', '#e6ad7a', '#c98a5a', '#8f5a3a', '#ffe3ec', 
 const SKIN_W = [18, 18, 14, 12, 10, 10, 9, 9];
 const HAIR = ['#2a2a2e', '#5b3a26', '#d9a441', '#ececf0', '#c9372c', '#2f7fd8', '#8e4fd0', '#159a7f', '#ff7eb6', '#f08a24'];
 
-function themeOf(a, d, h){
+// スキルの系統(同点のときは、顔の色をスキルの系統に合わせる)
+const SK_TH = { pow: 'atk', swp: 'atk', snp: 'atk', rush: 'atk', wall: 'def', taunt: 'def', ctr: 'def', fort: 'def', heal: 'hp', drain: 'hp', rain: 'hp', rev: 'hp' };
+function themeOf(a, d, h, sk){
   const mx = Math.max(a, d, h), mn = Math.min(a, d, h);
   if(mx - mn <= 1) return 'bal';
-  return a === mx ? 'atk' : d === mx ? 'def' : 'hp';
+  const top = [a === mx && 'atk', d === mx && 'def', h === mx && 'hp'].filter(Boolean);
+  return top.includes(SK_TH[sk]) ? SK_TH[sk] : top[0];
 }
 function wpick(r, ws){ const t = ws.reduce((x, y) => x + y, 0); let v = r() * t; for(let i = 0; i < ws.length; i++){ if((v -= ws[i]) < 0) return i; } return ws.length - 1; }
 
 function make(c, size){
   const r = rng(c.av || 0);
-  const th = THEME[themeOf(c.a, c.d, c.h)];
+  const th = THEME[themeOf(c.a, c.d, c.h, c.sk)];
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'face');
   if(size){ svg.setAttribute('width', size); svg.setAttribute('height', size); }
@@ -127,6 +130,17 @@ function make(c, size){
   }else if(sk === 'taunt'){ // 王冠
     S('path', { d: 'M20 15 L22 4 L27 10 L32 2 L37 10 L42 4 L44 15 Z', fill: '#ffcc33', stroke: '#b8860b', 'stroke-width': .8, 'stroke-linejoin': 'round' });
     S('circle', { cx: 32, cy: 11, r: 1.6, fill: '#e8403a' });
+  }else if(sk === 'rush'){ // イナズマの髪かざり
+    S('path', { d: 'M47 5 L42 15 L46.5 15 L43 24 L52 12 L47.5 12 L51 5 Z', fill: '#ffd60a', stroke: '#b8860b', 'stroke-width': .7, 'stroke-linejoin': 'round' });
+  }else if(sk === 'fort'){ // 肩よろい
+    S('ellipse', { cx: 13, cy: 58, rx: 9, ry: 5.5, fill: '#8e9aa6', stroke: '#5d6670', 'stroke-width': 1 });
+    S('ellipse', { cx: 51, cy: 58, rx: 9, ry: 5.5, fill: '#8e9aa6', stroke: '#5d6670', 'stroke-width': 1 });
+  }else if(sk === 'rain'){ // しずくの髪かざり
+    S('path', { d: 'M48 9 Q53.5 17 48 21 Q42.5 17 48 9 Z', fill: '#64d2ff', stroke: '#2b8fbf', 'stroke-width': .8 });
+    S('circle', { cx: 46.6, cy: 16.5, r: 1.1, fill: '#fff', opacity: .8 });
+  }else if(sk === 'rev'){ // 小さな羽
+    S('path', { d: 'M14 28 Q3 24 4 12 Q9 20 16 23 Z', fill: '#fff', stroke: '#c9c9d6', 'stroke-width': .8 });
+    S('path', { d: 'M50 28 Q61 24 60 12 Q55 20 48 23 Z', fill: '#fff', stroke: '#c9c9d6', 'stroke-width': .8 });
   }
   return svg;
 }
