@@ -116,6 +116,10 @@ function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && F
 function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
+// アイコン(icons.js)。読み込めなかったら何も出さない
+const icSk = (k, n) => window.NomiIcons ? window.NomiIcons.skill(k, n) : document.createElement('span');
+const icFx = (k, n) => window.NomiIcons ? window.NomiIcons.fx(k, n) : document.createElement('span');
+const withIc = (node, ic) => { node.insertBefore(ic, node.firstChild); return node; };
 // ---------------- スキルと武器の一覧(ロビーや育成画面から開く) ----------------
 const CAT_INFO = { a: '攻撃スキル', d: '防御スキル', h: 'HPスキル' };
 const CAT_WHO = { a: '攻がいちばん高いキャラ', d: '防がいちばん高いキャラ', h: 'HPがいちばん高いキャラ' };
@@ -137,7 +141,7 @@ function showCatalog(){
     const t = el('div', 'cat-st'); t.appendChild(el('i', 'skc c-' + c, CAT_INFO[c])); t.appendChild(el('span', '', CAT_WHO[c])); sec.appendChild(t);
     SK_OF[c].forEach(k => {
       const r = el('div', 'cat-row');
-      r.appendChild(el('b', '', SK[k].nm + (SK_NOW[k] ? '' : '  (次の攻撃)')));
+      r.appendChild(withIc(el('b', '', SK[k].nm + (SK_NOW[k] ? '' : '  (次の攻撃)')), icSk(k, 22)));
       r.appendChild(el('span', '', 'Lv1: ' + SK[k].d(1, 3)));
       r.appendChild(el('span', '', 'Lv' + SK_MAX + ': ' + SK[k].d(SK_MAX, 3)));
       if(SK[k].d(1, 5) !== SK[k].d(1, 3)) r.appendChild(el('span', 'cat-5', '5体バトルでは弱め — Lv1: ' + SK[k].d(1, 5) + ' / Lv' + SK_MAX + ': ' + SK[k].d(SK_MAX, 5)));
@@ -153,7 +157,7 @@ function showCatalog(){
     const h = el('div', 'cat-st'); h.appendChild(el('i', 'skc c-' + t, W_INFO[t])); sec.appendChild(h);
     FX_OF[t].forEach(k => {
       const r = el('div', 'cat-row');
-      r.appendChild(el('b', '', FX[k].nm + 'の' + W_KIND[t]));
+      r.appendChild(withIc(el('b', '', FX[k].nm + 'の' + W_KIND[t]), icFx(k, 22)));
       r.appendChild(el('span', '', FX[k].d(3)));
       if(FX[k].d(5) !== FX[k].d(3)) r.appendChild(el('span', 'cat-5', '5体バトルでは: ' + FX[k].d(5)));
       sec.appendChild(r);
@@ -235,16 +239,16 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     d.appendChild(statRow('攻', c.a, w && w.t === 'a' ? w.v : 0));
     d.appendChild(statRow('防', c.d, w && w.t === 'd' ? w.v : 0));
     d.appendChild(statRow('HP', c.h, w && w.t === 'h' ? w.v : 0));
-    const k = el('div', 'ac-k'); const kb = el('b', '', SK[c.sk.t].nm + ' Lv' + c.sk.lv); kb.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c] + 'スキル')); k.appendChild(kb); k.appendChild(el('span', '', SK[c.sk.t].d(c.sk.lv, pSize))); d.appendChild(k);
+    const k = el('div', 'ac-k'); const kb = withIc(el('b', '', SK[c.sk.t].nm + ' Lv' + c.sk.lv), icSk(c.sk.t, 18)); kb.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c] + 'スキル')); k.appendChild(kb); k.appendChild(el('span', '', SK[c.sk.t].d(c.sk.lv, pSize))); d.appendChild(k);
     const wd = el('div', 'ac-w' + (w ? ' wr wr' + w.v : ''));
-    if(w){ wd.appendChild(el('b', '', '★'.repeat(w.v) + ' ' + wName(w) + ' ' + wStat(w))); wd.appendChild(el('span', '', FX[w.fx].d(pSize))); }
+    if(w){ wd.appendChild(withIc(el('b', '', '★'.repeat(w.v) + ' ' + wName(w) + ' ' + wStat(w)), icFx(w.fx, 18))); wd.appendChild(el('span', '', FX[w.fx].d(pSize))); }
     else wd.appendChild(el('span', '', '装備なし'));
     d.appendChild(wd);
     return d;
   }
   function wCard(w){
     const d = el('div', 'ac wc r-' + (w.v === 3 ? 'SSR' : w.v === 2 ? 'SR' : 'R') + ' reveal');
-    const h = el('div', 'ac-h'); h.appendChild(el('span', 'rar', '★'.repeat(w.v))); h.appendChild(el('b', '', wName(w))); h.appendChild(el('span', 'tot', wStat(w)));
+    const h = el('div', 'ac-h'); h.appendChild(icFx(w.fx, 30)); h.appendChild(el('span', 'rar', '★'.repeat(w.v))); h.appendChild(el('b', '', wName(w))); h.appendChild(el('span', 'tot', wStat(w)));
     d.appendChild(h);
     const wd = el('div', 'ac-w'); wd.appendChild(el('b', '', '特殊効果')); wd.appendChild(el('span', '', FX[w.fx].d(pSize))); d.appendChild(wd);
     return d;
@@ -276,8 +280,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const m = el('div', 'sl-m');
     const t = el('div', 'sl-t'); t.appendChild(el('span', 'rar', rar)); t.appendChild(el('b', '', c.nm)); t.appendChild(statLine(c)); m.appendChild(t);
     const b = el('div', 'sl-b');
-    const k = el('span', 'sl-k', SK[c.sk.t].nm + ' Lv' + c.sk.lv); k.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c])); b.appendChild(k);
-    b.appendChild(el('span', 'sl-w' + (w ? ' wr' + w.v : ''), w ? '★'.repeat(w.v) + ' ' + wName(w) : '装備なし'));
+    const k = withIc(el('span', 'sl-k', SK[c.sk.t].nm + ' Lv' + c.sk.lv), icSk(c.sk.t, 14)); k.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c])); b.appendChild(k);
+    const sw = el('span', 'sl-w' + (w ? ' wr' + w.v : ''), w ? '★'.repeat(w.v) + ' ' + wName(w) : '装備なし'); if(w) withIc(sw, icFx(w.fx, 14)); b.appendChild(sw);
     m.appendChild(b); d.appendChild(m);
     d.onclick = () => { const box = $('a-info'); box.textContent = ''; box.appendChild(charCard(c)); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる')); box.onclick = () => box.classList.remove('on'); box.classList.add('on'); };
     return d;
@@ -494,7 +498,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       const hpt = el('div', 'bu-hp', u.mhp + '/' + u.mhp); c.appendChild(hpt);
       c.appendChild(el('div', 'bu-s', '攻' + u.A + ' 防' + u.D));
       const wv = el('div', 'bu-w' + (u.fx ? ' wr wr' + u.wv : ' none'));
-      if(u.fx){ wv.appendChild(el('b', '', wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv }))); wv.appendChild(el('span', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].s(bt.N))); }
+      if(u.fx){ wv.appendChild(withIc(el('b', '', wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv })), icFx(u.fx, 12))); wv.appendChild(el('span', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].s(bt.N))); }
       else wv.appendChild(el('span', '', '装備なし'));
       c.appendChild(wv);
       c.onclick = e => { if(e.target.closest('.bu-sk')) return; showInfo(u); };
@@ -502,10 +506,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       let btn;
       if(side === bt.mySide){
         btn = el('button', 'bu-sk');
-        btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
+        btn.appendChild(withIc(el('b', '', SK[u.sk].nm + ' Lv' + u.lv), icSk(u.sk, 14))); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
         btn.onclick = () => useSkill(ui);
       }else{
-        btn = el('div', 'bu-sk ro'); btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
+        btn = el('div', 'bu-sk ro'); btn.appendChild(withIc(el('b', '', SK[u.sk].nm + ' Lv' + u.lv), icSk(u.sk, 14))); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
       }
       c.appendChild(btn);
       row.appendChild(c);
@@ -522,9 +526,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     h.appendChild(el('span', 'tot', '最大HP ' + u.mhp)); card.appendChild(h);
     const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0, bH = u.wt === 'h' ? u.wv : 0;
     card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', u.h, bH));
-    const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv, bt.N))); card.appendChild(k);
+    const k = el('div', 'ac-k'); k.appendChild(withIc(el('b', '', SK[u.sk].nm + ' Lv' + u.lv), icSk(u.sk, 18))); k.appendChild(el('span', '', SK[u.sk].d(u.lv, bt.N))); card.appendChild(k);
     const w = el('div', 'ac-w' + (u.fx ? ' wr wr' + u.wv : ''));
-    if(u.fx){ w.appendChild(el('b', '', '★'.repeat(u.wv) + ' ' + wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv }))); w.appendChild(el('span', '', FX[u.fx].d(bt.N))); }
+    if(u.fx){ w.appendChild(withIc(el('b', '', '★'.repeat(u.wv) + ' ' + wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv })), icFx(u.fx, 18))); w.appendChild(el('span', '', FX[u.fx].d(bt.N))); }
     else w.appendChild(el('span', '', '装備なし'));
     card.appendChild(w);
     box.appendChild(card); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる'));
