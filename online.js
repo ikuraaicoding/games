@@ -8,7 +8,7 @@ const R = window.NomiRoom;
 const clean = R.clean;
 // 制御文字は取り除くが、改行(\n)だけは残す(結果画面の複数行表示のため)
 const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 80);
-function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
 function vis(id, on, disp){ const e = $(id); e.classList.remove('hide'); e.style.display = on ? (disp || 'block') : 'none'; }
 function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
@@ -144,6 +144,7 @@ function onNet(s){
 const FXN = window.NomiFX || new Proxy({}, { get: () => () => 0 });
 const E = {
   $, audio, vibrate, show, nameOf, fx: FXN,
+  quiet: on => setQuiet(on),
   get isHost(){ return role === 'host'; },
   get myId(){ return myId; },
   players: () => roster.slice(),
@@ -275,6 +276,114 @@ function renderLobby(){
 }
 
 // =====================================================================
+//  チャット・スタンプ(部屋の中なら、ロビーでもゲーム中でも使える)
+//   - 参加者 → ホスト → 全員 の順に届く。ホストが送り主を決めるので、なりすましできない
+//   - 連投の制限: 送る側(4回まで連続OK、2.5秒ごとに1回分回復)と、ホスト側(5回・2秒ごと)の二重
+//   - スタンプと定型文は決まったものだけ。ひとことは40文字まで。画面には textContent だけで出す
+// =====================================================================
+const STAMPS = ['😂', '😭', '😱', '😡', '🔥', '👏', '🙏', '💀', '❤️', '🤯', '😎', '🫠'];
+const PHRASES = ['ナイス!', 'やばい!', 'ずるい!', 'おしい!', 'まだまだ!', 'GG', 'たすけて', 'うそでしょ'];
+const CHAT_LEN = 40, LOG_MAX = 60, RX_MAX = 8;
+let chatLog = [], chatOpen = false, unread = 0, quiet = false, chatSeq = 0, chatSeen = new Set();
+const myBucket = { tk: 4, at: 0 };
+const hostBuckets = new Map();
+function takeToken(b, cap, refillMs){
+  const now = performance.now();
+  b.tk = Math.min(cap, b.tk + (b.at ? (now - b.at) / refillMs : cap)); b.at = now;
+  if(b.tk < 1) return false;
+  b.tk -= 1; return true;
+}
+const inRoom = () => role === 'host' || role === 'guest';
+function chatOk(k, v){
+  if(k === 's') return STAMPS.includes(v);
+  if(k === 'p') return PHRASES.includes(v);
+  if(k === 'm') return typeof v === 'string' && clean2(v, CHAT_LEN).replace(/\s/g, '').length > 0;
+  return false;
+}
+function chatSend(k, v){
+  if(!inRoom()) return;
+  if(k === 'm') v = clean2(String(v).replace(/\n/g, ' '), CHAT_LEN).trim();
+  if(!chatOk(k, v)) return;
+  if(!takeToken(myBucket, 4, 2500)){ chatHint('連投しすぎ! ちょっと待ってね'); return; }
+  chatHint('');
+  const o = { t: 'chat', k, v };
+  if(role === 'host') hostChat(0, o); else if(guest) guest.send(o, true);
+}
+// ホスト: 届いたチャットを確かめて、全員に配る
+function hostChat(id, o){
+  if(role !== 'host' || !o || !chatOk(o.k, o.v)) return;
+  let b = hostBuckets.get(id); if(!b){ b = { tk: 5, at: 0 }; hostBuckets.set(id, b); }
+  if(id !== 0 && !takeToken(b, 5, 2000)) return;                  // 連投は捨てる
+  const m = { t: 'chat', id, k: o.k, v: o.k === 'm' ? clean2(o.v, CHAT_LEN) : o.v, n: ++chatSeq };
+  if(room) room.bcast(m, true);
+  onChat(m);
+}
+function onChat(m){
+  if(!m || !Number.isInteger(m.id) || !Number.isInteger(m.n) || !chatOk(m.k, m.v)) return;
+  if(chatSeen.has(m.n)) return;                                  // 2回届いた分は無視
+  chatSeen.add(m.n); if(chatSeen.size > 300) chatSeen = new Set(Array.from(chatSeen).slice(-150));
+  const v = m.k === 'm' ? clean2(m.v, CHAT_LEN) : m.v, me = m.id === myId, name = nameOf(m.id);
+  chatLog.push({ id: m.id, name, k: m.k, v, me }); if(chatLog.length > LOG_MAX) chatLog.shift();
+  if(chatOpen) renderChatLog();
+  if(!quiet && (m.k === 's' || m.k === 'p')) floatReact(name, m.k, v);
+  if(!quiet && m.k === 'm' && !chatOpen && !me) toast(name, v);
+  if(!chatOpen && !me && (m.k === 'm' || quiet)){ unread++; renderBadge(); }
+}
+function chatHint(t){ $('chat-hint').textContent = t || ''; }
+function renderBadge(){ const b = $('chat-badge'); b.textContent = unread > 9 ? '9+' : String(unread); b.classList.toggle('hide', unread <= 0); }
+function renderChatLog(){
+  const box = $('chat-log'); box.textContent = '';
+  if(!chatLog.length){ const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'まだメッセージはないよ'; box.appendChild(e); return; }
+  chatLog.forEach(x => {
+    const d = document.createElement('div'); d.className = 'cm' + (x.me ? ' me' : '');
+    const b = document.createElement('b'); b.textContent = x.me ? 'あなた' : x.name; d.appendChild(b);
+    const s = document.createElement('span'); s.textContent = x.v; if(x.k === 's') s.className = 'em'; d.appendChild(s);
+    box.appendChild(d);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function toast(name, text){
+  const box = $('toasts');
+  while(box.children.length >= 3) box.firstElementChild.remove();
+  const t = document.createElement('div'); t.className = 'toast';
+  const b = document.createElement('b'); b.textContent = name; const s = document.createElement('span'); s.textContent = text;
+  t.appendChild(b); t.appendChild(s); box.appendChild(t);
+  vibrate(15);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 3200);
+}
+function floatReact(name, k, v){
+  const box = $('rx');
+  while(box.children.length >= RX_MAX) box.firstElementChild.remove();
+  const d = document.createElement('div'); d.className = 'rx';
+  const e = document.createElement('span'); e.className = k === 's' ? 'e' : 'p'; e.textContent = v; d.appendChild(e);
+  const n = document.createElement('span'); n.className = 'n'; n.textContent = name; d.appendChild(n);
+  d.style.left = (8 + Math.random() * 64) + '%';
+  box.appendChild(d);
+  setTimeout(() => d.remove(), 2700);
+}
+function openChat(on){
+  chatOpen = !!on && inRoom() && !quiet;
+  ['chat-sheet', 'chat-bg'].forEach(id => $(id).classList.toggle('hide', !chatOpen));
+  if(chatOpen){ unread = 0; renderBadge(); renderChatLog(); chatHint(''); }
+  else $('chat-text').blur();
+}
+// ゲームが「いまは静かにして」と言っているあいだ(DRAW の合図待ちなど)は、スタンプやバナーを出さない
+function setQuiet(on){ quiet = !!on; if(quiet) openChat(false); $('chat-btn').style.opacity = quiet ? '.25' : ''; }
+function chatReset(){ chatLog = []; chatSeen = new Set(); unread = 0; chatSeq = 0; hostBuckets.clear(); quiet = false; openChat(false); renderBadge(); $('toasts').textContent = ''; $('rx').textContent = ''; $('chat-btn').style.opacity = ''; }
+window.__chatVis = id => { $('chat-btn').classList.toggle('hide', !inRoom() || id === 's-menu' || id === 's-scan'); if(id === 's-menu' || id === 's-scan') openChat(false); };
+(function(){
+  const sb = $('chat-stamps'), pb = $('chat-phr');
+  STAMPS.forEach(s => { const b = document.createElement('button'); b.textContent = s; b.addEventListener('click', () => chatSend('s', s)); sb.appendChild(b); });
+  PHRASES.forEach(s => { const b = document.createElement('button'); b.textContent = s; b.addEventListener('click', () => chatSend('p', s)); pb.appendChild(b); });
+  const sendText = () => { const i = $('chat-text'); if(!i.value.trim()) return; chatSend('m', i.value); i.value = ''; };
+  $('chat-send').addEventListener('click', sendText);
+  $('chat-text').addEventListener('keydown', e => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); sendText(); } });
+  $('chat-btn').addEventListener('click', () => openChat(!chatOpen));
+  $('chat-bg').addEventListener('click', () => openChat(false));
+  $('chat-x').addEventListener('click', () => openChat(false));
+})();
+
+// =====================================================================
 //  ホスト
 // =====================================================================
 function hostLeave(p, why){
@@ -298,6 +407,9 @@ function soloRoom(){
     p.bot = window.NomiBots.make(id, obj => {
       const o = JSON.parse(JSON.stringify(obj)); o.g = curId;
       setTimeout(() => { if(S.peers.get(id) !== p || role !== 'host') return; if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }, p.lat);
+    }, obj => {
+      const o = JSON.parse(JSON.stringify(obj));
+      setTimeout(() => { if(S.peers.get(id) !== p || role !== 'host') return; hostChat(id, o); }, p.lat);
     });
     S.peers.set(id, p);
   };
@@ -307,6 +419,7 @@ function soloRoom(){
   return S;
 }
 function soloCreate(){
+  chatReset();
   role = 'host'; myId = 0; curId = null; game = null; userLocked = true; solo = true;
   room = soloRoom();
   for(let i = 0; i < 3; i++) room.add();
@@ -314,6 +427,7 @@ function soloCreate(){
   keepAwake(); pushRoster(); renderLobby(); show('s-lobby');
 }
 async function hostCreate(){
+  chatReset();
   role = 'host'; myId = 0; curId = null; game = null; userLocked = false; solo = false;
   roster = [{ id: 0, name: myName, rtt: 0 }];
   try{
@@ -321,7 +435,7 @@ async function hostCreate(){
       onNet,
       onJoin: p => { pushRoster(); flashBanner(p.name + ' が参加したよ', 2500); vibrate(60); },
       onLeave: hostLeave,
-      onMsg: (id, o) => { if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }
+      onMsg: (id, o) => { if(o && o.t === 'chat'){ hostChat(id, o); return; } if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }
     });
   }catch(e){ role = null; flashBanner('部屋を作れなかった: ' + e.message, 5000); return; }
   drawQR(room.qr, $('l-qr'), qrSize()); $('l-code').value = room.qr;
@@ -389,7 +503,7 @@ async function joinWith(text){
 }
 function guestCleanup(){
   if(game && game.stop) game.stop();
-  game = null; curId = null; guest = null; role = null; resetFx(); $('picker').classList.remove('on'); hideBanner();
+  game = null; curId = null; guest = null; role = null; resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset();
 }
 function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
@@ -400,6 +514,8 @@ function guestMsg(o){
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
     if(game && game.stop) game.stop();
     curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
+  }else if(o.t === 'chat'){
+    onChat(o);
   }else if(o.t === 'want'){
     if(RULES.some(x => x.g === o.want)){ hostWant = o.want; if($('s-lobby').classList.contains('active')) renderRules(); }
   }else if(o.t === 'lobby'){
@@ -456,7 +572,7 @@ function quitAll(){
   stopScan();
   if(game && game.stop) game.stop();
   if(role === 'host' && room){ room.close(); } else if(guest){ guest.close(); }
-  room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx();
+  room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx(); chatReset();
   document.body.classList.remove('solo');
   $('picker').classList.remove('on'); hideBanner(); show('s-menu');
   if(newVer) location.reload();

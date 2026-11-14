@@ -9,8 +9,8 @@ const rnd = Math.random;
 const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 const gauss = () => { let u = 0, v = 0; while(!u) u = rnd(); while(!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 
-// id: このCPUの番号 / send(obj): ホストへ送る
-function make(id, send){
+// id: このCPUの番号 / send(obj): ホストへ送る / chat(obj): チャットを送る
+function make(id, send, chat){
   let gid = null, timers = [], ivs = [];
   const later = (fn, ms) => { const t = setTimeout(fn, Math.max(0, ms)); timers.push(t); return t; };
   const every = (fn, ms) => { const t = setInterval(fn, ms); ivs.push(t); return t; };
@@ -118,9 +118,19 @@ function make(id, send){
   };
 
   const G = { tap, stop, ise, core, arena };
+  // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
+  const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
+  let lastChat = 0;
+  function onChat(o){
+    if(!chat || o.id === id || o.id !== 0) return;
+    if(rnd() > .35 || performance.now() - lastChat < 6000) return;
+    lastChat = performance.now();
+    setTimeout(() => chat({ t: 'chat', k: 's', v: REPLY[ri(0, REPLY.length - 1)] }), ri(700, 2600));
+  }
   return {
     recv(o){
       if(!o || typeof o.t !== 'string') return;
+      if(o.t === 'chat'){ onChat(o); return; }
       if(o.t === 'begin' && G[o.g]){ clear(); S = {}; gid = o.g; G[gid].begin(); return; }
       if(o.t === 'lobby' || o.t === 'closed'){ clear(); gid = null; return; }
       if(gid && o.g === gid) G[gid].msg(o);

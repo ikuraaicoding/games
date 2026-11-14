@@ -17,7 +17,8 @@ const TIE_MS = 10, MIN_HUMAN_MS = 100, CHEAT_SLACK_MS = 250;
 window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
   const $ = E.$, pad = $('t-pad'), PF = E.fx;
   // 演出: 合図を待っている間〜自分が離すまでは止める(描画の負荷で、合図の表示が遅れないように)
-  const fxOn = () => PF.show(true, { amb: [0xffd60a, 0xffe566, 0xffffff] });
+  // チャットのスタンプやバナーも、同じあいだは出さない(合図に集中できるように)
+  const fxOn = () => { PF.show(true, { amb: [0xffd60a, 0xffe566, 0xffffff] }); if(E.quiet) E.quiet(false); };
   const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 30);
   const rndF = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
   let stopped = false;
@@ -59,7 +60,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       ph = 'arm'; r = m.r; shownAt = null; myMs = null;
       localGo = E.toLocal(m.at);
       if(!down){ E.send({ t: 'foul', r }, true); setPad('bad', 'あれ?', '指が離れてたよ…'); ph = 'sent'; PF.shatter(pad, 0xff453a); return; }
-      PF.show(false);
+      PF.show(false); if(E.quiet) E.quiet(true);
       setPad('arm', '離すな…', '緑になったら すぐ離せ!\n早く離すとフライングで負け');
       E.vibrate(40);
       cancelAnimationFrame(raf); clearTimeout(fb);
@@ -265,7 +266,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     E.hostBcast({ t: 'res', rows, losers, tie: false, reason, rounds: H.rounds }, true);
   }
   function stop(){
-    stopped = true; cancelAnimationFrame(raf); clearTimeout(H.rdy); clearTimeout(H.fin); PF.show(false);
+    stopped = true; cancelAnimationFrame(raf); clearTimeout(H.rdy); clearTimeout(H.fin); PF.show(false); if(E.quiet) E.quiet(false);
     timers.forEach(t => { clearTimeout(t); clearInterval(t); });
     pad.removeEventListener('pointerdown', onDown); pad.removeEventListener('pointerup', onUp); pad.removeEventListener('pointercancel', onUp);
     ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
