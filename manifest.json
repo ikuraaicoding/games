@@ -1,7 +1,7 @@
 {
   "name": "PARTY PACK",
   "short_name": "PARTY PACK",
-  "description": "スマホで遊ぶパーティーゲーム(DRAW・BLIND・THUMBS・CORE)",
+  "description": "スマホで遊ぶパーティーゲーム(DRAW・BLIND・THUMBS・CORE・ARENA・RACE)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

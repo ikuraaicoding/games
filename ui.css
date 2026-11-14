@@ -6,7 +6,7 @@
   --surface:rgba(255,255,255,.045); --surface2:rgba(255,255,255,.08);
   --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
   --text:#f4f4f6; --sub:#9a9aa6; --dim:#5f5f6a;
-  --c-core:#ff453a; --c-draw:#ffd60a; --c-blind:#8e7bff; --c-thumbs:#30e0a1; --c-arena:#ff9f0a;
+  --c-core:#ff453a; --c-draw:#ffd60a; --c-blind:#8e7bff; --c-thumbs:#30e0a1; --c-arena:#ff9f0a; --c-race:#4fa3ff;
   --acc:#f4f4f6; --acc2:#ffffff; --acc-ink:#09090b;
   --red:#ff453a; --green:#30d158;
   --amber:var(--acc); --amber2:var(--acc2);
@@ -19,6 +19,7 @@ body[data-game="tap"], .g-tap{ --acc:var(--c-draw); --acc2:#ffe566; --acc-ink:#1
 body[data-game="stop"], .g-stop{ --acc:var(--c-blind); --acc2:#b8acff; --acc-ink:#0b0720; }
 body[data-game="ise"], .g-ise{ --acc:var(--c-thumbs); --acc2:#8af0c8; --acc-ink:#03140d; }
 body[data-game="arena"], .g-arena{ --acc:var(--c-arena); --acc2:#ffc266; --acc-ink:#1a0d00; }
+body[data-game="race"], .g-race{ --acc:var(--c-race); --acc2:#9ad0ff; --acc-ink:#020c1a; }
 
 *{ box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 html,body{ margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }

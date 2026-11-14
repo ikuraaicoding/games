@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena', '#race': 'race' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 let ac = null;
@@ -211,7 +211,17 @@ const RULES = [
     '5体バトルは、育成タイム5分以上(ハードなら3分以上)のときにホストが選べる',
     '時間切れで、ランダムなトーナメント。戦闘は自動',
     '試合中にできるのは、各キャラのスキルを使うタイミングを選ぶことだけ(1試合1回)',
-    'ホストの設定で「優勝を決める」か「最下位を決める(負け残り)」かが変わる'] }
+    'ホストの設定で「優勝を決める」か「最下位を決める(負け残り)」かが変わる'] },
+  { g: 'race', nm: 'RACE', sub: '改造レース', ic: 'i-race', r: [
+    'ガレージタイム(1〜5分)の間に車を改造する。最初は全員同じノーマルの車',
+    '10秒ごとに行動が1回たまる(最大3回。満タンのままだと、あふれて無駄になる)',
+    '行動ごとに「パーツガチャ」「チューン」「偵察」から1つ選ぶ',
+    'パーツは エンジン(最高速)・ターボ(加速)・タイヤ(コーナー)・ニトロ。レアなほど強く、特性がつくことも',
+    'チューンは部位ごとに最大Lv3。偵察すると、まだ公開されていないコースを自分だけ見られる',
+    'レースの前のピット(約12秒)でコースが公開される。セッティングを「最高速寄り・バランス・コーナー寄り」から選ぶ',
+    'レースは全員同時。操作はニトロを押すタイミングだけ(1レース1回)。直線で使うとよく効き、コーナーではほとんど効かない',
+    'ゴール順にポイント(10・7・5・4・3・2・1・0)。1戦か3戦の合計で順位が決まる',
+    'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] }
 ];
 let hostWant = '';                 // 参加者側: ホストがいま選んでいるゲーム
 let rulesTouched = false;          // 参加者が自分でルールを開いたか(開いたら、勝手に開き直さない)
@@ -233,9 +243,9 @@ function buildRules(){
     const ol = document.createElement('ol');
     x.r.forEach(t => { const li = document.createElement('li'); li.textContent = t; ol.appendChild(li); });
     d.appendChild(ol);
-    if(x.g === 'arena'){
-      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'cat-open'; cb.textContent = 'スキルと武器の一覧を見る';
-      cb.addEventListener('click', () => window.NomiGames.arena.showCatalog()); d.appendChild(cb);
+    if(x.g === 'arena' || x.g === 'race'){
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'cat-open'; cb.textContent = x.g === 'arena' ? 'スキルと武器の一覧を見る' : 'パーツと特性の一覧を見る';
+      cb.addEventListener('click', () => window.NomiGames[x.g].showCatalog()); d.appendChild(cb);
     }
     box.appendChild(d);
   });
@@ -547,7 +557,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-core').classList.toggle('hide', g !== 'core'); bcastWant(); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-core').classList.toggle('hide', g !== 'core'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
   const get = (k, d) => { try{ return localStorage.getItem(k) || d; }catch(e){ return d; } };
@@ -577,6 +587,19 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   const vs = document.querySelectorAll('#l-arena button[data-v]');
   const setV = x => { vs.forEach(b => b.classList.toggle('on', b.dataset.v === x)); try{ localStorage.setItem('arena-mode', x); }catch(e){} };
   setV(v === 'last' ? 'last' : 'top'); vs.forEach(b => b.addEventListener('click', () => setV(b.dataset.v)));
+})();
+// RACE: ガレージタイム / レース数 / 決めるのは
+(function(){
+  const one = (key, store, ok, d) => {
+    const bs = document.querySelectorAll('#l-race button[data-' + key + ']');
+    let v = d; try{ v = localStorage.getItem(store) || d; }catch(e){}
+    if(!ok.includes(v)) v = d;
+    const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset[key] === x)); try{ localStorage.setItem(store, x); }catch(e){} };
+    set(v); bs.forEach(b => b.addEventListener('click', () => set(b.dataset[key])));
+  };
+  one('m', 'race-min', ['1', '3', '5'], '3');
+  one('r', 'race-n', ['1', '3'], '3');
+  one('v', 'race-mode', ['top', 'last'], 'top');
 })();
 // CORE: 見ている人(コアを持っていない人)の音
 (function(){
