@@ -53,7 +53,9 @@ svg.ic{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.
 .gsel button .tile svg.ic{ width:20px; height:20px; }
 .gsel button b{ display:block; font-size:.92rem; font-weight:800; letter-spacing:.02em; }
 .gsel button small{ display:block; font-size:.66rem; color:var(--sub); margin-top:2px; }
-.gsel button:last-child:nth-child(odd){ grid-column:span 2; }
+.gsel button:last-child:nth-of-type(odd){ grid-column:span 2; }
+.gsel-h{ grid-column:1 / -1; text-align:left; font-size:.62rem; font-weight:700; letter-spacing:.2em; color:var(--sub); margin:6px 2px -2px; }
+.gsel-h small{ font-size:.62rem; letter-spacing:.04em; color:var(--dim); margin-left:8px; font-weight:600; }
 .gsel button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
 
 /* チップ(参加者) */
