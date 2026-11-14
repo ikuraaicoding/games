@@ -122,32 +122,28 @@ function make(id, send, chat){
 
   // ---------------- RACE ----------------
   const RS = () => window.NomiGames && window.NomiGames.race ? window.NomiGames.race._sim : null;
-  const psum = p => p.m + p.b.reduce((t, x) => t + x, 0);
   const race = {
-    begin(){ S.rc = { n: 0, t: 0, r: -1, me: -1, R: null, wait: false }; },
+    begin(){ S.rc = { n: 0, t: 0, r: -1, me: -1, R: null, wait: false, bias: ri(0, 3) }; },
     msg(m){
       const a = S.rc, SIM = RS(); if(!SIM) return;
-      if(m.t === 'me' && m.car && Array.isArray(m.car.p)){
+      if(m.t === 'me' && m.car && Array.isArray(m.car.st)){
         clearTimeout(a.t);
         if(m.end) return;
+        if(m.sk){
+          // スキル: 候補からランダム
+          if(!m.car.sk && Array.isArray(m.skc) && m.skc.length) a.t = later(() => send({ t: 'skp', k: m.skc[ri(0, m.skc.length - 1)], n: ++a.n }), ri(1500, 6000));
+          return;
+        }
+        if(m.tk <= 0) return;
         a.t = later(() => {
-          if(m.pend){
-            // 合計が上がるパーツなら付け替える(同じなら、特性つきを選ぶ)
-            const cur = m.car.p[m.pend.s], d = psum(m.pend) - psum(cur);
-            send({ t: 'dec', ok: d > 0 || (d === 0 && m.pend.tr && !cur.tr) ? 1 : 0, n: ++a.n });
-          }else if(m.tk > 0){
-            const r = rnd(), can = m.car.tu.map((lv, i) => lv < 3 ? i : -1).filter(i => i >= 0), sc = Array.isArray(m.sc) ? m.sc.length : 0;
-            if(r < .12 && sc < (m.R || 1)) send({ t: 'act', a: 'sc', n: ++a.n });
-            else if(r < .45 && can.length) send({ t: 'act', a: 'tu', slot: can[ri(0, can.length - 1)], n: ++a.n });
-            else send({ t: 'act', a: 'pt', n: ++a.n });
-          }
+          // 体力: たいてい60を切ったら休む(たまに無理をする)。終わり間際は休まない
+          const hp = m.car.hp, endSoon = Number.isFinite(m.rem) && m.rem < 12000;
+          if(!endSoon && (hp < 35 || (hp < 60 && rnd() < .8))){ send({ t: 'act', a: 'rs', n: ++a.n }); return; }
+          // 上げる: 一番低いもの(性格で、どれか1つを少しひいき)
+          const st = m.car.st.map((v, i) => v - (i === a.bias ? 3 : 0));
+          let i = st.indexOf(Math.min(...st)); if(rnd() < .2) i = ri(0, 2);
+          send({ t: 'act', a: 'tr', i, n: ++a.n });
         }, ri(700, 3000));
-      }else if(m.t === 'pit' && m.c && Array.isArray(m.c.s)){
-        // コーナーが多いコースならコーナー寄り、直線が長いなら最高速寄り
-        const inf = SIM.courseInfo(m.c), fc = inf.len.c / inf.L, fs = inf.len.s / inf.L;
-        let v = fc > .22 ? 2 : fs > .55 ? 1 : 0;
-        if(rnd() < .15) v = ri(0, 2);
-        if(v) later(() => send({ t: 'set', r: m.r, v, n: ++a.n }), ri(1500, 7000));
       }else if(m.t === 'rgo' && Array.isArray(m.cars) && m.c){
         a.r = m.r; a.me = m.cars.findIndex(x => x && x.id === id); a.R = SIM.newRace(m.c, []); a.wait = false;
       }else if(m.t === 'rs' && a.R && m.r === a.r && a.me >= 0 && Array.isArray(m.c) && m.c[a.me]){

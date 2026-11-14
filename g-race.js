@@ -1,48 +1,38 @@
-/* RACE — パーツガチャで車を改造して、全員同時にレース(ホストが審判)
+/* RACE — 体力を見ながら車をきたえて、全員同時にレース(ホストが審判)
  *
  * 流れ
- *  1. ガレージタイム(1/3/5分・ロビーで選ぶ)。全員同じ「ノーマル」の車からスタート
+ *  1. スキル選び: ランダムな4つから1つ選ぶ(レース中に自動で発動)
+ *  2. ガレージタイム(1/3/5分・ロビーで選ぶ)。全員同じ車・体力100からスタート
  *     10秒ごとに「行動」が1回たまる(最大3回。満タンのまま次がたまると、あふれて無駄になる)
- *       パーツガチャ: エンジン・ターボ・タイヤ・ニトロのどれかのパーツ。付け替えるか捨てるかを選ぶ
- *       チューン    : 選んだ部位を Lv+1(最大Lv3)。部位につくので、パーツを付け替えても残る
- *       偵察        : まだ公開されていないレースのコースの特徴を、自分だけこっそり見る
- *  2. グランプリ(1戦 または 3戦)。各レースの前に約12秒のピット(コース公開・セッティング選び)
+ *       エンジン強化 / ターボ強化 / タイヤ強化: 成功で 最高速 / 加速 / コーナー +2、失敗で −1。体力を使う
+ *       休む: 体力を回復
+ *     体力が60を切ると失敗することがある(低いほど失敗しやすい)
+ *  3. グランプリ(1戦 または 3戦)。各レースの前にコースが公開される(コースは運)
  *     レースは全員同時。操作はニトロを使うタイミングだけ(1レース1回。ダブルニトロなら2回)
  *     ゴール順にポイント。全レースの合計で順位
  *
- * 公平さ: ガチャもレースの計算もホストのスマホで行う。各スマホは届いた位置を補って描くだけ。
+ * 公平さ: 成功・失敗の判定もレースの計算もホストのスマホで行う。各スマホは届いた位置を補って描くだけ。
  */
 (function(){
 'use strict';
 window.NomiGames = window.NomiGames || {};
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Segoe UI',sans-serif";
-const CFG = { TICK_MS: 10000, CAP: 3, PIT_MS: 12000, CD_MS: 4200, DT: 100, SNAP_N: 4, RES_MS: 7500, AFTER_MS: 12000, MAX_RACE_S: 100, GARAGE_MS: 0, RAIN: -1 };   // GARAGE_MS / RAIN はテスト用(0なら設定どおり / -1なら天気はランダム)
+const CFG = { TICK_MS: 10000, CAP: 3, SK_MS: 20000, PIT_MS: 8000, CD_MS: 4200, DT: 100, SNAP_N: 4, RES_MS: 7500, AFTER_MS: 12000, MAX_RACE_S: 100, GARAGE_MS: 0, RAIN: -1 };   // GARAGE_MS / RAIN はテスト用(0なら設定どおり / -1なら天気はランダム)
 const MINS = [1, 3, 5];
-const TUNE_MAX = 3;
 const PTS = [10, 7, 5, 4, 3, 2, 1, 0];
 
 // ---------------- データ ----------------
-// ステータス: 0=最高速 1=加速 2=コーナー 3=ニトロ / 部位: 0=エンジン 1=ターボ 2=タイヤ 3=ニトロタンク(部位 i の主なステータスは i)
-const ST = ['最高速', '加速', 'コーナー', 'ニトロ'];
-const ST_S = ['速', '加', '曲', 'N'];
-const SLOT = ['エンジン', 'ターボ', 'タイヤ', 'ニトロ'];
-const RAR = ['N', 'R', 'SR', 'SSR'];
-const PNAME = [
-  ['ブレイズ', 'ストーム', 'サンダー', 'ファルコン', 'タイタン', 'ノヴァ', 'バイパー', 'イーグル'],
-  ['ツイン', 'ハリケーン', 'サイクロン', 'ジェット', 'ブースト', 'ウィンド', 'ロケット', 'スパーク'],
-  ['グリップ', 'スリック', 'クロー', 'トレッド', 'ホールド', 'エッジ', 'ラバー', 'スネーク'],
-  ['フレア', 'インフェルノ', 'ブルーフレイム', 'メテオ', 'プラズマ', 'コメット', 'ボルケーノ', 'パルス']
-];
-const PKIND = ['V6', 'ターボ', 'タイヤ', 'タンク'];
+// ステータス: 0=最高速 1=加速 2=コーナー(ニトロの強さは全員同じ)
+const ST = ['最高速', '加速', 'コーナー'];
+const TRN = ['エンジン強化', 'ターボ強化', 'タイヤ強化'];      // TRN[i] で ST[i] が上がる
 
 // ---------------- バランス(数字はここだけで決める。説明文もここから作る) ----------------
 const PH = {
-  base: 2,                                   // 車のステータスの土台(パーツやチューンがなくてもこれだけある)
-  v0: 158, vk: 6.5,                          // 最高速(km/h) = v0 + vk × 最高速
-  c0: 103, ck: 3.4, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
-  rainC: .87,                                // 雨: コーナーの上限 ×0.87
-  a0: 0, ak: 3.8, aFall: .8,                 // 加速(km/h/秒) = (a0 + ak × 加速) × (1 − aFall × 速度/最高速)
+  v0: 166, vk: 5.6,                          // 最高速(km/h) = v0 + vk × 最高速
+  c0: 110, ck: 2.9, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
+  rainC: .8,                                 // 雨: コーナーの上限 ×0.8
+  a0: 16, ak: 4, aFall: .8,                 // 加速(km/h/秒) = (a0 + ak × 加速) × (1 − aFall × 速度/最高速)
   aMin: 2,
   hillV: .82, hillA: .55,                    // 上り坂: 上限 ×0.82、加速 ×0.55
   dirtV: .78, dirtA: .75,                    // ダート: 上限 ×0.78、加速 ×0.75
@@ -53,45 +43,40 @@ const PH = {
   nCorner: .05,                              // コーナーではニトロの効き ×0.05(使う場所が大事)
   nLow: .05,                                 // 遅いとき(スタート直後など)はニトロの加速がほとんど効かない
   form: .015,                                // レースごとの調子(最高速・加速 ±1.5%)
-  soft: 12, softK: .5,                       // ステータスは12を超えると、伸びが半分になる(1つに振りすぎない)
-  // 特性
-  slip: 18, slipGap: 45,                     // スリップストリーム: 前の車の45m以内で 最高速 +18km/h
+  soft: 16, softK: .6,                       // ステータスは16を超えると、伸びが6割になる(1つに振りすぎない)
+  // スキル
+  slip: 9, slipGap: 45,                      // スリップストリーム: 前の車の45m以内で 最高速 +9km/h
   lastP: .3, lastV: .22,                     // ラストスパート: 最後の30%で 最高速 +22%
-  hillT: [.95, .85],                         // ヒルクライム: 上り坂の上限 ×0.95、加速 ×0.85
-  rocketT: 3.5, rocketA: 1.45,               // ロケットスタート: スタートから3.5秒 加速 ×1.45
-  chaseV: .14,                               // 追い込み: 後ろ半分にいるとき 最高速 +14%
-  drift: .045,                               // ドリフト: コーナーの上限 +4.5%
-  dirtT: [.93, .9],                          // オフロード: ダートの上限 ×0.93、加速 ×0.9
-  longN: 1.35,                               // ロングニトロ: 効く時間 ×1.35
-  dblN: .65,                                 // ダブルニトロ: 2回使える(1回の時間は ×0.65)
-  // ガチャ: レア度の出やすさ / 主なステータスの値 / ほかのステータスへのおまけ / 特性がつく確率
-  rar: [.45, .32, .17, .06],
-  main: [[2, 3], [4, 5], [6, 7], [8, 9]],
-  sub: [0, .3, 1, 2],
-  trait: [0, .2, .6, 1],
-  // SR未満が1回続くごとに、SR・SSR の出やすさを +5%(元の確率に対して)。最大 1.5倍(ARENA と同じ)
-  luckUp: .05, luckMax: .5,
-  // セッティング [最高速, 加速, コーナー, ニトロ] の増減
-  set: [[0, 0, 0, 0], [3, 0, -3, 0], [-2, 0, 3, 0]]
+  hillT: [.91, .75],                         // ヒルクライム: 上り坂の上限 ×0.91、加速 ×0.75
+  rocketT: 3, rocketA: 1.3,                  // ロケットスタート: スタートから3秒 加速 ×1.3
+  chaseV: .27,                               // 追い込み: 後ろ半分にいるとき 最高速 +27%
+  drift: .03,                                // ドリフト: コーナーの上限 +3%
+  dirtT: [.86, .82],                         // オフロード: ダートの上限 ×0.86、加速 ×0.82
+  longN: 1.42,                               // ロングニトロ: 効く時間 ×1.42
+  dblN: .68,                                 // ダブルニトロ: 2回使える(1回の時間は ×0.68)
+  // ガレージ: ステータスの最初の値 / 成功で+gain、失敗で−loss
+  start: 3, gain: 2, loss: 1, stMax: 40,
+  // 体力: 最大100。強化で −cost、休むで +rest。safe 未満で失敗することがある(1足りないごとに失敗率 +failK%)
+  hpMax: 100, cost: 25, rest: 40, safe: 60, failK: 1.4, failMax: .9,
+  nit: 6                                     // ニトロの強さ(全員同じ)
 };
-const SET_NM = ['バランス', '最高速寄り', 'コーナー寄り'];
 const pc = x => Math.round(x * 100);
 const r1 = x => (Math.round(x * 10) / 10).toString();
-// 特性(s: つく部位)
+// スキル(最初に1つ選ぶ。レース中に自動で発動)
 const TR = {
-  slip:   { s: 0, nm: 'スリップストリーム', d: () => '前の車の' + PH.slipGap + 'm以内にいると 最高速+' + PH.slip + 'km/h' },
-  last:   { s: 0, nm: 'ラストスパート',     d: () => '最後の' + pc(PH.lastP) + '%で 最高速+' + r1(PH.lastV * 100) + '%' },
-  hill:   { s: 0, nm: 'ヒルクライム',       d: () => '上り坂で速度が落ちにくい(上限×' + PH.hillT[0] + ')' },
-  rocket: { s: 1, nm: 'ロケットスタート',   d: () => 'スタートから' + PH.rocketT + '秒 加速×' + PH.rocketA },
-  chase:  { s: 1, nm: '追い込み',           d: () => '後ろ半分にいるとき 最高速+' + r1(PH.chaseV * 100) + '%' },
-  rain:   { s: 2, nm: 'レインマスター',     d: () => '雨でもコーナーのグリップが落ちない' },
-  drift:  { s: 2, nm: 'ドリフト',           d: () => 'コーナーが ' + r1(PH.drift * 100) + '%速い' },
-  dirt:   { s: 2, nm: 'オフロード',         d: () => 'ダートで減速しにくい(上限×' + PH.dirtT[0] + ')' },
-  dbl:    { s: 3, nm: 'ダブルニトロ',       d: () => 'ニトロを2回使える(1回の時間は' + pc(PH.dblN) + '%)' },
-  long:   { s: 3, nm: 'ロングニトロ',       d: () => 'ニトロの効く時間 ×' + PH.longN }
+  slip:   { nm: 'スリップストリーム', d: () => '前の車の' + PH.slipGap + 'm以内にいると 最高速+' + PH.slip + 'km/h' },
+  last:   { nm: 'ラストスパート',     d: () => '最後の' + pc(PH.lastP) + '%で 最高速+' + r1(PH.lastV * 100) + '%' },
+  hill:   { nm: 'ヒルクライム',       d: () => '上り坂で速度が落ちにくい(上限×' + PH.hillT[0] + ')' },
+  rocket: { nm: 'ロケットスタート',   d: () => 'スタートから' + PH.rocketT + '秒 加速×' + PH.rocketA },
+  chase:  { nm: '追い込み',           d: () => '後ろ半分にいるとき 最高速+' + r1(PH.chaseV * 100) + '%' },
+  rain:   { nm: 'レインマスター',     d: () => '雨でもコーナーのグリップが落ちない' },
+  drift:  { nm: 'ドリフト',           d: () => 'コーナーが ' + r1(PH.drift * 100) + '%速い' },
+  dirt:   { nm: 'オフロード',         d: () => 'ダートで減速しにくい(上限×' + PH.dirtT[0] + ')' },
+  dbl:    { nm: 'ダブルニトロ',       d: () => 'ニトロを2回使える(1回の時間は' + pc(PH.dblN) + '%)' },
+  long:   { nm: 'ロングニトロ',       d: () => 'ニトロの効く時間 ×' + PH.longN }
 };
 const TR_KEYS = Object.keys(TR);
-const TR_OF = [[], [], [], []]; TR_KEYS.forEach(k => TR_OF[TR[k].s].push(k));
+const SK_N = 4;                              // スキルの候補の数
 
 // コース: 区間 [種類, 長さ(m), x]。種類 s=直線 c=コーナー h=上り坂 d=ダート。x はコーナーの向きときつさ(−3〜3、0以外)
 const SEG_NM = { s: '直線', c: 'コーナー', h: '上り坂', d: 'ダート' };
@@ -144,31 +129,27 @@ function courseInfo(c){
 }
 
 // ---------------- 車 ----------------
-// パーツ: { s: 部位, r: レア度0〜3, m: 主な値, b: [おまけ×4], tr: 特性 or '', nm }
-function starterPart(s){ return { s, r: 0, m: 1, b: [0, 0, 0, 0], tr: '', nm: 'ノーマル' }; }
-function starterCar(){ return { p: [0, 1, 2, 3].map(starterPart), tu: [0, 0, 0, 0] }; }
-function rollPart(rnd, miss){
-  const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
-  const up = 1 + Math.min(PH.luckMax, PH.luckUp * (miss || 0));
-  const w = PH.rar.map((p, i) => i >= 2 ? p * up : p), sum = w.reduce((a, x) => a + x, 0);
-  let x = rnd() * sum, r = 3;
-  for(let i = 0; i < 4; i++){ if((x -= w[i]) < 0){ r = i; break; } }
-  const s = Math.floor(rnd() * 4), b = [0, 0, 0, 0];
-  const nSub = PH.sub[r] >= 1 ? PH.sub[r] : (rnd() < PH.sub[r] ? 1 : 0);
-  for(let i = 0; i < nSub; i++){ let k = Math.floor(rnd() * 3); if(k >= s) k++; b[k]++; }
-  const tr = rnd() < PH.trait[r] ? TR_OF[s][Math.floor(rnd() * TR_OF[s].length)] : '';
-  return { s, r, m: ri(PH.main[r][0], PH.main[r][1]), b, tr, nm: PNAME[s][Math.floor(rnd() * PNAME[s].length)] + ' ' + PKIND[s] };
+// 車: { st: [最高速, 加速, コーナー], hp: 体力, sk: スキル }
+function starterCar(){ return { st: [PH.start, PH.start, PH.start], hp: PH.hpMax, sk: '' }; }
+// 失敗する確率(体力が safe 以上なら 0)
+const failP = hp => hp >= PH.safe ? 0 : Math.min(PH.failMax, (PH.safe - hp) * PH.failK / 100);
+// 強化(k: どのステータス)。成功なら true
+function train(car, k, rnd){
+  const ok = rnd() >= failP(car.hp);
+  car.hp = Math.max(0, car.hp - PH.cost);
+  car.st[k] = Math.max(1, Math.min(PH.stMax, car.st[k] + (ok ? PH.gain : -PH.loss)));
+  return ok;
 }
-const partSum = p => p.m + p.b.reduce((a, x) => a + x, 0);
-// 車のステータス(set: セッティング)
-function carStats(car, set){
-  const st = [PH.base, PH.base, PH.base, PH.base];
-  car.p.forEach(p => { st[p.s] += p.m; p.b.forEach((v, k) => { st[k] += v; }); });
-  car.tu.forEach((lv, k) => { st[k] += lv; });
-  const d = PH.set[set || 0] || PH.set[0];
-  return st.map((v, k) => Math.max(1, v + d[k]));
+function rest(car){ car.hp = Math.min(PH.hpMax, car.hp + PH.rest); }
+// スキルの候補(重ならない SK_N 個)
+function skillChoices(rnd){
+  const a = TR_KEYS.slice();
+  for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a.slice(0, SK_N);
 }
-const carTraits = car => car.p.map(p => p.tr).filter(Boolean);
+// レースで使うステータス [最高速, 加速, コーナー, ニトロ]
+const carStats = car => car.st.concat([PH.nit]);
+const carTraits = car => car.sk && TR[car.sk] ? [car.sk] : [];
 
 // ---------------- レースの計算(ホストだけ。node のテストからも使う) ----------------
 const eff = x => x <= PH.soft ? x : PH.soft + (x - PH.soft) * PH.softK;
@@ -262,13 +243,12 @@ function stepRace(R, dt){
 function finalOrder(R){
   return R.r.filter(r => !r.out).sort((a, b) => (a.fin >= 0 && b.fin >= 0) ? a.fin - b.fin : a.fin >= 0 ? -1 : b.fin >= 0 ? 1 : b.d - a.d);
 }
-const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, rollPart, carStats, carTraits, partSum, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, finalOrder, TR, TR_OF };
+const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, train, rest, failP, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, finalOrder, TR };
 
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const s40 = s => typeof s === 'string' ? s.slice(0, 40) : '';
-function okPart(p, s){ return !!p && isInt(p.s, 0, 3) && (s === undefined || p.s === s) && isInt(p.r, 0, 3) && isInt(p.m, 1, 12) && Array.isArray(p.b) && p.b.length === 4 && p.b.every(x => isInt(x, 0, 4)) && (p.tr === '' || (TR[p.tr] && TR[p.tr].s === p.s)) && typeof p.nm === 'string' && p.nm.length <= 20; }
-function okCar(c){ return !!c && Array.isArray(c.p) && c.p.length === 4 && c.p.every((p, i) => okPart(p, i)) && Array.isArray(c.tu) && c.tu.length === 4 && c.tu.every(x => isInt(x, 0, TUNE_MAX)); }
+function okCar(c){ return !!c && Array.isArray(c.st) && c.st.length === 3 && c.st.every(x => isInt(x, 1, PH.stMax)) && isInt(c.hp, 0, PH.hpMax) && (c.sk === '' || !!TR[c.sk]); }
 function okCourse(c){
   return !!c && typeof c.nm === 'string' && c.nm.length <= 20 && isInt(c.th, 0, THEMES.length - 1) && (c.w === 0 || c.w === 1) && Array.isArray(c.s) && c.s.length >= 3 && c.s.length <= 14 &&
     c.s.every(s => Array.isArray(s) && SEG_NM[s[0]] && isInt(s[1], 20, 2000) && isInt(s[2], -3, 3) && (s[0] === 'c' ? s[2] !== 0 : s[2] === 0));
@@ -296,38 +276,28 @@ function courseCard(c, title){
   box.appendChild(elx('div', 'rg-crs-i', 'コーナーの割合 ' + Math.round(inf.len.c / inf.L * 100) + '%' + (inf.tags.length ? ' — ' + inf.tags.join('・') : '')));
   return box;
 }
-// ---------------- パーツと特性の一覧 ----------------
+// ---------------- ステータスとスキルの一覧 ----------------
 function showCatalog(){
   const box = document.getElementById('a-cat'); if(!box) return;
   box.textContent = '';
   const head = elx('div', 'cat-h');
-  head.appendChild(elx('b', '', 'パーツと特性の一覧'));
+  head.appendChild(elx('b', '', 'ステータスとスキルの一覧'));
   const x = elx('button', 'cat-x', '閉じる'); x.onclick = () => { box.classList.remove('on'); document.body.classList.remove('catopen'); }; head.appendChild(x);
   box.appendChild(head);
   const body = elx('div', 'cat-b');
   const sec = (t, note) => { body.appendChild(elx('div', 'eyebrow', t)); if(note) body.appendChild(elx('p', 'cat-note', note)); };
-  sec('ステータス', '車のステータスは4つ。それぞれ土台' + PH.base + ' + パーツ + チューン。' + PH.soft + 'を超えると伸びがゆるやかになる(1つに振りすぎない方が強い)');
-  const st = elx('div', 'cat-sec');
-  [['最高速', '直線・坂・ダートでの速さの上限'], ['加速', 'コーナーのあとやスタートの立ち上がり'], ['コーナー', 'コーナーでの速さの上限(きついコーナーほど大事)'], ['ニトロ', 'ニトロの強さと効く時間']].forEach(([a, b]) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', a)); r.appendChild(elx('span', '', b)); st.appendChild(r); });
-  body.appendChild(st);
-  sec('パーツガチャ', 'エンジン(最高速)・ターボ(加速)・タイヤ(コーナー)・ニトロタンク(ニトロ)のどれかが出る(同じ確率)。' +
-    RAR.map((r, i) => r + ' ' + pc(PH.rar[i]) + '%(+' + PH.main[i][0] + '〜' + PH.main[i][1] + ')').join(' / ') + '。数字は目安');
-  body.appendChild(elx('p', 'cat-note', 'R はたまに、SR はおまけで、ほかのステータスも上がる。特性は R ' + pc(PH.trait[1]) + '% / SR ' + pc(PH.trait[2]) + '% / SSR 必ず。チューン(部位ごとに最大Lv' + TUNE_MAX + ')は部位につくので、パーツを付け替えても残る'));
-  sec('特性');
-  [0, 1, 2, 3].forEach(s => {
-    const b = elx('div', 'cat-sec');
-    const t = elx('div', 'cat-st'); t.appendChild(elx('i', 'rg-slot s' + s, SLOT[s])); t.appendChild(elx('span', '', '主に ' + ST[s] + ' が上がる')); b.appendChild(t);
-    TR_OF[s].forEach(k => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', TR[k].nm)); r.appendChild(elx('span', '', TR[k].d())); b.appendChild(r); });
-    body.appendChild(b);
-  });
-  sec('セッティング(各レースの前のピットで選ぶ)');
-  const sb = elx('div', 'cat-sec');
-  PH.set.forEach((d, i) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', SET_NM[i])); r.appendChild(elx('span', '', i === 0 ? 'そのまま' : d.map((v, k) => v ? ST[k] + (v > 0 ? '+' : '') + v : '').filter(Boolean).join(' '))); sb.appendChild(r); });
-  body.appendChild(sb);
-  sec('コース', '区間を' + 8 + '〜' + 12 + '個つないだもの。天気は晴れか雨(雨: コーナーの上限 ×' + PH.rainC + ')');
-  const cb = elx('div', 'cat-sec');
-  [['直線', '最高速が出る。ニトロの使いどころ'], ['コーナー', 'コーナーの値で上限が決まる。手前で自動で減速する。ニトロはほとんど効かない'], ['上り坂', '上限 ×' + PH.hillV + '・加速 ×' + PH.hillA], ['ダート', '上限 ×' + PH.dirtV + '・加速 ×' + PH.dirtA]].forEach(([a, b]) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', a)); r.appendChild(elx('span', '', b)); cb.appendChild(r); });
-  body.appendChild(cb);
+  const rows = list => { const b = elx('div', 'cat-sec'); list.forEach(([a, t]) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', a)); r.appendChild(elx('span', '', t)); b.appendChild(r); }); body.appendChild(b); };
+  sec('ステータス', '最初は全部' + PH.start + '。' + PH.soft + 'を超えると伸びがゆるやかになる。コースは運なので、どれかに寄せるか、まんべんなく上げるかは作戦しだい');
+  rows([['最高速', '直線・坂・ダートでの速さの上限'], ['加速', 'コーナーのあとやスタートの立ち上がり'], ['コーナー', 'コーナーでの速さの上限(きついコーナーほど大事)']]);
+  sec('ガレージでできること', '10秒ごとに行動が1回たまる(最大' + CFG.CAP + '回)');
+  rows(TRN.map((nm, i) => [nm, '成功で ' + ST[i] + ' +' + PH.gain + '、失敗で −' + PH.loss + '。体力 −' + PH.cost]).concat([['休む', '体力 +' + PH.rest + '(最大' + PH.hpMax + ')']]));
+  sec('体力と失敗', '体力が' + PH.safe + '以上なら必ず成功。' + PH.safe + 'を切ると失敗することがある(体力が1下がるごとに失敗率 +' + PH.failK + '%)');
+  rows([PH.safe - 10, PH.safe - 20, PH.safe - 30, PH.safe - 40].map(h => ['体力' + h, '失敗率 ' + pc(failP(h)) + '%']));
+  sec('スキル', '最初に、ランダムな' + SK_N + 'つから1つ選ぶ。レース中に自動で発動する');
+  rows(TR_KEYS.map(k => [TR[k].nm, TR[k].d()]));
+  sec('ニトロ', 'レース中にボタンで使う(1レース1回)。直線でよく効き、コーナーではほとんど効かない。強さは全員同じ');
+  sec('コース', '区間を8〜12個つないだもの。どんなコースかはレースの直前に発表。天気は晴れか雨(雨: コーナーの上限 ×' + PH.rainC + ')');
+  rows([['直線', '最高速が出る。ニトロの使いどころ'], ['コーナー', 'コーナーの値で上限が決まる。手前で自動で減速する'], ['上り坂', '上限 ×' + PH.hillV + '・加速 ×' + PH.hillA], ['ダート', '上限 ×' + PH.dirtV + '・加速 ×' + PH.dirtA]]);
   box.appendChild(body);
   box.classList.add('on'); document.body.classList.add('catopen');
   body.scrollTop = 0;
@@ -346,7 +316,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   // =====================================================================
   //  参加者側(表示)
   // =====================================================================
-  let ph = 'wait', me = null, meSeq = -1, lastRv = 0, lastPendKey = '', nonce = 0, localEnd = 0, nextAt = 0, uiMode = '', clockT = 0, rev = false, nR = 1;
+  let ph = 'wait', me = null, meSeq = -1, lastRv = 0, nonce = 0, localEnd = 0, nextAt = 0, uiMode = '', clockT = 0, rev = false, nR = 1;
   let pit = null, rc = null, raf = 0, lastPts = null;
 
   function view(v){
@@ -356,9 +326,9 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     PF.show(!stopped && v !== 'rc-gar', { amb: v === 'rc-run' ? null : [0x4fa3ff, 0x9ad0ff, 0xffffff] });
   }
   function onBegin(){
-    stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; pit = null; rc = null; rev = false; nR = 1; lastPts = null;
-    $('rc-top').textContent = 'RACE — 改造レース';
-    view('rc-gar'); $('rc-panel').textContent = ''; $('rc-car').textContent = ''; $('rc-scout').textContent = '';
+    stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; uiMode = ''; pit = null; rc = null; rev = false; nR = 1; lastPts = null;
+    $('rc-top').textContent = 'RACE — 育成レース';
+    view('rc-gar'); $('rc-panel').textContent = ''; $('rc-car').textContent = '';
     $('rc-time').textContent = '--:--'; $('rc-tk').textContent = '0'; $('rc-note').textContent = '準備中…';
     E.show('s-race');
     PF.load();
@@ -369,12 +339,16 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   function clock(){
     if(stopped) return;
     const now = performance.now();
-    if(ph === 'gar'){
+    if(ph === 'sk'){
+      const rem = localEnd - now;
+      $('rc-time').textContent = fmt(rem); $('rc-time').classList.remove('hot');
+      $('rc-tbar').firstElementChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, rem / CFG.SK_MS)) + ')';
+    }else if(ph === 'gar'){
       const rem = localEnd - now;
       $('rc-time').textContent = fmt(rem); $('rc-time').classList.toggle('hot', rem < 15000);
       const bar = $('rc-tbar').firstElementChild;
       if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / CFG.TICK_MS) + ')'; } else bar.style.transform = 'scaleX(0)';
-      $('rc-tbar').classList.toggle('over', !!(me && me.tk >= CFG.CAP && !me.pend));
+      $('rc-tbar').classList.toggle('over', !!(me && me.tk >= CFG.CAP));
     }else if(ph === 'pit' && pit){
       const rem = pit.end - now;
       $('rc-pt').textContent = Math.max(0, Math.ceil(rem / 1000)) + '秒';
@@ -383,49 +357,43 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   }
 
   // ---- 車のカード ----
-  function statBars(st, cmp){
+  const BAR_MAX = 30;
+  function statBars(st, flash){
     const d = el('div', 'rg-stats');
     st.forEach((v, k) => {
-      const r = el('div', 'rg-st');
+      const r = el('div', 'rg-st' + (flash === k ? ' flash' : ''));
       r.appendChild(el('span', 'k', ST[k]));
-      const bar = el('span', 'bar'); const f = el('i'); f.style.width = Math.min(100, v / 20 * 100) + '%'; bar.appendChild(f);
-      if(cmp && cmp[k] !== v){ const g = el('i', cmp[k] > v ? 'up' : 'dn'); const a = Math.min(v, cmp[k]), b = Math.max(v, cmp[k]); g.style.left = Math.min(100, a / 20 * 100) + '%'; g.style.width = Math.min(100, (b - a) / 20 * 100) + '%'; bar.appendChild(g); }
+      const bar = el('span', 'bar'); const f = el('i'); f.style.width = Math.min(100, v / BAR_MAX * 100) + '%'; bar.appendChild(f);
       r.appendChild(bar);
-      const val = el('span', 'v', String(v));
-      if(cmp && cmp[k] !== v) val.appendChild(el('em', cmp[k] > v ? 'up' : 'dn', '→' + cmp[k]));
-      r.appendChild(val);
+      r.appendChild(el('span', 'v', String(v)));
       d.appendChild(r);
     });
     return d;
   }
-  const subTxt = p => p.b.map((v, k) => v ? ST[k] + '+' + v : '').filter(Boolean).join(' ');
-  function partRow(p, lv, flash){
-    const r = el('div', 'rg-part r' + p.r + (flash ? ' flash' : ''));
-    const h = el('div', 'rg-ph');
-    h.appendChild(el('i', 'rg-slot s' + p.s, SLOT[p.s]));
-    h.appendChild(el('span', 'rg-rar r' + p.r, p.nm === 'ノーマル' ? '—' : RAR[p.r]));
-    h.appendChild(el('b', '', p.nm));
-    const tu = el('span', 'rg-tu'); for(let i = 0; i < TUNE_MAX; i++) tu.appendChild(el('i', i < lv ? 'on' : '')); h.appendChild(tu);
-    r.appendChild(h);
-    const s = el('div', 'rg-pd');
-    s.appendChild(el('span', '', ST[p.s] + '+' + p.m + (lv ? '(チューン+' + lv + ')' : '') + (subTxt(p) ? ' / ' + subTxt(p) : '')));
-    if(p.tr) s.appendChild(el('span', 'rg-tr', '★ ' + TR[p.tr].nm + ' — ' + TR[p.tr].d()));
-    r.appendChild(s);
-    return r;
+  const hpCls = hp => hp < 30 ? ' red' : hp < PH.safe ? ' yel' : '';
+  function hpBar(hp){
+    const d = el('div', 'rg-hp' + hpCls(hp));
+    const h = el('div', 'rg-hph');
+    h.appendChild(el('span', '', '体力'));
+    h.appendChild(el('b', '', String(hp)));
+    const f = failP(hp);
+    h.appendChild(el('em', '', f > 0 ? '失敗率 ' + pc(f) + '%' : '失敗しない'));
+    d.appendChild(h);
+    const bar = el('span', 'bar'); const i = el('i'); i.style.width = hp + '%'; bar.appendChild(i);
+    const mk = el('u'); mk.style.left = PH.safe + '%'; bar.appendChild(mk);
+    d.appendChild(bar);
+    return d;
+  }
+  function skillLine(k){
+    const d = el('div', 'rg-sk');
+    if(k && TR[k]){ d.appendChild(el('b', '', '★ ' + TR[k].nm)); d.appendChild(el('span', '', TR[k].d() + '(自動で発動)')); }
+    return d;
   }
   function carCard(car, flash){
     const d = el('div', 'rg-car');
-    d.appendChild(statBars(carStats(car, 0)));
-    car.p.forEach((p, i) => d.appendChild(partRow(p, car.tu[i], flash === i)));
-    return d;
-  }
-  function newPartCard(p){
-    const d = el('div', 'rg-new r' + p.r + ' reveal');
-    const h = el('div', 'rg-nh');
-    h.appendChild(el('span', 'rg-rar r' + p.r, RAR[p.r])); h.appendChild(el('i', 'rg-slot s' + p.s, SLOT[p.s])); h.appendChild(el('b', '', p.nm));
-    d.appendChild(h);
-    d.appendChild(el('div', 'rg-pd', ST[p.s] + '+' + p.m + (subTxt(p) ? ' / ' + subTxt(p) : '')));
-    if(p.tr) d.appendChild(el('div', 'rg-tr big', '★ ' + TR[p.tr].nm + ' — ' + TR[p.tr].d()));
+    d.appendChild(statBars(car.st, flash));
+    d.appendChild(hpBar(car.hp));
+    if(car.sk) d.appendChild(skillLine(car.sk));
     return d;
   }
   function bigBtn(title, sub, on, fn){
@@ -433,19 +401,19 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     b.appendChild(el('b', '', title)); if(sub) b.appendChild(el('small', '', sub));
     b.disabled = !on; b.onclick = fn; return b;
   }
-  function act(a, slot){
-    if(ph !== 'gar' || !me || me.tk <= 0 || me.pend) return;
+  function act(a, i){
+    if(ph !== 'gar' || !me || me.tk <= 0) return;
     E.audio.init(); E.vibrate(20);
-    const o = { t: 'act', a, n: ++nonce }; if(slot !== undefined) o.slot = slot;
+    const o = { t: 'act', a, n: ++nonce }; if(i !== undefined) o.i = i;
     me.tk--; $('rc-tk').textContent = String(me.tk);
     uiMode = 'busy'; renderPanel();
     E.send(o, true);
   }
-  function decide(ok){
-    if(ph !== 'gar' || !me || !me.pend) return;
-    E.vibrate(20);
-    me.pend = null; uiMode = 'busy'; renderPanel();
-    E.send({ t: 'dec', ok: ok ? 1 : 0, n: ++nonce }, true);
+  function pickSkill(k){
+    if(ph !== 'sk' || !me || me.car.sk || !me.skc.includes(k)) return;
+    E.audio.init(); E.vibrate(20); E.audio.beep(740, .1, .2);
+    me.car.sk = k; uiMode = 'busy'; renderGar();
+    E.send({ t: 'skp', k, n: ++nonce }, true);
   }
   function renderGar(){
     if(!me) return;
@@ -455,51 +423,33 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const box = $('rc-car'); box.textContent = '';
     box.appendChild(carCard(me.car, me.flash));
     me.flash = -1;
-    renderScout();
     renderPanel();
-  }
-  function renderScout(){
-    const box = $('rc-scout'); box.textContent = '';
-    if(!me || !me.sc.length) return;
-    box.appendChild(el('div', 'ilab', '偵察メモ(自分だけに見えている)'));
-    me.sc.forEach(([r, c]) => box.appendChild(courseCard(c, '第' + (r + 1) + '戦')));
   }
   function renderPanel(){
     const box = $('rc-panel'); box.textContent = '';
-    if(ph !== 'gar' || !me) return;
+    if(!me) return;
     const note = $('rc-note');
     note.classList.remove('over');
-    if(me.pend){
-      uiMode = '';
-      const p = me.pend, cur = me.car.p[p.s];
-      note.textContent = SLOT[p.s] + 'が出た! 付け替える?(チューンLvはそのまま)';
-      box.appendChild(newPartCard(p));
-      const now = el('div', 'rg-cur'); now.appendChild(el('small', '', '今のパーツ')); now.appendChild(el('span', '', (cur.nm === 'ノーマル' ? '' : RAR[cur.r] + ' ') + cur.nm + ' — ' + ST[cur.s] + '+' + cur.m + (subTxt(cur) ? ' / ' + subTxt(cur) : '') + (cur.tr ? ' / ★' + TR[cur.tr].nm : ''))); box.appendChild(now);
-      const after = { p: me.car.p.slice(), tu: me.car.tu }; after.p[p.s] = p;
-      box.appendChild(statBars(carStats(me.car, 0), carStats(after, 0)));
-      const g = el('div', 'agrid two');
-      const diff = partSum(p) - partSum(cur);
-      g.appendChild(bigBtn('付け替える', 'ステ合計 ' + (diff >= 0 ? '+' : '') + diff + (p.tr ? ' / 特性つき' : ''), true, () => decide(true)));
-      g.appendChild(bigBtn('捨てる', '今のパーツのまま', true, () => decide(false)));
-      box.appendChild(g);
+    if(ph === 'sk'){
+      if(me.car.sk){ note.textContent = 'ほかの人がスキルを選ぶのを待っています…'; return; }
+      note.textContent = 'スキルを1つ選ぼう(レース中に自動で発動する)';
+      me.skc.forEach(k => box.appendChild(bigBtn('★ ' + TR[k].nm, TR[k].d(), true, () => pickSkill(k))));
       return;
     }
-    if(uiMode === 'tu'){
-      note.textContent = 'どの部位をチューンする?(1Lvごとに主なステータス+1)';
-      const g = el('div', 'agrid');
-      [0, 1, 2, 3].forEach(s => { const lv = me.car.tu[s], mx = lv >= TUNE_MAX; g.appendChild(bigBtn(SLOT[s] + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : ST[s] + ' +1', !mx && me.tk > 0, () => { uiMode = ''; act('tu', s); })); });
-      g.appendChild(bigBtn('やめる', '', true, () => { uiMode = ''; renderPanel(); }));
-      box.appendChild(g);
-      return;
-    }
+    if(ph !== 'gar') return;
+    if(me.last){ const l = me.last; box.appendChild(el('div', 'rg-last ' + l.k, l.txt)); }
     const can = me.tk > 0 && uiMode !== 'busy';
     const lastSec = localEnd - performance.now() < 20000;
     note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(10秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
     note.classList.toggle('over', me.tk >= CFG.CAP);
-    const tuOk = me.car.tu.some(x => x < TUNE_MAX), scLeft = nR - me.sc.length;
-    box.appendChild(bigBtn('パーツガチャ', 'エンジン・ターボ・タイヤ・ニトロのどれか。N/R/SR/SSR', can, () => act('pt')));
-    box.appendChild(bigBtn('チューン', tuOk ? '選んだ部位を Lv+1(付け替えても残る)' : '全部Lv' + TUNE_MAX + '(最大)', can && tuOk, () => { uiMode = 'tu'; renderPanel(); }));
-    box.appendChild(bigBtn('偵察', scLeft > 0 ? '第' + (me.sc.length + 1) + '戦のコースを、自分だけこっそり見る' : '全部のコースを偵察ずみ', can && scLeft > 0, () => act('sc')));
+    const f = failP(me.car.hp), g = el('div', 'agrid two');
+    TRN.forEach((nm, i) => {
+      const b = bigBtn(nm, ST[i] + ' +' + PH.gain + (f > 0 ? ' / 失敗率 ' + pc(f) + '%' : ''), can, () => act('tr', i));
+      if(f > 0) b.classList.add(f >= .3 ? 'risk2' : 'risk');
+      g.appendChild(b);
+    });
+    g.appendChild(bigBtn('休む', '体力 +' + PH.rest + (me.car.hp >= PH.hpMax ? '(満タン)' : ''), can, () => act('rs')));
+    box.appendChild(g);
   }
   function onMe(m){
     if(!Number.isInteger(m.s) || m.s <= meSeq) return;
@@ -507,26 +457,31 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     meSeq = m.s;
     if(isInt(m.R, 1, 3)) nR = m.R;
     if(m.rev && !rev){ rev = true; }
-    const pend = m.pend && okPart(m.pend) ? m.pend : null;
-    const sc = Array.isArray(m.sc) ? m.sc.filter(x => Array.isArray(x) && isInt(x[0], 0, 2) && okCourse(x[1])).slice(0, 3) : [];
-    me = { car: m.car, tk: m.tk, pend, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, sc };
+    const skc = Array.isArray(m.skc) ? m.skc.filter(k => typeof k === 'string' && TR[k]).slice(0, SK_N) : [];
+    const last = me ? me.last : null;
+    me = { car: m.car, tk: m.tk, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, skc, last };
     if(m.of === 1 && !m.end) overflow();
     if(Number.isFinite(m.rem)) localEnd = performance.now() + m.rem;
     nextAt = Number.isFinite(m.nx) && m.nx >= 0 ? performance.now() + m.nx : 0;
-    if(m.end){ ph = 'gend'; $('rc-note').textContent = 'ガレージおわり! まもなくピットへ…'; $('rc-panel').textContent = ''; $('rc-time').textContent = '0:00'; const b = $('rc-car'); b.textContent = ''; b.appendChild(carCard(me.car)); renderScout(); return; }
-    ph = 'gar';
-    if(uiMode === 'busy') uiMode = '';
+    if(m.end){ ph = 'gend'; $('rc-note').textContent = 'ガレージおわり! まもなくレースへ…'; $('rc-panel').textContent = ''; $('rc-time').textContent = '0:00'; const b = $('rc-car'); b.textContent = ''; b.appendChild(carCard(me.car)); return; }
+    const wasSk = ph === 'sk';
+    ph = m.sk ? 'sk' : 'gar';
+    if(wasSk && ph === 'gar'){ E.audio.beep(660, .1, .2); later(() => E.audio.beep(990, .14, .2), 120); E.vibrate([40, 40, 40]); }
+    if(uiMode === 'busy' && !(ph === 'sk' && me.car.sk)) uiMode = '';
     const rv = m.rv;
     if(rv && isInt(rv.n, 1, 1e6) && rv.n > lastRv){
       lastRv = rv.n;
-      if(isInt(rv.i, 0, 3)) me.flash = rv.i;
-      if(rv.k === 'tu'){ E.audio.beep(880, .12, .2); E.vibrate(30); }
-      else if(rv.k === 'eq'){ E.audio.beep(740, .12, .2); }
-      else if(rv.k === 'sc'){ E.audio.beep(520, .1, .18); later(() => E.audio.beep(700, .12, .18), 120); }
+      if(rv.k === 'ok' && isInt(rv.i, 0, 2)){
+        me.flash = rv.i; me.last = { k: 'ok', txt: '成功! ' + ST[rv.i] + ' +' + PH.gain };
+        E.audio.beep(880, .1, .2); later(() => E.audio.beep(1175, .14, .2), 100); E.vibrate(30);
+      }else if(rv.k === 'ng' && isInt(rv.i, 0, 2)){
+        me.flash = rv.i; me.last = { k: 'ng', txt: '失敗… ' + ST[rv.i] + ' −' + PH.loss };
+        E.audio.beep(220, .18, .22); later(() => E.audio.beep(150, .24, .22), 150); E.vibrate([80, 50, 120]);
+      }else if(rv.k === 'rs'){
+        me.last = { k: 'rs', txt: 'ひと休み。体力 +' + PH.rest };
+        E.audio.beep(520, .12, .16); later(() => E.audio.beep(660, .16, .16), 140);
+      }
     }
-    const pk = pend ? JSON.stringify(pend) : '';
-    if(pend && pk !== lastPendKey) fanfare(pend.r);
-    lastPendKey = pk;
     renderGar();
   }
   function overflow(){
@@ -535,47 +490,24 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     E.audio.init(); E.audio.beep(220, .18, .22); later(() => E.audio.beep(160, .22, .22), 140);
     E.vibrate([60, 40, 60]);
   }
-  function fanfare(r){
-    E.audio.init();
-    const tones = r === 3 ? [660, 880, 1100, 1320] : r === 2 ? [660, 880, 1100] : r === 1 ? [660, 880] : [600];
-    tones.forEach((f, i) => later(() => E.audio.beep(f, .12, .2), i * 110));
-    E.vibrate(r === 3 ? [40, 40, 40, 40, 120] : r === 2 ? [40, 40, 80] : 30);
-  }
 
-  // ---- ピット ----
+  // ---- ピット(コースの発表) ----
   function onPit(m){
     if(!isInt(m.r, 0, 2) || !isInt(m.R, 1, 3) || !okCourse(m.c) || !Number.isFinite(m.rem)) return;
     if(pit && pit.r === m.r) return;
     nR = m.R; rev = rev || !!m.rev;
-    pit = { r: m.r, c: m.c, end: performance.now() + m.rem, set: 0 };
+    pit = { r: m.r, c: m.c, end: performance.now() + m.rem };
     ph = 'pit'; view('rc-pit'); E.vibrate([40, 40, 40]);
     $('rc-top').textContent = 'RACE — 第' + (m.r + 1) + '戦 / 全' + nR + '戦' + (rev ? '(最下位決定)' : '');
     renderPit();
     PF.slam('第' + (m.r + 1) + '戦', { color: 0x4fa3ff, size: 52 });
     E.audio.beep(520, .12, .2); later(() => E.audio.beep(780, .16, .2), 160);
   }
-  function setPick(v){
-    if(!pit || ph !== 'pit' || pit.set === v) return;
-    pit.set = v; E.vibrate(20); E.audio.init(); E.audio.beep(660, .06, .15);
-    E.send({ t: 'set', r: pit.r, v, n: ++nonce }, true);
-    renderPit();
-  }
   function renderPit(){
     const box = $('rc-pbody'); box.textContent = '';
-    box.appendChild(el('div', 'ilab', 'コース(全員に公開)'));
+    box.appendChild(el('div', 'ilab', 'コース'));
     box.appendChild(courseCard(pit.c));
-    box.appendChild(el('div', 'ilab', 'セッティング'));
-    const g = el('div', 'rg-sets');
-    PH.set.forEach((d, i) => {
-      const b = el('button', 'rg-set' + (pit.set === i ? ' on' : ''));
-      b.appendChild(el('b', '', SET_NM[i]));
-      b.appendChild(el('small', '', i === 0 ? 'そのまま' : d.map((v, k) => v ? ST_S[k] + (v > 0 ? '+' : '') + v : '').filter(Boolean).join(' ')));
-      b.onclick = () => setPick(i);
-      g.appendChild(b);
-    });
-    box.appendChild(g);
-    box.appendChild(el('div', 'rg-hint', 'コーナーが多いなら「コーナー寄り」、直線が長いなら「最高速寄り」が速い'));
-    if(me){ box.appendChild(el('div', 'ilab', 'このセッティングでのマイカー')); box.appendChild(statBars(carStats(me.car, 0), carStats(me.car, pit.set))); }
+    if(me){ box.appendChild(el('div', 'ilab', 'マイカー')); const d = el('div', 'rg-car'); d.appendChild(statBars(me.car.st)); if(me.car.sk) d.appendChild(skillLine(me.car.sk)); box.appendChild(d); }
     if(lastPts){ box.appendChild(el('div', 'ilab', 'いまのポイント')); box.appendChild(standEl(lastPts)); }
   }
   function standEl(rows){
@@ -885,12 +817,13 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   // =====================================================================
   //  ホスト(審判)
   // =====================================================================
-  const H = { phase: 'idle', P: new Map(), names: [], crs: [], R: 1, ri: -1, rev: false, endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, RS: null, goAt: 0, simT: 0, pitT: 0 };
+  const H = { phase: 'idle', P: new Map(), names: [], crs: [], R: 1, ri: -1, rev: false, mins: 3, skEnd: 0, skT: 0, endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, RS: null, goAt: 0, simT: 0, pitT: 0 };
   const readOn = (sel, key, ok, d) => { try{ const b = document.querySelector('#l-race button[data-' + key + '].on'); const v = b ? parseInt(b.dataset[key], 10) : d; return ok(v) ? v : d; }catch(e){ return d; } };
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
-    const now = performance.now();
-    const o = { t: 'me', s: ++H.seq, R: H.R, car: p.car, tk: p.tk, lost: p.lost, pend: p.pend, sc: p.sc.map(r => [r, H.crs[r]]), rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const now = performance.now(), sk = H.phase === 'sk';
+    const o = { t: 'me', s: ++H.seq, R: H.R, car: p.car, tk: p.tk, lost: p.lost, rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    if(sk){ o.sk = 1; o.skc = p.skc; }
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
     if(extra) Object.assign(o, extra);
@@ -898,16 +831,26 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   }
   function hostStart(){
     stopHost();
-    const mins = readOn('', 'm', v => MINS.includes(v), 3);
+    H.mins = readOn('', 'm', v => MINS.includes(v), 3);
     H.R = readOn('', 'r', v => v === 1 || v === 3, 3);
     try{ const b = document.querySelector('#l-race button[data-v].on'); H.rev = !!(b && b.dataset.v === 'last'); }catch(e){ H.rev = false; }
-    H.phase = 'gar'; H.P = new Map(); H.seq = 0; H.rvn = 0; H.RS = null; H.ri = -1;
+    H.phase = 'sk'; H.P = new Map(); H.seq = 0; H.rvn = 0; H.RS = null; H.ri = -1;
     H.names = E.players().map(p => [p.id, p.name]);
     H.crs = Array.from({ length: H.R }, () => genCourse(rndF));
-    const ms = CFG.GARAGE_MS || mins * 60000, now = performance.now();
-    H.endAt = now + ms; H.nextTick = now + CFG.TICK_MS;
-    E.players().forEach(p => H.P.set(p.id, { car: starterCar(), tk: 1, lost: 0, pend: null, n: 0, nn: 0, rv: null, miss: 0, sc: [], pts: 0, res: [], set: [] }));
+    H.skEnd = performance.now() + CFG.SK_MS; H.endAt = 0; H.nextTick = 0;
+    E.players().forEach(p => H.P.set(p.id, { car: starterCar(), skc: skillChoices(rndF), tk: 0, lost: 0, n: 0, nn: 0, rv: null, pts: 0, res: [] }));
     H.P.forEach((_, id) => sendMe(id));
+    H.skT = setTimeout(startGarage, CFG.SK_MS);
+  }
+  // スキルが全員そろったら(または時間切れで)ガレージタイム開始。選ばなかった人は候補からランダム
+  function startGarage(){
+    if(H.phase !== 'sk') return;
+    clearTimeout(H.skT);
+    H.P.forEach(p => { if(!p.car.sk) p.car.sk = p.skc[Math.floor(rndF() * p.skc.length)]; });
+    H.phase = 'gar';
+    const ms = CFG.GARAGE_MS || H.mins * 60000, now = performance.now();
+    H.endAt = now + ms; H.nextTick = now + CFG.TICK_MS;
+    H.P.forEach((p, id) => { p.tk = 1; sendMe(id); });
     H.tickT = setInterval(() => {
       if(H.phase !== 'gar') return;
       H.nextTick = performance.now() + CFG.TICK_MS;
@@ -919,44 +862,37 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(!m || typeof m.t !== 'string') return;
     const p = H.P.get(id); if(!p) return;
     if(m.t === 'nit'){ onNit(id, p, m); return; }
-    if(m.t === 'set'){
-      if(H.phase === 'pit' && m.r === H.ri && isInt(m.v, 0, PH.set.length - 1) && Number.isInteger(m.n) && m.n > p.n){ p.n = m.n; p.set[H.ri] = m.v; }
+    if(!Number.isInteger(m.n) || m.n <= p.n) return;
+    if(m.t === 'skp'){
+      if(H.phase !== 'sk') return;
+      p.n = m.n;
+      if(!p.car.sk && typeof m.k === 'string' && p.skc.includes(m.k)) p.car.sk = m.k;
+      sendMe(id);
+      if(Array.from(H.P.values()).every(x => x.car.sk)) startGarage();
       return;
     }
-    if(H.phase !== 'gar') return;
-    if(!Number.isInteger(m.n) || m.n <= p.n) return;
+    if(m.t !== 'act' || H.phase !== 'gar') return;
     p.n = m.n;
-    if(m.t === 'act'){
-      if(p.tk <= 0 || p.pend){ sendMe(id); return; }
-      if(m.a === 'pt'){
-        const part = rollPart(rndF, p.miss);
-        p.miss = part.r >= 2 ? 0 : p.miss + 1;
-        p.tk--; p.pend = part;
-      }else if(m.a === 'tu'){
-        if(!isInt(m.slot, 0, 3) || p.car.tu[m.slot] >= TUNE_MAX){ sendMe(id); return; }
-        p.tk--; p.car.tu[m.slot]++; p.rv = { n: ++H.rvn, k: 'tu', i: m.slot };
-      }else if(m.a === 'sc'){
-        const r = H.crs.findIndex((_, i) => !p.sc.includes(i));
-        if(r < 0){ sendMe(id); return; }
-        p.tk--; p.sc.push(r); p.rv = { n: ++H.rvn, k: 'sc' };
-      }
-      sendMe(id);
-    }else if(m.t === 'dec'){
-      if(!p.pend){ sendMe(id); return; }
-      const part = p.pend; p.pend = null;
-      if(m.ok === 1){ p.car.p[part.s] = part; p.rv = { n: ++H.rvn, k: 'eq', i: part.s }; }
-      sendMe(id);
+    if(p.tk <= 0){ sendMe(id); return; }
+    if(m.a === 'tr' && isInt(m.i, 0, 2)){
+      p.tk--;
+      const ok = train(p.car, m.i, rndF);
+      p.rv = { n: ++H.rvn, k: ok ? 'ok' : 'ng', i: m.i };
+    }else if(m.a === 'rs'){
+      p.tk--; rest(p.car); p.rv = { n: ++H.rvn, k: 'rs' };
     }
+    sendMe(id);
   }
   function hostOnLeave(id){
     H.P.delete(id);
     if(H.RS){ const r = H.RS.r.find(x => x.id === id); if(r) r.out = true; }
+    if(H.phase === 'sk' && H.P.size && Array.from(H.P.values()).every(x => x.car.sk)) startGarage();
   }
   function endGarage(){
     if(H.phase !== 'gar') return;
     H.phase = 'gp';
     clearInterval(H.tickT); clearTimeout(H.endT);
-    H.P.forEach((p, id) => { p.pend = null; sendMe(id, { end: 1, rem: 0, nx: -1 }); });
+    H.P.forEach((p, id) => { sendMe(id, { end: 1, rem: 0, nx: -1 }); });
     later(() => startPit(0), 2200);
   }
   function startPit(ri){
@@ -968,7 +904,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   function startRace(){
     if(stopped || H.phase !== 'pit') return;
     const ids = Array.from(H.P.keys()).filter(id => E.players().some(p => p.id === id)).slice(0, 8);
-    const racers = ids.map(id => { const p = H.P.get(id), set = p.set[H.ri] || 0; return mkRacer(id, carStats(p.car, set), carTraits(p.car), (rndF() * 2 - 1) * PH.form); });
+    const racers = ids.map(id => { const p = H.P.get(id); return mkRacer(id, carStats(p.car), carTraits(p.car), (rndF() * 2 - 1) * PH.form); });
     H.RS = newRace(H.crs[H.ri], racers);
     H.phase = 'race';
     H.goAt = performance.now() + CFG.CD_MS;
@@ -1016,8 +952,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   }
   function carText(id){
     const p = H.P.get(id); if(!p) return '';
-    const st = carStats(p.car, 0);
-    return ST.map((n, k) => n + st[k]).join(' ') + '\n' + p.car.p.map((x, i) => SLOT[i] + ': ' + (x.nm === 'ノーマル' ? 'ノーマル' : RAR[x.r] + ' ' + x.nm) + (p.car.tu[i] ? ' Lv' + p.car.tu[i] : '') + (x.tr ? ' ★' + TR[x.tr].nm : '')).join('\n');
+    return ST.map((n, k) => n + p.car.st[k]).join(' ') + (p.car.sk ? '\nスキル: ' + TR[p.car.sk].nm : '');
   }
   function finish(){
     if(H.phase !== 'res') return;
@@ -1027,7 +962,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const key = H.rev ? st[st.length - 1] : st[0];
     E.hostBcast({ t: 'fin', rk, rev: H.rev ? 1 : 0, cp: key ? (H.rev ? '最下位のマシン\n' : '優勝マシン\n') + carText(key[0]) : '' }, true);
   }
-  function stopHost(){ clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.simT); clearTimeout(H.pitT); }
+  function stopHost(){ clearTimeout(H.skT); clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.simT); clearTimeout(H.pitT); }
   function stop(){
     stopped = true; stopHost(); clearInterval(clockT); cancelAnimationFrame(raf); PF.show(false);
     timers.forEach(t => clearTimeout(t));

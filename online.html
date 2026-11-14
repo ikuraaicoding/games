@@ -440,26 +440,6 @@ body:not(.solo) .solo-only{ display:none; }
 .rg-st .v{ font-size:.82rem; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .rg-st .v em{ font-style:normal; font-size:.72rem; margin-left:2px; }
 .rg-st .v em.up{ color:var(--green); } .rg-st .v em.dn{ color:var(--red); }
-.rg-part{ border-top:1px solid var(--line); padding-top:7px; display:flex; flex-direction:column; gap:2px; }
-.rg-part.flash{ animation:acflash .9s ease-out; border-radius:8px; }
-.rg-ph{ display:flex; align-items:center; gap:6px; min-width:0; }
-.rg-ph b{ flex:1; min-width:0; font-size:.84rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.rg-slot{ font-style:normal; font-size:.58rem; font-weight:800; padding:2px 6px; border-radius:6px; white-space:nowrap; }
-.rg-slot.s0{ color:#ff8a80; background:rgba(255,69,58,.16); } .rg-slot.s1{ color:#ffc266; background:rgba(255,159,10,.16); }
-.rg-slot.s2{ color:#d6d6de; background:rgba(200,200,215,.14); } .rg-slot.s3{ color:#9ad0ff; background:rgba(79,163,255,.18); }
-.rg-rar{ font-size:.56rem; font-weight:900; padding:2px 5px; border-radius:5px; color:#000; background:var(--dim); }
-.rg-rar.r1{ background:#64d2ff; } .rg-rar.r2{ background:#bf5af2; } .rg-rar.r3{ background:#ffd60a; }
-.rg-tu{ display:inline-flex; gap:2px; } .rg-tu i{ width:7px; height:7px; border-radius:2px; background:var(--surface2); } .rg-tu i.on{ background:var(--acc); }
-.rg-pd{ font-size:.7rem; color:var(--sub); line-height:1.5; display:flex; flex-direction:column; }
-.rg-tr{ color:#9ad0ff; font-size:.68rem; }
-.rg-tr.big{ font-size:.76rem; font-weight:700; }
-.rg-new{ --rc:var(--dim); background:var(--surface); border:1px solid color-mix(in srgb, var(--rc) 55%, transparent); border-radius:16px; padding:12px 14px; text-align:left; display:flex; flex-direction:column; gap:4px; }
-.rg-new.r1{ --rc:#64d2ff; } .rg-new.r2{ --rc:#bf5af2; } .rg-new.r3{ --rc:#ffd60a; box-shadow:0 0 30px color-mix(in srgb, var(--rc) 25%, transparent); }
-.rg-new.reveal{ animation:acrev .55s cubic-bezier(.2,1.4,.4,1); }
-.rg-nh{ display:flex; align-items:center; gap:7px; } .rg-nh b{ font-size:1.05rem; font-weight:800; }
-.rg-new .rg-pd{ font-size:.8rem; color:var(--text); font-weight:700; }
-.rg-cur{ display:flex; flex-direction:column; gap:1px; text-align:left; font-size:.72rem; color:var(--sub); padding:0 4px; }
-.rg-cur small{ font-size:.6rem; font-weight:700; letter-spacing:.06em; color:var(--dim); }
 #rc-panel > .rg-stats, #rc-pbody > .rg-stats{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-top:6px; text-align:left; }
 .rg-crs{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; text-align:left; display:flex; flex-direction:column; gap:6px; margin-top:6px; }
 .rg-crs.rain{ border-color:rgba(100,170,255,.45); background:linear-gradient(rgba(60,110,180,.14), var(--surface)); }
@@ -473,10 +453,6 @@ body:not(.solo) .solo-only{ display:none; }
 .rg-ptime{ display:flex; justify-content:space-between; align-items:baseline; text-align:left; }
 .rg-ptime span{ font-size:.72rem; font-weight:700; color:var(--sub); } .rg-ptime b{ font-size:1.6rem; font-weight:800; font-variant-numeric:tabular-nums; }
 #rc-pbar i{ transform:scaleX(1); }
-.rg-sets{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
-.rg-set{ background:var(--surface); border:1px solid var(--line2); border-radius:14px; padding:12px 4px; display:flex; flex-direction:column; gap:3px; align-items:center; color:var(--text); }
-.rg-set b{ font-size:.86rem; font-weight:800; } .rg-set small{ font-size:.62rem; color:var(--sub); }
-.rg-set.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 16%, transparent); color:var(--acc); }
 .rg-hint{ font-size:.7rem; color:var(--sub); margin-top:6px; text-align:left; line-height:1.6; }
 .rg-stand{ display:grid; gap:4px; margin-top:6px; }
 .rg-stand div{ display:flex; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:7px 12px; font-size:.8rem; font-weight:700; }
@@ -486,6 +462,23 @@ body:not(.solo) .solo-only{ display:none; }
 .rg-rtab div{ display:grid; grid-template-columns:2.6em 1fr auto 2.6em; gap:8px; align-items:center; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.86rem; font-weight:700; text-align:left; font-variant-numeric:tabular-nums; }
 .rg-rtab .n{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .rg-rtab .t{ color:var(--sub); font-size:.74rem; } .rg-rtab b{ color:var(--acc); text-align:right; }
+/* 体力ゲージ・スキル・行動の結果 */
+.rg-st.flash{ animation:acflash .9s ease-out; border-radius:6px; }
+.rg-hp{ --hc:var(--green); display:flex; flex-direction:column; gap:5px; border-top:1px solid var(--line); padding-top:8px; }
+.rg-hp.yel{ --hc:#ffd60a; } .rg-hp.red{ --hc:var(--red); }
+.rg-hph{ display:flex; align-items:baseline; gap:8px; }
+.rg-hph span{ font-size:.68rem; font-weight:700; color:var(--sub); }
+.rg-hph b{ font-size:1.05rem; font-weight:900; color:var(--hc); font-variant-numeric:tabular-nums; }
+.rg-hph em{ font-style:normal; margin-left:auto; font-size:.68rem; font-weight:800; color:var(--hc); }
+.rg-hp .bar{ position:relative; height:10px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+.rg-hp .bar i{ position:absolute; left:0; top:0; bottom:0; background:var(--hc); border-radius:99px; transition:width .3s; }
+.rg-hp .bar u{ position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.35); }
+.rg-sk{ display:flex; flex-direction:column; gap:2px; border-top:1px solid var(--line); padding-top:8px; }
+.rg-sk b{ font-size:.84rem; font-weight:800; color:#9ad0ff; } .rg-sk span{ font-size:.7rem; color:var(--sub); line-height:1.5; }
+.rg-last{ font-size:.86rem; font-weight:800; padding:8px 12px; border-radius:12px; text-align:left; animation:acrev .4s cubic-bezier(.2,1.4,.4,1); }
+.rg-last.ok{ color:var(--green); background:rgba(48,209,88,.12); } .rg-last.ng{ color:var(--red); background:rgba(255,69,58,.12); } .rg-last.rs{ color:#9ad0ff; background:rgba(79,163,255,.12); }
+#rc-panel .abtn.risk{ border-color:rgba(255,214,10,.55); } #rc-panel .abtn.risk small{ color:#ffd60a; }
+#rc-panel .abtn.risk2{ border-color:rgba(255,69,58,.6); } #rc-panel .abtn.risk2 small{ color:#ff8a80; }
 .rg-rtab div.win{ border-color:#ffd60a; } .rg-rtab div.me{ background:color-mix(in srgb, var(--acc) 12%, transparent); }
 #rc-run{ position:absolute; inset:0; overflow:hidden; display:none; z-index:2; background:#0d130f; }
 #rc-cv{ position:absolute; left:0; top:0; display:block; touch-action:none; }
@@ -559,7 +552,7 @@ body:not(.solo) .solo-only{ display:none; }
   <h1 class="t">ONLINE</h1>
   <div class="sub">各自のスマホで遊ぶ。</div>
   <div class="field"><label for="name">ニックネーム(8文字まで・本名はNG)</label><input type="text" id="name" maxlength="8" placeholder="例: たろう" autocomplete="off"></div>
-  <div class="gsel" id="seg-game"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>改造レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
+  <div class="gsel" id="seg-game"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
   <div class="help" style="margin-top:8px">ホストが遊ぶゲーム(ロビーでも変えられます)</div>
   <button class="btn main" id="b-host">部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">参加する(QRを読む)</button>
@@ -596,7 +589,7 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="plist" id="l-list"></div>
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
-    <div class="gsel" id="l-seg"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>改造レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
+    <div class="gsel" id="l-seg"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button></div>
     <div id="l-arena" class="hide" style="width:100%;max-width:420px">
       <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="10">10分</button></div></div>
       <div class="aopt"><span>ゲージ</span><div class="seg2"><button data-h="0" class="on">ふつう(10秒)</button><button data-h="1">ハード(5秒)</button></div></div>
@@ -694,13 +687,12 @@ body:not(.solo) .solo-only{ display:none; }
     <div id="rc-tbar"><i></i></div>
     <div id="rc-note"></div>
     <div id="rc-panel"></div>
-    <button class="cat-open" id="rc-catbtn" type="button">パーツと特性の一覧</button>
-    <div class="ilab">マイカー(上: ステータス / 下: パーツとチューンLv)</div>
+    <button class="cat-open" id="rc-catbtn" type="button">ステータスとスキルの一覧</button>
+    <div class="ilab">マイカー</div>
     <div id="rc-car"></div>
-    <div id="rc-scout"></div>
   </div>
   <div id="rc-pit" class="av">
-    <div class="rg-ptime"><span>ピット — スタートまで</span><b id="rc-pt">12秒</b></div>
+    <div class="rg-ptime"><span>コース発表 — スタートまで</span><b id="rc-pt">8秒</b></div>
     <div id="rc-pbar"><i></i></div>
     <div id="rc-pbody"></div>
   </div>
