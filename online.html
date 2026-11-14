@@ -478,6 +478,9 @@ body:not(.solo) .solo-only{ display:none; }
 .rg-last{ font-size:.86rem; font-weight:800; padding:8px 12px; border-radius:12px; text-align:left; animation:acrev .4s cubic-bezier(.2,1.4,.4,1); }
 .rg-last.ok{ color:var(--green); background:rgba(48,209,88,.12); } .rg-last.ng{ color:var(--red); background:rgba(255,69,58,.12); } .rg-last.rs{ color:#9ad0ff; background:rgba(79,163,255,.12); }
 #rc-panel .abtn.risk{ border-color:rgba(255,214,10,.55); } #rc-panel .abtn.risk small{ color:#ffd60a; }
+#rc-panel .abtn.hot{ position:relative; border-color:#ffd60a; background:linear-gradient(135deg, rgba(255,214,10,.16), var(--surface) 70%); box-shadow:0 0 22px rgba(255,214,10,.18); }
+#rc-panel .abtn.hot b{ color:#ffd60a; }
+.rg-hot{ position:absolute; top:-9px; right:10px; font-style:normal; font-size:.62rem; font-weight:900; color:#1a1400; background:#ffd60a; padding:2px 8px; border-radius:99px; letter-spacing:.06em; }
 #rc-panel .abtn.risk2{ border-color:rgba(255,69,58,.6); } #rc-panel .abtn.risk2 small{ color:#ff8a80; }
 .rg-rtab div.win{ border-color:#ffd60a; } .rg-rtab div.me{ background:color-mix(in srgb, var(--acc) 12%, transparent); }
 #rc-run{ position:absolute; inset:0; overflow:hidden; display:none; z-index:2; background:#0d130f; }

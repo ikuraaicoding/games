@@ -138,6 +138,8 @@ function make(id, send, chat){
         a.t = later(() => {
           // 体力: たいてい60を切ったら休む(たまに無理をする)。終わり間際は休まない
           const hp = m.car.hp, endSoon = Number.isFinite(m.rem) && m.rem < 12000;
+          // 好調なら、体力が少し足りなくても賭ける(たまに)
+          if(Number.isInteger(m.hot) && m.hot >= 0 && m.hot <= 2 && (hp >= 40 || endSoon) && rnd() < .85){ send({ t: 'act', a: 'tr', i: m.hot, n: ++a.n }); return; }
           if(!endSoon && (hp < 35 || (hp < 60 && rnd() < .8))){ send({ t: 'act', a: 'rs', n: ++a.n }); return; }
           // 上げる: 一番低いもの(性格で、どれか1つを少しひいき)
           const st = m.car.st.map((v, i) => v - (i === a.bias ? 3 : 0));
