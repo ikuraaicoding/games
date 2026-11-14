@@ -493,6 +493,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       }
     }
     renderGar();
+    clock();
   }
   function overflow(){
     const box = $('rc-tk').parentElement;
