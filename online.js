@@ -8,7 +8,7 @@ const R = window.NomiRoom;
 const clean = R.clean;
 // 制御文字は取り除くが、改行(\n)だけは残す(結果画面の複数行表示のため)
 const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 80);
-function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
+function show(id){ const was = document.querySelector('.screen.active'); if(!was || was.id !== id){ const c = document.getElementById('a-cat'); if(c) c.classList.remove('on'); document.body.classList.remove('catopen'); } document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
 function vis(id, on, disp){ const e = $(id); e.classList.remove('hide'); e.style.display = on ? (disp || 'block') : 'none'; }
 function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
@@ -233,6 +233,10 @@ function buildRules(){
     const ol = document.createElement('ol');
     x.r.forEach(t => { const li = document.createElement('li'); li.textContent = t; ol.appendChild(li); });
     d.appendChild(ol);
+    if(x.g === 'arena'){
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'cat-open'; cb.textContent = 'スキルと武器の一覧を見る';
+      cb.addEventListener('click', () => window.NomiGames.arena.showCatalog()); d.appendChild(cb);
+    }
     box.appendChild(d);
   });
 }
@@ -593,6 +597,7 @@ $('sc-back').addEventListener('click', () => { stopScan(); show('s-menu'); });
 $('sc-go').addEventListener('click', () => { const t = $('sc-paste').value.trim(); if(t) joinWith(t); });
 $('l-quit').addEventListener('click', quitAll);
 $('r-quit').addEventListener('click', quitAll);
+$('a-catbtn').addEventListener('click', () => window.NomiGames.arena.showCatalog());
 $('l-start').addEventListener('click', () => startGame(wantGame));
 $('l-lock').addEventListener('click', () => { userLocked = !userLocked; if(room) room.setLocked(userLocked); renderLobby(); });
 $('r-again').addEventListener('click', () => { if(role === 'host') startGame(lastGame || wantGame); });

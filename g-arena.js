@@ -116,7 +116,56 @@ function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && F
 function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
-window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, make(E){
+// ---------------- スキルと武器の一覧(ロビーや育成画面から開く) ----------------
+const CAT_INFO = { a: '攻撃スキル', d: '防御スキル', h: 'HPスキル' };
+const CAT_WHO = { a: '攻がいちばん高いキャラ', d: '防がいちばん高いキャラ', h: 'HPがいちばん高いキャラ' };
+const W_INFO = { a: '剣(攻+)', d: '盾(防+)', h: '護符(HP+)' };
+function showCatalog(){
+  const box = document.getElementById('a-cat'); if(!box) return;
+  const el = (tag, cls, txt) => { const d = document.createElement(tag); if(cls) d.className = cls; if(txt !== undefined) d.textContent = txt; return d; };
+  box.textContent = '';
+  const head = el('div', 'cat-h');
+  head.appendChild(el('b', '', 'スキルと武器の一覧'));
+  const x = el('button', 'cat-x', '閉じる'); x.onclick = () => { box.classList.remove('on'); document.body.classList.remove('catopen'); }; head.appendChild(x);
+  box.appendChild(head);
+  const body = el('div', 'cat-b');
+  // スキル
+  body.appendChild(el('div', 'eyebrow', 'スキル'));
+  body.appendChild(el('p', 'cat-note', 'キャラのスキルは、いちばん高いステの系統から選ばれる(3つのステの差が1以内なら、どの系統も出る)。試合中に各キャラ1回、好きなタイミングで使える。スキル強化で Lv+1(最大Lv' + SK_MAX + ')'));
+  ['a', 'd', 'h'].forEach(c => {
+    const sec = el('div', 'cat-sec');
+    const t = el('div', 'cat-st'); t.appendChild(el('i', 'skc c-' + c, CAT_INFO[c])); t.appendChild(el('span', '', CAT_WHO[c])); sec.appendChild(t);
+    SK_OF[c].forEach(k => {
+      const r = el('div', 'cat-row');
+      r.appendChild(el('b', '', SK[k].nm + (SK_NOW[k] ? '' : '  (次の攻撃)')));
+      r.appendChild(el('span', '', 'Lv1: ' + SK[k].d(1, 3)));
+      r.appendChild(el('span', '', 'Lv' + SK_MAX + ': ' + SK[k].d(SK_MAX, 3)));
+      if(SK[k].d(1, 5) !== SK[k].d(1, 3)) r.appendChild(el('span', 'cat-5', '5体バトルでは弱め — Lv1: ' + SK[k].d(1, 5) + ' / Lv' + SK_MAX + ': ' + SK[k].d(SK_MAX, 5)));
+      sec.appendChild(r);
+    });
+    body.appendChild(sec);
+  });
+  // 武器
+  body.appendChild(el('div', 'eyebrow', '武器'));
+  body.appendChild(el('p', 'cat-note', '装備ガチャで出る。★1(+1)' + pct(BAL.wv[0]) + '% / ★2(+2)' + pct(BAL.wv[1]) + '% / ★3(+3)' + pct(BAL.wv[2]) + '%。剣・盾・護符は同じ確率。特殊効果は、上がるステと同じ系統のものがつく。だれにでも装備できる(1体1つ)'));
+  ['a', 'd', 'h'].forEach(t => {
+    const sec = el('div', 'cat-sec');
+    const h = el('div', 'cat-st'); h.appendChild(el('i', 'skc c-' + t, W_INFO[t])); sec.appendChild(h);
+    FX_OF[t].forEach(k => {
+      const r = el('div', 'cat-row');
+      r.appendChild(el('b', '', FX[k].nm + 'の' + W_KIND[t]));
+      r.appendChild(el('span', '', FX[k].d(3)));
+      if(FX[k].d(5) !== FX[k].d(3)) r.appendChild(el('span', 'cat-5', '5体バトルでは: ' + FX[k].d(5)));
+      sec.appendChild(r);
+    });
+    body.appendChild(sec);
+  });
+  box.appendChild(body);
+  box.classList.add('on'); document.body.classList.add('catopen');
+  body.scrollTop = 0;
+}
+
+window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, showCatalog, make(E){
   const $ = E.$;
   const rndF = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
   const ri = (lo, hi) => lo + Math.floor(rndF() * (hi - lo + 1));
