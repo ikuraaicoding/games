@@ -474,6 +474,13 @@ function fireball(el){
   burst(d.x, d.y, 30, { t: tex.shard, v0: 300, v1: 900, l0: 800, l1: 1500, s0: 1.6, s1: .6, g: 1100, vr: 14, tint: [0xffd2c2, 0xff453a], add: false });
 }
 
-window.NomiFX = { load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
+// 確認用: いま画面に残っているものの数
+function _stat(){
+  if(!ok()) return null;
+  const cnt = c => c.children.length;
+  const tx = app.renderer.texture && app.renderer.texture.managedTextures ? app.renderer.texture.managedTextures.length : -1;
+  return { parts: parts.length, tweens: tweens.length, pool: pool.length, layers: ['amb', 'back', 'fx', 'top', 'ui'].map(k => cnt(L[k])).join(','), managedTextures: tx };
+}
+window.NomiFX = { _stat, load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
 window.NomiArenaFX = window.NomiFX;
 })();

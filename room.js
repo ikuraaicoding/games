@@ -13,6 +13,12 @@
  *  - ホスト自身のアプリが止まっていた間は、だれからも届かなくて当然なので、戻ったときに外さない
  *  - 外れた人がもどってきたら、同じ番号・名前のまま部屋にもどす(GONE_MS 以内)
  *  - アプリにもどったとき・電波がもどったときは、すぐに中継のつながりを確かめ直す
+ *
+ * 全員あての送信(bcast)
+ *  - 1人ずつ送ると、人数ぶん中継に流れて重い(ARENA の試合中など)。全員共通の「部屋の鍵」で1回だけ送る
+ *  - 部屋の鍵は、入室のとき二人専用の鍵で渡す。参加者も部屋の鍵を持つので、ホストが署名(ECDSA P-256)して、
+ *    参加者は署名を確かめる(参加者がホストになりすまして全員に送ることはできない)
+ *  - だれかが抜けたら部屋の鍵を作り直す(抜けた人には、その後の内容は読めない)
  */
 (function(){
 'use strict';
@@ -140,6 +146,14 @@ async function host(h){
   let nextId = 1, joinTimes = [];
   const net = new Net(NomiMQTT.BROKERS, { onMessage, onStatus: s => { if(h.onNet) h.onNet(s); } });
   net.subscribe(inbox);
+  // 全員あて: 部屋の鍵(作り直すたびに kid が増える)と、ホストの署名鍵
+  const bcTopic = base + '/b';
+  const signKp = await subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const vkS = b64u(new Uint8Array(await subtle.exportKey('raw', signKp.publicKey)));
+  const newGk = async () => { const raw = rnd(32); return { raw: b64u(raw), key: await subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']) }; };
+  let kid = 1, gk = await newGk(), useKid = 1, useKey = gk.key, bOut = 0;
+  const bpend = new Map();                                // 全員あての大事なメッセージ: q -> { env, need: 受け取っていない人, at, n }
+  const keyMsg = () => ({ t: 'gk', kid, gk: gk.raw, vk: vkS });
 
   async function onMessage(topic, text){
     if(R.closed || topic !== inbox) return;
@@ -174,13 +188,13 @@ async function host(h){
     const gb = gone.get(gid);
     if(gb){
       const o = await unseal(gb.peer.key, iv, ct, 'g2h|' + roomId + '|' + gid);
-      if(o && o.t === 'join' && restore(gb.peer)){ gb.peer.win.accept(o.q); sendTo(gb.peer, { t: 'welcome', id: gb.peer.id }, true); }
+      if(o && o.t === 'join' && restore(gb.peer)){ gb.peer.win.accept(o.q); sendTo(gb.peer, Object.assign(keyMsg(), { t: 'welcome', id: gb.peer.id }), true); }
       return;
     }
     const ex = byGid.get(gid);
     if(ex){
       const o = await unseal(ex.key, iv, ct, 'g2h|' + roomId + '|' + gid);
-      if(o && o.t === 'join' && ex.win.accept(o.q)) sendTo(ex, { t: 'welcome', id: ex.id }, true);
+      if(o && o.t === 'join' && ex.win.accept(o.q)) sendTo(ex, Object.assign(keyMsg(), { t: 'welcome', id: ex.id }), true);
       return;
     }
     if(R.locked || R.peers.size >= MAX_PLAYERS - 1 || pending.has(gid)) return;
@@ -194,7 +208,7 @@ async function host(h){
       const peer = { id, gid, key, win: new Win(), out: 0, name: clean(o.name) || ('ゲスト' + id), seen: Date.now(), rtt: 0, rel: new Rel() };
       peer.win.accept(o.q);
       byGid.set(gid, peer); R.peers.set(id, peer);
-      sendTo(peer, { t: 'welcome', id }, true);
+      sendTo(peer, Object.assign(keyMsg(), { t: 'welcome', id }), true);
       if(h.onJoin) h.onJoin(peer);
     }finally{ pending.delete(gid); }
   }
@@ -203,6 +217,7 @@ async function host(h){
       case 'hb': if(Number.isFinite(o.rtt)) peer.rtt = Math.max(0, Math.min(5000, o.rtt)); break;
       case 'ping': if(Number.isFinite(o.c)) sendTo(peer, { t: 'pong', c: o.c, h: performance.now() }, false); break;
       case 'ak': if(Number.isInteger(o.a)) peer.rel.ack(o.a); break;
+      case 'bk': { const e = bpend.get(o.a); if(e){ e.need.delete(peer.id); if(!e.need.size) bpend.delete(o.a); } break; }
       case 'bye': drop(peer, 'bye'); break;
       default: if(h.onMsg) h.onMsg(peer.id, o);
     }
@@ -225,7 +240,37 @@ async function host(h){
     peer.rel.clear();
     // 電波で切れただけなら、もどってこられるようにしておく(外された・自分で抜けた人はだめ)
     if(why === 'timeout') gone.set(peer.gid, { peer, at: Date.now() });
+    rotate();
     if(h.onLeave) h.onLeave(peer, why);
+  }
+  // 部屋の鍵を作り直して、残っている人に配る(少し待ってから新しい鍵で送り始める)
+  async function rotate(){
+    const nk = await newGk(); if(R.closed) return;
+    kid++; gk = nk; const k = kid;
+    R.peers.forEach(p => sendTo(p, keyMsg(), true));
+    setTimeout(() => { if(kid === k){ useKid = k; useKey = nk.key; } }, 1500);
+  }
+  async function bcast(obj, reliable){
+    if(R.closed || !R.peers.size) return;
+    const q = ++bOut, k = useKid, key = useKey;
+    const head = 'B|' + k + '|' + await seal(key, Object.assign(reliable ? { q, r: 1 } : { q }, obj), 'bc|' + roomId + '|' + k);
+    const sg = new Uint8Array(await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signKp.privateKey, TE.encode(head)));
+    const env = head + '|' + b64u(sg);
+    net.publish(bcTopic, env);
+    if(reliable){
+      setTimeout(() => { if(!R.closed) net.publish(bcTopic, env); }, 300);
+      bpend.set(q, { env, need: new Set(R.peers.keys()), at: Date.now(), n: 0 });
+    }
+  }
+  function bTick(){
+    const now = Date.now();
+    bpend.forEach((e, q) => {
+      e.need.forEach(id => { if(!R.peers.has(id)) e.need.delete(id); });
+      if(!e.need.size){ bpend.delete(q); return; }
+      if(now - e.at < RESEND_MS) return;
+      if(++e.n > RESEND_MAX){ bpend.delete(q); return; }
+      e.at = now; net.publish(bcTopic, e.env);
+    });
   }
   // 抜けた人がもどってきた: 同じ番号・名前で部屋にもどす
   function restore(peer){
@@ -234,11 +279,12 @@ async function host(h){
     gone.delete(peer.gid);
     peer.seen = Date.now(); peer.rel.clear();
     byGid.set(peer.gid, peer); R.peers.set(peer.id, peer);
+    sendTo(peer, keyMsg(), true);                         // 抜けていた間に部屋の鍵が変わっている
     if(h.onJoin) h.onJoin(peer, true);
     return true;
   }
   const hbT = setInterval(() => { R.bcast({ t: 'hb' }, false); }, 2000);
-  const relT = setInterval(() => { R.peers.forEach(p => p.rel.tick()); }, 400);
+  const relT = setInterval(() => { R.peers.forEach(p => p.rel.tick()); bTick(); }, 400);
   let lastDog = Date.now();
   const dogT = setInterval(() => {
     const now = Date.now();
@@ -251,7 +297,7 @@ async function host(h){
   R.away = id => { const p = R.peers.get(id); return !!(p && Date.now() - p.seen > 8000); };
 
   R.sendTo = (id, obj, reliable) => sendTo(R.peers.get(id), obj, !!reliable);
-  R.bcast = (obj, reliable) => { R.peers.forEach(p => sendTo(p, obj, !!reliable)); };
+  R.bcast = (obj, reliable) => { bcast(obj, !!reliable); };
   R.kick = (id) => { const p = R.peers.get(id); if(!p) return; banned.add(p.gid); sendTo(p, { t: 'kicked' }, true); setTimeout(() => drop(p, 'kicked'), 50); };
   R.setLocked = (v) => { R.locked = !!v; };
   R.close = () => {
@@ -277,24 +323,59 @@ async function join(qrText, h){
   const key = await pairKey(kp.priv, hostPub, roomId);
   const base = PREFIX + roomId, hostBox = base + '/h', myBox = base + '/g/' + gid;
   const G = { id: -1, welcomed: false, closed: false, lastHb: Date.now(), clock: { offset: 0, rtt: Infinity, n: 0 } };
-  const win = new Win(), rel = new Rel(); let out = 0, stalled = false;
+  const win = new Win(), rel = new Rel(), bwin = new Win(), gkeys = new Map(); let out = 0, stalled = false, vk = null;
+  const bcTopic = base + '/b';
   const net = new Net(NomiMQTT.BROKERS, { onMessage, onStatus: s => { if(h.onNet) h.onNet(s); }, onOpen: () => { if(G.welcomed) hb(); } });
   net.subscribe(myBox);
+  net.subscribe(bcTopic);
 
   async function onMessage(topic, text){
-    if(G.closed || topic !== myBox) return;
+    if(G.closed) return;
+    if(topic === bcTopic) return onBcast(text);
+    if(topic !== myBox) return;
     const q = text.split('|');
     if(q.length !== 4 || q[0] !== 'M') return;
     const o = await unseal(key, q[2], q[3], 'h2g|' + roomId + '|' + gid);
     if(!o) return;
     if(o.r && Number.isInteger(o.q)) sendRaw('M', { t: 'ak', a: o.q }, false);      // 重複でも返す
     if(!win.accept(o.q)) return;
+    if(o.t === 'welcome' || o.t === 'gk') await takeKeys(o);
+    dispatch(o);
+  }
+  // 部屋の鍵(ホストから二人専用の鍵で届く)。最近の3つまで覚えておく
+  async function takeKeys(o){
+    try{
+      if(!vk && typeof o.vk === 'string' && RE_B64.test(o.vk)) vk = await subtle.importKey('raw', unb64u(o.vk), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      if(Number.isInteger(o.kid) && typeof o.gk === 'string' && RE_B64.test(o.gk) && !gkeys.has(String(o.kid))){
+        const raw = unb64u(o.gk); if(raw.length !== 32) return;
+        gkeys.set(String(o.kid), await subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']));
+        while(gkeys.size > 3) gkeys.delete(gkeys.keys().next().value);
+      }
+    }catch(e){}
+  }
+  // 全員あて: ホストの署名を確かめてから開ける
+  async function onBcast(text){
+    if(!vk || !G.welcomed) return;
+    const p = text.split('|');
+    if(p.length !== 5 || p[0] !== 'B' || !RE_B64.test(p[4])) return;
+    const k = gkeys.get(p[1]); if(!k) return;
+    let good = false;
+    try{ good = await subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, vk, unb64u(p[4]), TE.encode(p.slice(0, 4).join('|'))); }catch(e){}
+    if(!good) return;
+    const o = await unseal(k, p[2], p[3], 'bc|' + roomId + '|' + p[1]);
+    if(!o) return;
+    if(o.r && Number.isInteger(o.q)) sendRaw('M', { t: 'bk', a: o.q }, false);
+    if(!bwin.accept(o.q)) return;
+    dispatch(o);
+  }
+  function dispatch(o){
     G.lastHb = Date.now();
     if(stalled){ stalled = false; if(h.onResume) h.onResume(); }
     switch(o.t){
       case 'welcome':
         if(!G.welcomed && Number.isInteger(o.id)){ G.welcomed = true; G.id = o.id; startSync(); if(h.onWelcome) h.onWelcome(o.id); }
         break;
+      case 'gk': break;
       case 'hb': break;
       case 'ak': if(Number.isInteger(o.a)) rel.ack(o.a); break;
       case 'pong': onPong(o); break;
