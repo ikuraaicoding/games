@@ -7,6 +7,7 @@
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。一番高いステの系統(攻撃/防御/HP)のスキルつき
  *       装備ガチャ : 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
+ *     キャラガチャ: SR未満が続くと、SR以上の出やすさが少しずつ上がる(画面には出さない)。SR以上が出たら元にもどる
  *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
  *     戦闘は自動のターン制。プレイヤーが操作できるのは「スキルを使うタイミング」だけ(各キャラ1試合1回)
@@ -43,7 +44,9 @@ const BAL = {
         vamp: .55, regen: .04, undying: .25, bless: .03 },
   // ガチャ: キャラの合計値の出やすさ [確率, 下限, 上限] / 武器の強化値の出やすさ
   rar: [[.45, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21]],
-  wv: [.55, .32, .13], wAdd: [1, 2, 3]
+  wv: [.55, .32, .13], wAdd: [1, 2, 3],
+  // SR未満が1回続くごとに、SR・SSR の出やすさを +5%(元の確率に対して)。最大 1.5倍
+  luckUp: .05, luckMax: .5
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
 const AOE5 = { swp: .6, rain: .7, aegis: .7 };
@@ -150,6 +153,8 @@ function showCatalog(){
     body.appendChild(sec);
   });
   // 武器
+  body.appendChild(el('div', 'eyebrow', 'キャラガチャ'));
+  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '%'));
   body.appendChild(el('div', 'eyebrow', '武器'));
   body.appendChild(el('p', 'cat-note', '装備ガチャで出る。★1(+1)' + pct(BAL.wv[0]) + '% / ★2(+2)' + pct(BAL.wv[1]) + '% / ★3(+3)' + pct(BAL.wv[2]) + '%。剣・盾・護符は同じ確率。特殊効果は、上がるステと同じ系統のものがつく。だれにでも装備できる(1体1つ)'));
   ['a', 'd', 'h'].forEach(t => {
@@ -686,9 +691,12 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   // =====================================================================
   const H = { rev: false, phase: 'idle', P: new Map(), names: [], endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, rs: null, B: null, stepT: 0, mi: 0, outR: new Map() };
 
-  function rollChar(){
-    let r = rndF(), tot = 6;
-    for(const [p, lo, hi] of BAL.rar){ if(r < p){ tot = ri(lo, hi); break; } r -= p; tot = ri(lo, hi); }
+  // miss: SR未満が続いた回数。その分だけ SR・SSR を出やすくする(SR と SSR の比はそのまま)
+  function rollChar(miss){
+    const up = 1 + Math.min(BAL.luckMax, BAL.luckUp * (miss || 0));
+    const tbl = BAL.rar.map(([p, lo, hi]) => [lo >= 15 ? p * up : p, lo, hi]), sum = tbl.reduce((a, x) => a + x[0], 0);
+    let r = rndF() * sum, tot = 6;
+    for(const [p, lo, hi] of tbl){ if(r < p){ tot = ri(lo, hi); break; } r -= p; tot = ri(lo, hi); }
     const s = [1, 1, 1], w = [rndF() + .25, rndF() + .25, rndF() + .25];
     for(let k = 3; k < tot; k++){
       const idx = [0, 1, 2].filter(i => s[i] < 10), sum = idx.reduce((a, i) => a + w[i], 0);
@@ -732,7 +740,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const buildMs = CFG.BUILD_MS || mins * 60000;
     const now = performance.now();
     H.endAt = now + buildMs; H.nextTick = now + H.TICK;
-    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null }));
+    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null, miss: 0 }));
     H.P.forEach((_, id) => sendMe(id));
     H.tickT = setInterval(() => {
       if(H.phase !== 'build') return;
@@ -752,7 +760,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(m.t === 'act'){
       if(p.tk <= 0 || p.pend) { sendMe(id); return; }
       if(m.a === 'ch'){
-        const c = rollChar();
+        const c = rollChar(p.miss);
+        p.miss = c.a + c.d + c.h >= 15 ? 0 : p.miss + 1;
         p.tk--;
         if(p.party.length < H.N){ p.party.push(c); p.rv = { n: ++H.rvn, k: 'ch', i: p.party.length - 1 }; }
         else p.pend = { k: 'ch', c };
