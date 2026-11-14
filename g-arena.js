@@ -201,13 +201,48 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     return d;
   }
 
+  // ステータスを1行で(w を渡すと、その武器をつけたあとの値を「5→8」で見せる)
+  function statLine(c, w){
+    const d = el('span', 'sline'), cw = c.w || null;
+    [['攻', 'a'], ['防', 'd'], ['HP', 'h']].forEach(([lab, k]) => {
+      const base = c[k], now = cw && cw.t === k ? cw.v : 0;
+      const it = el('span', 'sl-i'); it.appendChild(el('i', '', lab));
+      if(w){
+        const nx = w.t === k ? w.v : 0;
+        if(nx !== now){ it.appendChild(el('b', '', String(base + now))); it.appendChild(el('em', nx > now ? 'up' : 'dn', '→' + (base + nx))); }
+        else it.appendChild(el('b', '', String(base + now)));
+      }else{
+        it.appendChild(el('b', '', String(base)));
+        if(now) it.appendChild(el('em', 'up', '+' + now));
+      }
+      d.appendChild(it);
+    });
+    return d;
+  }
+  // 5体のとき用の細いカード(タップでくわしく)
+  function slimCard(c, extra){
+    const rar = rarOf(c.a + c.d + c.h), w = c.w || null;
+    const d = el('div', 'ac slim r-' + rar + (extra ? ' ' + extra : ''));
+    d.appendChild(avOf(c, 40));
+    const m = el('div', 'sl-m');
+    const t = el('div', 'sl-t'); t.appendChild(el('span', 'rar', rar)); t.appendChild(el('b', '', c.nm)); t.appendChild(statLine(c)); m.appendChild(t);
+    const b = el('div', 'sl-b');
+    const k = el('span', 'sl-k', SK[c.sk.t].nm + ' Lv' + c.sk.lv); k.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c])); b.appendChild(k);
+    b.appendChild(el('span', 'sl-w' + (w ? ' wr' + w.v : ''), w ? '★'.repeat(w.v) + ' ' + wName(w) : '装備なし'));
+    m.appendChild(b); d.appendChild(m);
+    d.onclick = () => { const box = $('a-info'); box.textContent = ''; box.appendChild(charCard(c)); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる')); box.onclick = () => box.classList.remove('on'); box.classList.add('on'); };
+    return d;
+  }
+  const partyCard = (c, extra) => pSize === 5 ? slimCard(c, extra) : charCard(c, extra);
   function renderBuild(){
     if(!me) return;
     $('a-tk').textContent = String(me.tk);
     $('a-tk').parentElement.classList.toggle('full', me.tk >= CFG.CAP);
     $('a-lost').textContent = me.lost ? 'あふれた ' + me.lost + '回' : '';
     const party = $('a-party'); party.textContent = '';
-    me.p.forEach((c, i) => party.appendChild(charCard(c, me.flash === i ? 'flash' : '')));
+    party.classList.toggle('slim', pSize === 5);
+    if(party.previousElementSibling) party.previousElementSibling.textContent = 'パーティ(最大' + pSize + '体)' + (pSize === 5 ? ' — タップでくわしく' : '');
+    me.p.forEach((c, i) => party.appendChild(partyCard(c, me.flash === i ? 'flash' : '')));
     for(let i = me.p.length; i < pSize; i++){ const e = el('div', 'ac empty', '空き枠 — キャラガチャで仲間が増える'); party.appendChild(e); }
     me.flash = -1;
     renderPanel();
@@ -228,7 +263,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     E.send({ t: 'dec', slot, n: ++nonce }, true);
   }
   // c を渡すと、左にそのキャラの顔を出す(だれを選んでいるか分かりやすく)
-  function bigBtn(title, sub, on, fn, c){
+  function bigBtn(title, sub, on, fn, c, stats){
     const b = el('button', 'abtn');
     let tx = b;
     if(c){
@@ -236,7 +271,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       b.appendChild(avOf(c, 40));
       tx = el('span', 'abtn-t'); b.appendChild(tx);
     }
-    tx.appendChild(el('b', '', title)); tx.appendChild(el('small', '', sub));
+    tx.appendChild(el('b', '', title));
+    if(stats) tx.appendChild(stats);
+    if(sub) tx.appendChild(el('small', '', sub));
     b.disabled = !on; b.onclick = fn; return b;
   }
   function renderPanel(){
@@ -250,17 +287,17 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         note.classList.remove('over');
         note.textContent = 'パーティがいっぱい。だれと入れ替える?(装備とスキルLvは引き継ぐ)';
         box.appendChild(charCard(pd.c, 'reveal'));
-        const g = el('div', 'agrid');
+        const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
         const nt = pd.c.a + pd.c.d + pd.c.h;
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + (c.sk.lv > 1 ? ' / スキルLv' + c.sk.lv + 'を引き継ぐ' : ''), true, () => decide(i), c)));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + ' / ' + SK[c.sk.t].nm + 'Lv' + c.sk.lv + (c.w ? ' / ' + '★'.repeat(c.w.v) + wName(c.w) : '') + (c.sk.lv > 1 ? '(スキルLvと装備は引き継ぐ)' : c.w ? '(装備は引き継ぐ)' : ''), true, () => decide(i), c, statLine(c))));
         g.appendChild(bigBtn('捨てる', 'いまのパーティのまま', true, () => decide(-1)));
         box.appendChild(g);
       }else{
         note.classList.remove('over');
         note.textContent = 'だれに装備する?(前の装備は捨てる)';
         box.appendChild(wCard(pd.w));
-        const g = el('div', 'agrid');
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i), c)));
+        const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', (c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし') + ' / ' + SK[c.sk.t].nm + 'Lv' + c.sk.lv, true, () => decide(i), c, statLine(c, pd.w))));
         g.appendChild(bigBtn('捨てる', '装備しない', true, () => decide(-1)));
         box.appendChild(g);
       }
@@ -269,7 +306,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(uiMode === 'sk'){
       note.classList.remove('over');
       note.textContent = 'どのキャラのスキルを強化する?';
-      const g = el('div', 'agrid');
+      const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
       me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1, pSize), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); }, c)); });
       g.appendChild(bigBtn('やめる', '', true, () => { uiMode = ''; renderPanel(); }));
       box.appendChild(g);
@@ -324,7 +361,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function renderPartyOnly(){
     if(!me) return;
     const party = $('a-party'); party.textContent = '';
-    me.p.forEach(c => party.appendChild(charCard(c)));
+    me.p.forEach(c => party.appendChild(partyCard(c)));
   }
   function fanfare(rar){
     E.audio.init();
