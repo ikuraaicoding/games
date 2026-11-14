@@ -35,6 +35,46 @@ textarea{ font-size:.7rem; height:64px; font-family:ui-monospace,monospace; word
 .warn b{ color:var(--sub); }
 .err{ color:#ff8a80; font-size:.85rem; line-height:1.7; max-width:420px; margin-top:10px; }
 #l-help{ white-space:pre-line; }
+/* ---- チャット・スタンプ ---- */
+#chat-btn{ position:fixed; left:12px; bottom:max(12px,env(safe-area-inset-bottom)); z-index:44; width:48px; height:48px; border-radius:50%; border:1px solid var(--line2); background:rgba(28,28,32,.88); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:var(--text); display:grid; place-items:center; padding:0; }
+#chat-btn svg.ic{ width:24px; height:24px; }
+#chat-btn:active{ transform:scale(.94); }
+#chat-badge{ position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:99px; background:var(--red); color:#fff; font-size:.62rem; font-weight:800; display:grid; place-items:center; }
+#chat-bg{ position:fixed; inset:0; z-index:45; background:rgba(0,0,0,.35); }
+#chat-sheet{ position:fixed; left:0; right:0; bottom:0; z-index:46; max-height:78vh; display:flex; flex-direction:column; gap:8px; padding:12px 14px max(14px,env(safe-area-inset-bottom)); background:rgba(22,22,26,.97); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); border-top:1px solid var(--line2); border-radius:20px 20px 0 0; max-width:520px; margin:0 auto; }
+.ch-head{ display:flex; align-items:baseline; gap:8px; }
+.ch-head b{ font-size:.95rem; }
+.ch-head small{ font-size:.66rem; color:var(--sub); flex:1; }
+#chat-log{ flex:1; min-height:80px; max-height:30vh; overflow-y:auto; display:flex; flex-direction:column; gap:4px; padding:8px; background:var(--surface); border:1px solid var(--line); border-radius:12px; text-align:left; }
+#chat-log .cm{ font-size:.8rem; line-height:1.5; word-break:break-all; }
+#chat-log .cm b{ color:var(--acc); margin-right:6px; font-size:.74rem; }
+#chat-log .cm.me b{ color:var(--sub); }
+#chat-log .cm .em{ font-size:1.15rem; }
+#chat-log .empty{ font-size:.72rem; color:var(--dim); text-align:center; margin:auto; }
+.ch-stamps{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; }
+.ch-stamps button{ font-size:1.5rem; line-height:1; padding:7px 0; border-radius:12px; border:1px solid var(--line); background:var(--surface); }
+.ch-phr{ display:flex; flex-wrap:wrap; gap:6px; }
+.ch-phr button{ font-size:.74rem; font-weight:700; padding:7px 10px; border-radius:99px; border:1px solid var(--line); background:var(--surface); }
+.ch-stamps button:active, .ch-phr button:active{ border-color:var(--acc); transform:scale(.95); }
+.ch-stamps button[disabled], .ch-phr button[disabled], #chat-send[disabled]{ opacity:.35; }
+.ch-in{ display:flex; gap:8px; }
+.ch-in input{ flex:1; padding:10px 12px; font-size:16px; border-radius:12px; }
+.ch-in .btn{ width:auto; padding:0 16px; margin:0; }
+.ch-hint{ font-size:.68rem; color:var(--sub); min-height:1em; text-align:left; }
+#toasts{ position:fixed; left:12px; right:12px; top:max(10px,env(safe-area-inset-top)); z-index:58; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none; }
+.toast{ max-width:440px; width:100%; display:flex; gap:8px; align-items:baseline; background:rgba(28,28,32,.94); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1px solid var(--line2); border-radius:14px; padding:10px 14px; font-size:.82rem; text-align:left; box-shadow:0 8px 30px rgba(0,0,0,.5); animation:toastIn .25s ease-out; word-break:break-all; }
+.toast b{ color:var(--acc); font-size:.74rem; white-space:nowrap; }
+.toast.out{ animation:toastOut .3s ease-in forwards; }
+@keyframes toastIn{ 0%{ opacity:0; transform:translateY(-14px); } 100%{ opacity:1; transform:none; } }
+@keyframes toastOut{ 100%{ opacity:0; transform:translateY(-10px); } }
+#banner.on ~ #toasts{ top:calc(max(10px,env(safe-area-inset-top)) + 64px); }
+#s-lobby, #s-result, #s-arena{ padding-bottom:calc(max(24px,env(safe-area-inset-bottom)) + 60px); }
+#rx{ position:fixed; inset:0; z-index:47; pointer-events:none; overflow:hidden; }
+.rx{ position:absolute; bottom:16%; display:flex; flex-direction:column; align-items:center; gap:2px; animation:rxUp 2.6s ease-out forwards; }
+.rx .e{ font-size:48px; line-height:1; filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+.rx .p{ font-size:1rem; font-weight:900; padding:7px 13px; border-radius:99px; background:var(--acc); color:var(--acc-ink); box-shadow:0 6px 20px rgba(0,0,0,.5); white-space:nowrap; }
+.rx .n{ font-size:.62rem; font-weight:700; color:#fff; background:rgba(0,0,0,.55); padding:2px 7px; border-radius:99px; white-space:nowrap; }
+@keyframes rxUp{ 0%{ opacity:0; transform:translateY(30px) scale(.6); } 12%{ opacity:1; transform:translateY(0) scale(1.15); } 22%{ transform:translateY(-10px) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; transform:translateY(-38vh) scale(.95); } }
 .rules{ width:100%; max-width:420px; margin-top:14px; text-align:left; }
 .rules .eyebrow{ margin:0 2px 8px; }
 .rlist{ display:flex; flex-direction:column; gap:8px; }
@@ -250,6 +290,25 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .tname{ font-size:.72rem; font-weight:700; color:var(--sub); margin:0 2px 6px; letter-spacing:.06em; }
 .team.mine .tname{ color:var(--acc); }
 .trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+/* 5体バトル: 1列に5体ならべるため、カードを小さくする(くわしくはタップで) */
+.trow.n5{ grid-template-columns:repeat(5,1fr); gap:4px; }
+.trow.n5 .bu{ padding:5px 4px; border-radius:11px; gap:2px; }
+.trow.n5 .bu-n{ flex-direction:column; gap:2px; }
+.trow.n5 .bu-nn{ align-items:center; width:100%; }
+.trow.n5 .bu-n b{ font-size:.62rem; max-width:100%; }
+.trow.n5 .bu-n .rar{ font-size:.44rem; padding:1px 3px; }
+.trow.n5 .bu-hp{ font-size:.56rem; text-align:center; }
+.trow.n5 .bu-s{ font-size:.5rem; text-align:center; }
+.trow.n5 .bu-w{ align-items:center; }
+.trow.n5 .bu-w.wr{ padding:1px 3px; }
+.trow.n5 .bu-w b{ font-size:.5rem; max-width:100%; }
+.trow.n5 .bu-w span{ display:none; }
+.trow.n5 .bu-w.none span{ display:block; font-size:.5rem; }
+.trow.n5 .bu-st{ min-height:13px; justify-content:center; flex-wrap:wrap; }
+.trow.n5 .bu-st span{ font-size:.5rem; padding:0 3px; }
+.trow.n5 .bu-sk{ min-height:38px; padding:5px 4px; align-items:center; text-align:center; border-radius:8px; }
+.trow.n5 .bu-sk b{ font-size:.6rem; }
+.trow.n5 .bu-sk small{ font-size:.48rem; -webkit-line-clamp:1; }
 .bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
 .bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
 .bu-n{ display:flex; align-items:center; gap:6px; min-width:0; }
@@ -302,6 +361,8 @@ body:not(.solo) .solo-only{ display:none; }
 .btn.ghost{ border-style:dashed; color:var(--sub); }
 .aopt .seg2 button{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 0; font-size:.86rem; font-weight:700; }
 .aopt .seg2 button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 14%, transparent); color:var(--acc); }
+.aopt .seg2 button[disabled]{ opacity:.35; }
+.aopt-note{ width:100%; font-size:.66rem; color:var(--sub); text-align:right; margin-top:4px; min-height:1em; }
 
 /* RESULT */
 #s-result{ justify-content:center; }
@@ -322,11 +383,25 @@ body:not(.solo) .solo-only{ display:none; }
   <symbol id="i-blind" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M10 2.5h4M12 2.5V6"/><path d="M4.5 6 19.5 21"/></symbol>
   <symbol id="i-thumbs" viewBox="0 0 24 24"><path d="M7.5 12V5.5a2 2 0 0 1 4 0V12"/><rect x="5" y="12" width="14" height="9" rx="3"/><path d="M11.5 15.5H19M11.5 18.5H19"/></symbol>
   <symbol id="i-arena" viewBox="0 0 24 24"><path d="M4 4l9.5 9.5M4 4v3.5M4 4h3.5"/><path d="M20 4l-9.5 9.5M20 4v3.5M20 4h-3.5"/><path d="M8 15l-3 3 1 1 3-3M16 15l3 3-1 1-3-3"/><path d="M6.5 13.5l4 4M17.5 13.5l-4 4"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z"/><path d="M8 9.5h8M8 12h5"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
 </svg>
 <div id="vignette"></div><div id="scanlines"></div><canvas id="fx"></canvas><div id="flash"></div><div id="strobe"></div><div id="blackout"></div>
 <div id="banner"></div><div id="netdot"></div>
+<!-- チャット・スタンプ(部屋の中だけ) -->
+<div id="toasts"></div>
+<div id="rx"></div>
+<button id="chat-btn" class="hide" aria-label="チャット"><svg class="ic"><use href="#i-chat"/></svg><span id="chat-badge" class="hide"></span></button>
+<div id="chat-bg" class="hide"></div>
+<div id="chat-sheet" class="hide" role="dialog" aria-label="チャット">
+  <div class="ch-head"><b>チャット</b><small>部屋の全員に届くよ</small><button class="ib" id="chat-x">閉じる</button></div>
+  <div id="chat-log"></div>
+  <div class="ch-stamps" id="chat-stamps"></div>
+  <div class="ch-phr" id="chat-phr"></div>
+  <div class="ch-in"><input type="text" id="chat-text" maxlength="40" placeholder="ひとこと(40文字まで)" autocomplete="off"><button class="btn main" id="chat-send">送る</button></div>
+  <div class="ch-hint" id="chat-hint"></div>
+</div>
 
 <div id="app">
 
@@ -375,7 +450,10 @@ body:not(.solo) .solo-only{ display:none; }
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
     <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
     <div id="l-arena" class="hide" style="width:100%;max-width:420px">
-      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>ゲージ</span><div class="seg2"><button data-h="0" class="on">ふつう(10秒)</button><button data-h="1">ハード(5秒)</button></div></div>
+      <div class="aopt"><span>キャラ数</span><div class="seg2"><button data-n="3" class="on">3体</button><button data-n="5">5体バトル</button></div></div>
+      <div class="aopt-note" id="l-a5"></div>
       <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位(負け残り)</button></div></div>
     </div>
     <div id="l-core" class="hide" style="width:100%;max-width:420px">

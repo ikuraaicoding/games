@@ -1,13 +1,13 @@
 /* ARENA — ガチャで育てて、トーナメントで戦う(ホストが審判)
  *
  * 流れ
- *  1. 育成タイム(3/5/7/10分・ロビーで選ぶ)。全員「攻3 防3 HP3」のキャラ1体からスタート
- *  2. 10秒ごとに「行動」が1回たまる(最大3回までストック。満タンのまま次がたまると、あふれて無駄になる)
+ *  1. 育成タイム(1/3/5/10分・ロビーで選ぶ)。全員「攻3 防3 HP3」のキャラ1体からスタート
+ *  2. 10秒ごと(ハードモードは5秒ごと)に「行動」が1回たまる(最大3回までストック。満タンのまま次がたまると、あふれて無駄になる)
  *     行動ごとに次の1つを選ぶ
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。固有スキルつき
  *       装備ガチャ : 攻撃か防御が上がる武器。特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
- *     パーティは最大3体。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
+ *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
  *     戦闘は自動のターン制。プレイヤーが操作できるのは「スキルを使うタイミング」だけ(各キャラ1試合1回)
  *
@@ -17,8 +17,10 @@
 'use strict';
 window.NomiGames = window.NomiGames || {};
 
-const CFG = { TICK_MS: 10000, CAP: 3, STEP_MS: 650, VS_MS: 2800, END_MS: 2800, BR_MS: 4200, MAX_ROUNDS: 30, BUILD_MS: 0 };
-const MINS = [1, 3, 5, 7, 10];      // 1分は「ひとりで試す」用
+const CFG = { TICK_MS: 10000, HARD_MS: 5000, CAP: 3, STEP_MS: 650, STEP5_MS: 480, VS_MS: 2800, END_MS: 2800, BR_MS: 4200, MAX_ROUNDS: 30, BUILD_MS: 0 };
+const MINS = [1, 3, 5, 10];
+// 5体バトルを選べるか(育成タイムが短いと5体そろわないので)
+const can5 = (mins, hard) => mins >= 5 || (hard && mins >= 3);
 const SK_MAX = 5;
 
 // ---------------- データ ----------------
@@ -97,7 +99,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   // =====================================================================
   //  参加者側(表示)
   // =====================================================================
-  let ph = 'wait', me = null, meSeq = -1, lastRv = 0, lastPendKey = '', nonce = 0, localEnd = 0, nextAt = 0;
+  let ph = 'wait', me = null, meSeq = -1, lastRv = 0, lastPendKey = '', nonce = 0, localEnd = 0, nextAt = 0, tickMs = CFG.TICK_MS, pSize = 3;
   let uiMode = '', clockT = 0, rev = false;
   let br = null, bt = null;           // トーナメント表 / いまの試合
 
@@ -106,7 +108,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   const VFX = E.fx;
   const SIDEC = [0x64d2ff, 0xff9f0a];          // 上のチーム / 下のチーム
   function onBegin(){
-    stopped = false; rev = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
+    stopped = false; rev = false; ph = 'wait'; me = null; tickMs = CFG.TICK_MS; pSize = 3; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
     $('a-top').textContent = 'ARENA — 育成バトル';
     view('a-build'); $('a-party').textContent = ''; $('a-info').classList.remove('on'); $('a-panel').textContent = '';
     $('a-time').textContent = '--:--'; $('a-tk').textContent = '0';
@@ -123,7 +125,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     $('a-time').classList.toggle('hot', rem < 15000);
     const bar = $('a-tbar').firstElementChild;
     // 満タンでもタイマーは止まらない(たまった分はあふれる)
-    if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / CFG.TICK_MS) + ')'; }
+    if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / tickMs) + ')'; }
     else bar.style.transform = 'scaleX(0)';
     $('a-tbar').classList.toggle('over', !!(me && me.tk >= CFG.CAP && !me.pend));
   }
@@ -176,7 +178,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     $('a-lost').textContent = me.lost ? 'あふれた ' + me.lost + '回' : '';
     const party = $('a-party'); party.textContent = '';
     me.p.forEach((c, i) => party.appendChild(charCard(c, me.flash === i ? 'flash' : '')));
-    for(let i = me.p.length; i < 3; i++){ const e = el('div', 'ac empty', '空き枠 — キャラガチャで仲間が増える'); party.appendChild(e); }
+    for(let i = me.p.length; i < pSize; i++){ const e = el('div', 'ac empty', '空き枠 — キャラガチャで仲間が増える'); party.appendChild(e); }
     me.flash = -1;
     renderPanel();
   }
@@ -245,7 +247,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     }
     const can = me.tk > 0 && uiMode !== 'busy';
     const lastSec = localEnd - performance.now() < 20000;
-    note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(10秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
+    note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(' + Math.round(tickMs / 1000) + '秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
     note.classList.toggle('over', me.tk >= CFG.CAP);
     const skOk = me.p.some(c => c.sk.lv < SK_MAX);
     box.appendChild(bigBtn('キャラガチャ', 'ステ合計6〜21のキャラ。スキルつき', can, () => act('ch')));
@@ -254,8 +256,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function onMe(m){
     if(!Number.isInteger(m.s) || m.s <= meSeq) return;
-    if(!Array.isArray(m.p) || m.p.length < 1 || m.p.length > 3 || !m.p.every(okC) || !isInt(m.tk, 0, 9)) return;
-    meSeq = m.s;
+    const ps = m.ps === 5 ? 5 : 3;
+    if(!Array.isArray(m.p) || m.p.length < 1 || m.p.length > ps || !m.p.every(okC) || !isInt(m.tk, 0, 9)) return;
+    meSeq = m.s; pSize = ps;
+    if(m.ti === CFG.HARD_MS || m.ti === CFG.TICK_MS) tickMs = m.ti;
     if(m.rev && !rev){ rev = true; $('a-top').textContent = 'ARENA — 最下位決定戦(負け残り)'; }
     const pend = m.pend && ((m.pend.k === 'ch' && okC(m.pend.c)) || (m.pend.k === 'wp' && okW(m.pend.w) && m.pend.w)) ? m.pend : null;
     const prevLen = me ? me.p.length : 0;
@@ -270,9 +274,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const rv = m.rv;
     if(rv && isInt(rv.n, 1, 1e6) && rv.n > lastRv){
       lastRv = rv.n;
-      if(rv.k === 'ch' && isInt(rv.i, 0, 2)){ me.flash = rv.i; fanfare(me.p[rv.i] ? rarOf(me.p[rv.i].a + me.p[rv.i].d + me.p[rv.i].h) : 'N'); }
-      else if(rv.k === 'sk' && isInt(rv.i, 0, 2)){ me.flash = rv.i; E.audio.beep(880, .12, .2); E.vibrate(30); }
-      else if(rv.k === 'eq' && isInt(rv.i, 0, 2)){ me.flash = rv.i; E.audio.beep(740, .12, .2); }
+      if(rv.k === 'ch' && isInt(rv.i, 0, pSize - 1)){ me.flash = rv.i; fanfare(me.p[rv.i] ? rarOf(me.p[rv.i].a + me.p[rv.i].d + me.p[rv.i].h) : 'N'); }
+      else if(rv.k === 'sk' && isInt(rv.i, 0, pSize - 1)){ me.flash = rv.i; E.audio.beep(880, .12, .2); E.vibrate(30); }
+      else if(rv.k === 'eq' && isInt(rv.i, 0, pSize - 1)){ me.flash = rv.i; E.audio.beep(740, .12, .2); }
     }
     const pk = pend ? JSON.stringify(pend) : '';
     if(pend && pk !== lastPendKey){ fanfare(pend.k === 'ch' ? rarOf(pend.c.a + pend.c.d + pend.c.h) : (pend.w.v === 3 ? 'SSR' : pend.w.v === 2 ? 'SR' : 'R')); }
@@ -337,10 +341,12 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && (u.wt === 'a' || u.wt === 'd') && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
   function onMs(m){
     if(!isInt(m.mi, 1, 1e6) || !m.a || !m.b || !Array.isArray(m.a.u) || !Array.isArray(m.b.u)) return;
+    const N = m.a.u.length;
+    if((N !== 3 && N !== 5) || m.b.u.length !== N) return;
     const us = m.a.u.concat(m.b.u);
-    if(us.length !== 6 || !us.every(u => u === null || okU(u))) return;
+    if(!us.every(u => u === null || okU(u))) return;
     const mySide = m.a.id === E.myId ? 0 : m.b.id === E.myId ? 1 : -1;
-    bt = { mi: m.mi, k: -1, us, ids: [m.a.id, m.b.id], mySide, cards: [], done: false, log: [], top: mySide === 0 ? 1 : 0 };
+    bt = { mi: m.mi, k: -1, N, us, ids: [m.a.id, m.b.id], mySide, cards: [], done: false, log: [], top: mySide === 0 ? 1 : 0 };
     ph = 'bt'; view('a-bt'); $('a-info').classList.remove('on');
     $('a-bhead').textContent = '';
     $('a-bhead').appendChild(el('div', 'eyebrow', s60(m.lbl)));
@@ -361,9 +367,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     box.textContent = '';
     box.className = 'team' + (side === bt.mySide ? ' mine' : '');
     box.appendChild(el('div', 'tname', nmOf(bt.ids[side]) + (side === bt.mySide ? '(あなた)' : '')));
-    const row = el('div', 'trow');
-    for(let i = 0; i < 3; i++){
-      const ui = side * 3 + i, u = bt.us[ui];
+    const row = el('div', 'trow' + (bt.N === 5 ? ' n5' : ''));
+    for(let i = 0; i < bt.N; i++){
+      const ui = side * bt.N + i, u = bt.us[ui];
       if(!u){ continue; }
       const c = el('div', 'bu r-' + u.r);
       const n = el('div', 'bu-n'); n.appendChild(avOf(u, 30));
@@ -416,7 +422,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     cd.btn.disabled = true; cd.btn.classList.add('fired');
     E.send({ t: 'use', mi: bt.mi, u: ui }, true);
   }
-  const sideCol = ui => SIDEC[Math.floor(ui / 3) === bt.top ? 0 : 1];
+  const sideCol = ui => SIDEC[Math.floor(ui / bt.N) === bt.top ? 0 : 1];
   // HP の表示(演出があるときは、攻撃が当たるタイミングまで待ってから減らす)
   function showHp(ui, hp, k){
     const cd = bt.cards[ui], u = bt.us[ui]; if(!cd || cd.hk > k) return;
@@ -433,9 +439,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function bump(cd, cls){ cd.c.classList.remove(cls); void cd.c.offsetWidth; cd.c.classList.add(cls); }
   function onSt(m){
-    if(!bt || m.mi !== bt.mi || !isInt(m.k, 0, 1e6) || m.k <= bt.k || !Array.isArray(m.u) || m.u.length !== 6) return;
+    if(!bt || m.mi !== bt.mi || !isInt(m.k, 0, 1e6) || m.k <= bt.k || !Array.isArray(m.u) || m.u.length !== bt.N * 2) return;
     bt.k = m.k;
-    const B = bt, K = m.k, fx = VFX.ok(), hitAt = [0, 0, 0, 0, 0, 0], newHp = [];
+    const B = bt, K = m.k, fx = VFX.ok(), hitAt = bt.us.map(() => 0), newHp = [];
     const lgs = Array.isArray(m.lg) ? m.lg.slice(0, 8).map(t => s60(String(t))) : [];
     m.u.forEach((x, ui) => {
       const cd = bt.cards[ui]; if(!cd || !Array.isArray(x)) return;
@@ -455,11 +461,11 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     }
     if(K === 0 && lgs.includes('FIGHT!')) VFX.fight();
     if(lgs.some(t => t.indexOf('長期戦') >= 0)) VFX.fatigue();
-    const list = Array.isArray(m.fx) ? m.fx.slice(0, 12).filter(f => Array.isArray(f) && isInt(f[0], 0, 5) && bt.cards[f[0]]) : [];
+    const list = Array.isArray(m.fx) ? m.fx.slice(0, 16).filter(f => Array.isArray(f) && isInt(f[0], 0, bt.N * 2 - 1) && bt.cards[f[0]]) : [];
     // 1ステップの中の攻撃を少しずつずらして、連続技に見せる
     const gap = list.length ? Math.min(130, 520 / list.length) : 0;
     list.forEach((f, i) => {
-      const [ui, v, k] = f, src = isInt(f[3], 0, 5) && bt.cards[f[3]] ? f[3] : -1, cd = bt.cards[ui], u = bt.us[ui];
+      const [ui, v, k] = f, src = isInt(f[3], 0, bt.N * 2 - 1) && bt.cards[f[3]] ? f[3] : -1, cd = bt.cards[ui], u = bt.us[ui];
       const val = Number.isInteger(v) ? v : 0;
       if(!fx){
         domFloat(cd, val, k);
@@ -580,14 +586,15 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function readMins(){
     let v = 5;
     try{ const b = document.querySelector('#l-arena button[data-m].on'); if(b) v = parseInt(b.dataset.m, 10); }catch(e){}
-    if(v === 1 && !document.body.classList.contains('solo')) v = 3;
     return MINS.includes(v) ? v : 5;
   }
+  function readHard(){ try{ const b = document.querySelector('#l-arena button[data-h].on'); return !!(b && b.dataset.h === '1'); }catch(e){ return false; } }
+  function readN(mins, hard){ try{ const b = document.querySelector('#l-arena button[data-n].on'); if(b && b.dataset.n === '5' && can5(mins, hard)) return 5; }catch(e){} return 3; }
   function readRev(){ try{ const b = document.querySelector('#l-arena button[data-v].on'); return !!(b && b.dataset.v === 'last'); }catch(e){ return false; } }
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now();
-    const o = { t: 'me', s: ++H.seq, p: p.party, tk: p.tk, lost: p.lost, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const o = { t: 'me', s: ++H.seq, ps: H.N, ti: H.TICK, p: p.party, tk: p.tk, lost: p.lost, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
     if(extra) Object.assign(o, extra);
@@ -598,17 +605,19 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     H.rev = readRev();
     H.phase = 'build'; H.P = new Map(); H.seq = 0; H.rvn = 0; H.rs = null; H.B = null; H.mi = 0; H.outR = new Map();
     H.names = E.players().map(p => [p.id, p.name]);
-    const buildMs = CFG.BUILD_MS || readMins() * 60000;
+    const mins = readMins(), hard = readHard();
+    H.TICK = hard ? CFG.HARD_MS : CFG.TICK_MS; H.N = readN(mins, hard);
+    const buildMs = CFG.BUILD_MS || mins * 60000;
     const now = performance.now();
-    H.endAt = now + buildMs; H.nextTick = now + CFG.TICK_MS;
+    H.endAt = now + buildMs; H.nextTick = now + H.TICK;
     E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null }));
     H.P.forEach((_, id) => sendMe(id));
     H.tickT = setInterval(() => {
       if(H.phase !== 'build') return;
-      H.nextTick = performance.now() + CFG.TICK_MS;
+      H.nextTick = performance.now() + H.TICK;
       // 満タンなら、たまった分はあふれて無駄になる
       H.P.forEach((p, id) => { if(p.tk < CFG.CAP){ p.tk++; sendMe(id); } else { p.lost++; sendMe(id, { of: 1 }); } });
-    }, CFG.TICK_MS);
+    }, H.TICK);
     H.endT = setTimeout(endBuild, buildMs);
   }
   function hostOnMsg(id, m){
@@ -623,20 +632,20 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       if(m.a === 'ch'){
         const c = rollChar();
         p.tk--;
-        if(p.party.length < 3){ p.party.push(c); p.rv = { n: ++H.rvn, k: 'ch', i: p.party.length - 1 }; }
+        if(p.party.length < H.N){ p.party.push(c); p.rv = { n: ++H.rvn, k: 'ch', i: p.party.length - 1 }; }
         else p.pend = { k: 'ch', c };
       }else if(m.a === 'wp'){
         p.tk--; p.pend = { k: 'wp', w: rollWeapon() };
       }else if(m.a === 'sk'){
         const c = p.party[m.slot];
-        if(!isInt(m.slot, 0, 2) || !c || c.sk.lv >= SK_MAX){ sendMe(id); return; }
+        if(!isInt(m.slot, 0, H.N - 1) || !c || c.sk.lv >= SK_MAX){ sendMe(id); return; }
         p.tk--; c.sk.lv++; p.rv = { n: ++H.rvn, k: 'sk', i: m.slot };
       }
       sendMe(id);
     }else if(m.t === 'dec'){
       if(!p.pend){ sendMe(id); return; }
       const pd = p.pend; p.pend = null;
-      if(isInt(m.slot, 0, 2) && p.party[m.slot]){
+      if(isInt(m.slot, 0, H.N - 1) && p.party[m.slot]){
         if(pd.k === 'ch'){ pd.c.w = p.party[m.slot].w; pd.c.sk.lv = p.party[m.slot].sk.lv; p.party[m.slot] = pd.c; p.rv = { n: ++H.rvn, k: 'ch', i: m.slot }; }
         else{ p.party[m.slot].w = pd.w; p.rv = { n: ++H.rvn, k: 'eq', i: m.slot }; }
       }
@@ -693,9 +702,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
   }
   const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h, a: u.a, d: u.d, av: u.av } : null;
-  function newBattle(idA, idB, rnd){
-    const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return [0, 1, 2].map(i => party[i] ? mkUnit(party[i], side, i) : null); };
-    return { ids: [idA, idB], u: mk(idA, 0).concat(mk(idB, 1)), round: 0, order: [], oi: 0, s0: rnd() < .5 ? 0 : 1, q: [], k: 0, preDone: false, done: false, w: -1, lastSide: 0, rnd };
+  function newBattle(idA, idB, rnd, n){
+    const N = n || H.N || 3;
+    const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return Array.from({ length: N }, (_, i) => party[i] ? mkUnit(party[i], side, i) : null); };
+    return { N, ids: [idA, idB], u: mk(idA, 0).concat(mk(idB, 1)), round: 0, order: [], oi: 0, s0: rnd() < .5 ? 0 : 1, q: [], k: 0, preDone: false, done: false, w: -1, lastSide: 0, rnd };
   }
   // 戦闘ロジック(ホストのみ。テストからも使えるように B に乱数を持たせる)
   const alive = u => u && u.hp > 0;
@@ -777,7 +787,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       if(B.oi >= B.order.length){
         B.round++; B.oi = 0; B.order = [];
         const f = (B.round + B.s0) % 2;
-        for(let i = 0; i < 3; i++){ B.order.push(f * 3 + i, (1 - f) * 3 + i); }
+        for(let i = 0; i < B.N; i++){ B.order.push(f * B.N + i, (1 - f) * B.N + i); }
         if(B.round === BAL.fatFrom + 1) B.fatNote = true;
       }
       const u = B.u[B.order[B.oi++]];
@@ -786,7 +796,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     return null;
   }
   function checkEnd(B){
-    const a = B.u.slice(0, 3).some(alive), b = B.u.slice(3).some(alive);
+    const a = B.u.slice(0, B.N).some(alive), b = B.u.slice(B.N).some(alive);
     if(a && b) return false;
     B.done = true;
     B.w = a ? 0 : b ? 1 : B.lastSide;
@@ -802,7 +812,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     }
     if(checkEnd(B)) return { L, F };
     if(B.round > CFG.MAX_ROUNDS){
-      const r = s => B.u.slice(s * 3, s * 3 + 3).filter(Boolean).reduce((t, u) => t + u.hp / u.mhp, 0);
+      const r = s => B.u.slice(s * B.N, s * B.N + B.N).filter(Boolean).reduce((t, u) => t + u.hp / u.mhp, 0);
       B.done = true; B.w = r(0) === r(1) ? (B.rnd() < .5 ? 0 : 1) : r(0) > r(1) ? 0 : 1; B.timeUp = true;
       return { L, F };
     }
@@ -820,17 +830,17 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const B = newBattle(mt[0], mt[1], rndF);
     B.mi = ++H.mi; B.r = r; B.j = j; H.B = B;
     const lbl = (r === R - 1 ? (H.rev ? '最下位決定戦' : '決勝') : r === R - 2 ? (H.rev ? '準・最下位決定戦' : '準決勝') : (r + 1) + '回戦') + (H.rs[r].length > 1 ? '  第' + (j + 1) + '試合' : '');
-    E.hostBcast({ t: 'ms', mi: B.mi, lbl, a: { id: mt[0], u: B.u.slice(0, 3).map(pubU) }, b: { id: mt[1], u: B.u.slice(3).map(pubU) } }, true);
+    E.hostBcast({ t: 'ms', mi: B.mi, lbl, a: { id: mt[0], u: B.u.slice(0, B.N).map(pubU) }, b: { id: mt[1], u: B.u.slice(B.N).map(pubU) } }, true);
     later(() => {
       if(stopped || H.B !== B) return;
       E.hostBcast({ t: 'st', mi: B.mi, k: 0, u: snap(B), lg: ['FIGHT!'], fx: [] }, false);
-      H.stepT = setInterval(() => doStep(B), CFG.STEP_MS);
+      H.stepT = setInterval(() => doStep(B), B.N === 5 ? CFG.STEP5_MS : CFG.STEP_MS);      // 5体は手数が多いので少し速く
     }, CFG.VS_MS);
   }
   function doStep(B){
     if(stopped || H.B !== B){ clearInterval(H.stepT); return; }
     const { L, F } = step(B);
-    E.hostBcast({ t: 'st', mi: B.mi, k: ++B.k, u: snap(B), lg: L.slice(0, 8), fx: F.slice(0, 12) }, false);
+    E.hostBcast({ t: 'st', mi: B.mi, k: ++B.k, u: snap(B), lg: L.slice(0, 8), fx: F.slice(0, 16) }, false);
     if(!B.done) return;
     clearInterval(H.stepT);
     const mt = H.rs[B.r][B.j], w = B.ids[B.w], l = B.ids[1 - B.w];
@@ -845,8 +855,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function onUse(id, m){
     const B = H.B;
-    if(H.phase !== 'tour' || !B || B.done || m.mi !== B.mi || !isInt(m.u, 0, 5)) return;
-    const side = B.ids.indexOf(id); if(side < 0 || Math.floor(m.u / 3) !== side) return;
+    if(H.phase !== 'tour' || !B || B.done || m.mi !== B.mi || !isInt(m.u, 0, B.N * 2 - 1)) return;
+    const side = B.ids.indexOf(id); if(side < 0 || Math.floor(m.u / B.N) !== side) return;
     const u = B.u[m.u]; if(!alive(u) || u.used) return;
     u.used = true; B.q.push(m.u);
   }
