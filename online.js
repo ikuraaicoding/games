@@ -229,7 +229,10 @@ function buildRules(){
   const box = $('l-rlist'); box.textContent = '';
   const NS = 'http://www.w3.org/2000/svg';
   const icon = (id, cls) => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'ic' + (cls ? ' ' + cls : '')); const u = document.createElementNS(NS, 'use'); u.setAttribute('href', '#' + id); s.appendChild(u); return s; };
-  RULES.forEach(x => {
+  const MINI = ['tap', 'stop', 'ise', 'core'];
+  const list = RULES.filter(x => !MINI.includes(x.g)).concat(RULES.filter(x => MINI.includes(x.g)));
+  list.forEach(x => {
+    if(x.g === MINI[0]){ const h = document.createElement('div'); h.className = 'rl-h'; h.textContent = 'MINI GAMES'; const sm = document.createElement('small'); sm.textContent = 'ミニゲーム'; h.appendChild(sm); box.appendChild(h); }
     const d = document.createElement('details'); d.className = 'rcard g-' + x.g; d.dataset.g = x.g;
     const sm = document.createElement('summary');
     const tile = document.createElement('span'); tile.className = 'tile'; tile.appendChild(icon(x.ic)); sm.appendChild(tile);

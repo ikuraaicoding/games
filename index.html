@@ -32,6 +32,15 @@
 .gtxt b{ font-size:1.25rem; font-weight:800; letter-spacing:.01em; }
 .gtxt em{ font-style:normal; font-size:.74rem; color:var(--acc); font-weight:600; }
 .gtxt small{ display:block; margin-top:4px; color:var(--sub); font-size:.74rem; line-height:1.55; }
+.minis{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.mcard{ display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:12px; min-width:0; transition:transform .08s, background .15s, border-color .15s; }
+.mcard:active{ transform:scale(.97); background:var(--surface2); border-color:var(--acc); }
+.mcard .tile{ width:42px; height:42px; border-radius:13px; }
+.mcard .tile svg.ic{ width:22px; height:22px; }
+.mtxt{ display:flex; flex-direction:column; min-width:0; }
+.mtxt b{ font-size:1rem; font-weight:800; letter-spacing:.01em; }
+.mtxt em{ font-style:normal; font-size:.68rem; color:var(--acc); font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sec.sub2{ margin-top:20px; }
 .chev{ color:var(--dim); width:18px!important; height:18px!important; }
 .ver{ text-align:right; font-size:.6rem; color:#fff; opacity:.75; margin-top:10px; font-variant-numeric:tabular-nums; letter-spacing:.02em; }
 .note{ text-align:center; font-size:.68rem; color:var(--dim); margin-top:auto; padding-top:28px; line-height:1.8; }
@@ -58,26 +67,6 @@
 
   <div class="sec"><span class="eyebrow">Online</span><small>各自のスマホで・QRを1回読むだけ</small></div>
   <div class="cards">
-    <a class="gcard g-tap" href="online.html#tap">
-      <span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span>
-      <span class="gtxt"><span class="nm"><b>DRAW</b><em>早撃ち</em></span><small>合図で一斉に指を離す。いちばん遅い人の負け。</small></span>
-      <svg class="ic chev"><use href="#i-chev"/></svg>
-    </a>
-    <a class="gcard g-stop" href="online.html#stop">
-      <span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span>
-      <span class="gtxt"><span class="nm"><b>BLIND</b><em>見えないタイマー</em></span><small>目標の秒数ぴったりで離す。時間は3秒で消える。</small></span>
-      <svg class="ic chev"><use href="#i-chev"/></svg>
-    </a>
-    <a class="gcard g-ise" href="online.html#ise">
-      <span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span>
-      <span class="gtxt"><span class="nm"><b>THUMBS</b><em>いっせーのーせ</em></span><small>親指の合計を読み合って、ライフを削り合う。</small></span>
-      <svg class="ic chev"><use href="#i-chev"/></svg>
-    </a>
-    <a class="gcard g-core" href="online.html#core">
-      <span class="tile"><svg class="ic"><use href="#i-core"/></svg></span>
-      <span class="gtxt"><span class="nm"><b>CORE</b><em>爆弾リレー</em></span><small>コアを長押しして次の人へ。限界は誰にも分からない。</small></span>
-      <svg class="ic chev"><use href="#i-chev"/></svg>
-    </a>
     <a class="gcard g-arena" href="online.html#arena">
       <span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span>
       <span class="gtxt"><span class="nm"><b>ARENA</b><em>育成バトル</em></span><small>ガチャでパーティを育てて、トーナメントで戦う。</small></span>
@@ -87,6 +76,25 @@
       <span class="tile"><svg class="ic"><use href="#i-race"/></svg></span>
       <span class="gtxt"><span class="nm"><b>RACE</b><em>改造レース</em></span><small>パーツガチャで車を改造して、全員同時にレース。</small></span>
       <svg class="ic chev"><use href="#i-chev"/></svg>
+    </a>
+  </div>
+  <div class="sec sub2"><span class="eyebrow">Mini Games</span><small>1回数十秒〜数分で遊べる</small></div>
+  <div class="minis">
+    <a class="mcard g-tap" href="online.html#tap">
+      <span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span>
+      <span class="mtxt"><b>DRAW</b><em>早撃ち</em></span>
+    </a>
+    <a class="mcard g-stop" href="online.html#stop">
+      <span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span>
+      <span class="mtxt"><b>BLIND</b><em>見えないタイマー</em></span>
+    </a>
+    <a class="mcard g-ise" href="online.html#ise">
+      <span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span>
+      <span class="mtxt"><b>THUMBS</b><em>いっせーのーせ</em></span>
+    </a>
+    <a class="mcard g-core" href="online.html#core">
+      <span class="tile"><svg class="ic"><use href="#i-core"/></svg></span>
+      <span class="mtxt"><b>CORE</b><em>爆弾リレー</em></span>
     </a>
   </div>
 
