@@ -466,6 +466,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(m.end){ ph = 'gend'; $('rc-note').textContent = 'ガレージおわり! まもなくレースへ…'; $('rc-panel').textContent = ''; $('rc-time').textContent = '0:00'; const b = $('rc-car'); b.textContent = ''; b.appendChild(carCard(me.car)); return; }
     const wasSk = ph === 'sk';
     ph = m.sk ? 'sk' : 'gar';
+    $('rc-time').previousElementSibling.textContent = ph === 'sk' ? 'スキル選び' : '残り時間';
     if(wasSk && ph === 'gar'){ E.audio.beep(660, .1, .2); later(() => E.audio.beep(990, .14, .2), 120); E.vibrate([40, 40, 40]); }
     if(uiMode === 'busy' && !(ph === 'sk' && me.car.sk)) uiMode = '';
     const rv = m.rv;
