@@ -138,8 +138,10 @@ function onNet(s){
 }
 
 // ゲームに渡す道具
+// 演出レイヤー(pfx.js)。読み込めない・使えないときは、何もしない(各関数の中で確かめている)
+const FXN = window.NomiFX || new Proxy({}, { get: () => () => 0 });
 const E = {
-  $, audio, vibrate, show, nameOf,
+  $, audio, vibrate, show, nameOf, fx: FXN,
   get isHost(){ return role === 'host'; },
   get myId(){ return myId; },
   players: () => roster.slice(),

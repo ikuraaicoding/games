@@ -1,5 +1,5 @@
 // キャッシュバージョン: 更新を配るときはこの数字を上げる(version.js の更新日時も一緒に)
-const CACHE_VERSION = 'party-v27';
+const CACHE_VERSION = 'party-v29';
 const FILES = [
   './',
   './index.html',
@@ -16,10 +16,13 @@ const FILES = [
   './g-stop.js',
   './g-ise.js',
   './avatar.js',
+  './pfx.js',
   './g-arena.js',
   './bots.js',
   './lib/qrcode.js',
   './lib/jsQR.js',
+  './lib/pixi.min.js',
+  './lib/pixi-unsafe-eval.min.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

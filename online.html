@@ -266,6 +266,7 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .fl{ position:absolute; left:50%; top:30%; transform:translateX(-50%); font-weight:900; font-size:1.1rem; pointer-events:none; animation:flup 1s ease-out forwards; text-shadow:0 2px 8px #000; white-space:nowrap; }
 .fl.dmg{ color:#fff; } .fl.crit{ color:#ffd60a; font-size:1.4rem; } .fl.heal{ color:var(--green); } .fl.miss{ color:var(--sub); font-size:.8rem; } .fl.sk{ color:var(--acc); font-size:.8rem; }
 @keyframes flup{ 0%{ opacity:0; transform:translate(-50%,8px) scale(.8);} 20%{ opacity:1; transform:translate(-50%,0) scale(1.1);} 100%{ opacity:0; transform:translate(-50%,-26px);} }
+#pfx{ position:absolute; left:0; top:0; z-index:20; pointer-events:none; display:none; }
 #a-log{ min-height:92px; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:6px 4px; }
 #a-log div{ font-size:.72rem; color:var(--dim); line-height:1.5; }
 #a-log div.big{ font-size:.95rem; color:var(--text); font-weight:800; }
@@ -448,6 +449,7 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
 <script src="avatar.js"></script>
+<script src="pfx.js"></script>
 <script src="g-arena.js"></script>
 <script src="bots.js"></script>
 <script src="online.js"></script>
