@@ -188,6 +188,10 @@ summary{ font-size:.76rem; color:var(--sub); }
 .agrid{ display:grid; gap:8px; }
 .abtn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; background:var(--surface); border:1px solid var(--line2); border-radius:16px; padding:14px 16px; color:var(--text); transition:transform .08s, background .15s, border-color .15s; }
 .abtn b{ font-size:1rem; font-weight:800; }
+.abtn.wf{ --rc:var(--dim); flex-direction:row; align-items:center; gap:12px; padding:10px 14px; }
+.abtn.r-R{ --rc:#64d2ff; } .abtn.r-SR{ --rc:#bf5af2; } .abtn.r-SSR{ --rc:#ffd60a; }
+.abtn.wf svg.face{ border-radius:10px; }
+.abtn-t{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .abtn small{ font-size:.7rem; color:var(--sub); }
 .abtn:active{ transform:scale(.98); border-color:var(--acc); background:color-mix(in srgb, var(--acc) 12%, transparent); }
 .abtn[disabled]{ opacity:.3; pointer-events:none; }
