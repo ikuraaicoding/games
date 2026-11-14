@@ -202,9 +202,10 @@ const RULES = [
     '自分に渡してきた人には、すぐには返せない',
     '長押し中にドッキリが起きることがある。驚いて離さないように!'] },
   { g: 'arena', nm: 'ARENA', sub: '育成バトル', ic: 'i-arena', r: [
-    '育成タイム(3〜10分)の間にパーティを強くする。最初は全員「攻3 防3 HP3」のキャラ1体',
-    '10秒ごとに行動が1回たまる(最大3回。満タンのままだと、あふれて無駄になる)',
-    '行動ごとに「キャラガチャ」「装備ガチャ」「スキル強化」から1つ選ぶ。パーティは最大3体',
+    '育成タイム(1〜10分)の間にパーティを強くする。最初は全員「攻3 防3 HP3」のキャラ1体',
+    '10秒ごとに行動が1回たまる(ハードモードは5秒ごと。最大3回。満タンのままだと、あふれて無駄になる)',
+    '行動ごとに「キャラガチャ」「装備ガチャ」「スキル強化」から1つ選ぶ。パーティは最大3体(5体バトルなら5体)',
+    '5体バトルは、育成タイム5分以上(ハードなら3分以上)のときにホストが選べる',
     '時間切れで、ランダムなトーナメント。戦闘は自動',
     '試合中にできるのは、各キャラのスキルを使うタイミングを選ぶことだけ(1試合1回)',
     'ホストの設定で「優勝を決める」か「最下位を決める(負け残り)」かが変わる'] }
@@ -264,7 +265,6 @@ function renderLobby(){
   vis('l-hostctl', host, 'flex');
   vis('l-lock', !solo); vis('l-addbot', solo && roster.length < 8);
   document.body.classList.toggle('solo', solo);
-  if(!solo && document.querySelector('#l-arena button.on[data-m="1"]')) document.querySelector('#l-arena button[data-m="3"]').click();
   $('l-title').textContent = solo ? 'CPU戦' : host ? 'ロビー(ホスト)' : 'ロビー';
   $('l-lock').textContent = userLocked ? '受付を再開' : '受付を締める';
   $('l-start').disabled = !(host && roster.length >= 2);
@@ -534,11 +534,28 @@ function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').v
 function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-core').classList.toggle('hide', g !== 'core'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
-  let m = '5'; try{ m = localStorage.getItem('arena-min') || '5'; }catch(e){}
+  const get = (k, d) => { try{ return localStorage.getItem(k) || d; }catch(e){ return d; } };
+  const put = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
   const bs = document.querySelectorAll('#l-arena button[data-m]');
-  const set = v => { bs.forEach(b => b.classList.toggle('on', b.dataset.m === v)); try{ localStorage.setItem('arena-min', v); }catch(e){} };
-  if(!Array.from(bs).some(b => b.dataset.m === m)) m = '5';
-  set(m); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.m)));
+  const hs = document.querySelectorAll('#l-arena button[data-h]');
+  const ns = document.querySelectorAll('#l-arena button[data-n]');
+  const on = (list, key) => { const b = Array.from(list).find(x => x.classList.contains('on')); return b ? b.dataset[key] : ''; };
+  // 5体バトルは 5分以上(ハードなら3分以上)のときだけ選べる
+  const sync = () => {
+    const m = +on(bs, 'm'), hard = on(hs, 'h') === '1', ok = m >= 5 || (hard && m >= 3);
+    const b5 = document.querySelector('#l-arena button[data-n="5"]'); b5.disabled = !ok;
+    if(!ok && on(ns, 'n') === '5') ns.forEach(b => b.classList.toggle('on', b.dataset.n === '3'));
+    $('l-a5').textContent = ok ? '' : '5体バトルは 5分以上(ハードなら3分以上)で選べる';
+  };
+  const set = (list, key, v, store) => { list.forEach(b => b.classList.toggle('on', b.dataset[key] === v)); put(store, v); sync(); };
+  let m = get('arena-min', '5'); if(!Array.from(bs).some(b => b.dataset.m === m)) m = '5';
+  bs.forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  const h = get('arena-hard', '0') === '1' ? '1' : '0'; hs.forEach(b => b.classList.toggle('on', b.dataset.h === h));
+  const n = get('arena-n', '3') === '5' ? '5' : '3'; ns.forEach(b => b.classList.toggle('on', b.dataset.n === n));
+  sync();
+  bs.forEach(b => b.addEventListener('click', () => set(bs, 'm', b.dataset.m, 'arena-min')));
+  hs.forEach(b => b.addEventListener('click', () => set(hs, 'h', b.dataset.h, 'arena-hard')));
+  ns.forEach(b => b.addEventListener('click', () => { if(!b.disabled) set(ns, 'n', b.dataset.n, 'arena-n'); }));
   // 決めるのは: 優勝 / 最下位(負け残りトーナメント)
   let v = 'top'; try{ v = localStorage.getItem('arena-mode') || 'top'; }catch(e){}
   const vs = document.querySelectorAll('#l-arena button[data-v]');

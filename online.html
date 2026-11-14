@@ -290,6 +290,25 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .tname{ font-size:.72rem; font-weight:700; color:var(--sub); margin:0 2px 6px; letter-spacing:.06em; }
 .team.mine .tname{ color:var(--acc); }
 .trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+/* 5体バトル: 1列に5体ならべるため、カードを小さくする(くわしくはタップで) */
+.trow.n5{ grid-template-columns:repeat(5,1fr); gap:4px; }
+.trow.n5 .bu{ padding:5px 4px; border-radius:11px; gap:2px; }
+.trow.n5 .bu-n{ flex-direction:column; gap:2px; }
+.trow.n5 .bu-nn{ align-items:center; width:100%; }
+.trow.n5 .bu-n b{ font-size:.62rem; max-width:100%; }
+.trow.n5 .bu-n .rar{ font-size:.44rem; padding:1px 3px; }
+.trow.n5 .bu-hp{ font-size:.56rem; text-align:center; }
+.trow.n5 .bu-s{ font-size:.5rem; text-align:center; }
+.trow.n5 .bu-w{ align-items:center; }
+.trow.n5 .bu-w.wr{ padding:1px 3px; }
+.trow.n5 .bu-w b{ font-size:.5rem; max-width:100%; }
+.trow.n5 .bu-w span{ display:none; }
+.trow.n5 .bu-w.none span{ display:block; font-size:.5rem; }
+.trow.n5 .bu-st{ min-height:13px; justify-content:center; flex-wrap:wrap; }
+.trow.n5 .bu-st span{ font-size:.5rem; padding:0 3px; }
+.trow.n5 .bu-sk{ min-height:38px; padding:5px 4px; align-items:center; text-align:center; border-radius:8px; }
+.trow.n5 .bu-sk b{ font-size:.6rem; }
+.trow.n5 .bu-sk small{ font-size:.48rem; -webkit-line-clamp:1; }
 .bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
 .bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
 .bu-n{ display:flex; align-items:center; gap:6px; min-width:0; }
@@ -342,6 +361,8 @@ body:not(.solo) .solo-only{ display:none; }
 .btn.ghost{ border-style:dashed; color:var(--sub); }
 .aopt .seg2 button{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 0; font-size:.86rem; font-weight:700; }
 .aopt .seg2 button.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 14%, transparent); color:var(--acc); }
+.aopt .seg2 button[disabled]{ opacity:.35; }
+.aopt-note{ width:100%; font-size:.66rem; color:var(--sub); text-align:right; margin-top:4px; min-height:1em; }
 
 /* RESULT */
 #s-result{ justify-content:center; }
@@ -429,7 +450,10 @@ body:not(.solo) .solo-only{ display:none; }
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
     <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
     <div id="l-arena" class="hide" style="width:100%;max-width:420px">
-      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1" class="solo-only">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="7">7分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="10">10分</button></div></div>
+      <div class="aopt"><span>ゲージ</span><div class="seg2"><button data-h="0" class="on">ふつう(10秒)</button><button data-h="1">ハード(5秒)</button></div></div>
+      <div class="aopt"><span>キャラ数</span><div class="seg2"><button data-n="3" class="on">3体</button><button data-n="5">5体バトル</button></div></div>
+      <div class="aopt-note" id="l-a5"></div>
       <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位(負け残り)</button></div></div>
     </div>
     <div id="l-core" class="hide" style="width:100%;max-width:420px">

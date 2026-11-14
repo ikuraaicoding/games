@@ -112,7 +112,7 @@ function make(id, send, chat){
         const side = m.a.id === id ? 0 : m.b.id === id ? 1 : -1;
         if(side < 0) return;
         const us = side === 0 ? m.a.u : m.b.u;
-        us.forEach((u, i) => { if(u) later(() => send({ t: 'use', mi: m.mi, u: side * 3 + i }), ri(3000, 22000)); });
+        us.forEach((u, i) => { if(u) later(() => send({ t: 'use', mi: m.mi, u: side * us.length + i }), ri(3000, 22000)); });
       }
     }
   };
