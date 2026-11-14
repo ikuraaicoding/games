@@ -233,6 +233,11 @@ summary{ font-size:.76rem; color:var(--sub); }
 .abtn.wf svg.face{ border-radius:10px; }
 .abtn-t{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .abtn small{ font-size:.7rem; color:var(--sub); }
+/* スキル・武器のアイコン */
+svg.gi{ display:inline-block; vertical-align:-3px; margin-right:5px; flex:none; }
+.cat-row b svg.gi{ vertical-align:-6px; margin-right:7px; }
+.ac-h svg.gi{ margin-right:0; }
+.bu-sk b svg.gi, .bu-w b svg.gi{ vertical-align:-2px; margin-right:3px; }
 /* ステータスを1行で */
 .sline{ display:inline-flex; gap:8px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .sl-i{ display:inline-flex; align-items:baseline; gap:2px; font-size:.78rem; }
@@ -607,6 +612,7 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="g-stop.js"></script>
 <script src="g-ise.js"></script>
 <script src="avatar.js"></script>
+<script src="icons.js"></script>
 <script src="pfx.js"></script>
 <script src="g-arena.js"></script>
 <script src="bots.js"></script>
