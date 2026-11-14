@@ -39,6 +39,7 @@ inset:0;
 background:#000;
 transform: translate(var(--shake-x), var(--shake-y));
 }
+#pfx{ position:absolute; left:0; top:0; z-index:20; pointer-events:none; display:none; }
 .screen{
 position:absolute; inset:0;
 display:none;
@@ -397,9 +398,12 @@ margin: 0 0 28px; text-shadow:0 0 14px rgba(245,166,35,0.45);
 
 </div>
 
+<script src="pfx.js"></script>
 <script>
 (function(){
 "use strict";
+// 演出レイヤー(pfx.js / PixiJS)。使えないときは何もしない
+const PF = window.NomiFX || new Proxy({}, { get: () => () => 0 });
 
 const app = document.getElementById('app');
 const startScreen = document.getElementById('start-screen');
@@ -936,6 +940,7 @@ holding = true;
 holdStartTime = performance.now();
 hint.textContent = '長押し中……';
 core.classList.add('holding');
+PF.aura(core, true, 0xff453a);
 startDrone();
 scheduleScare();
 scheduleFakeCrack();
@@ -950,6 +955,7 @@ const now = performance.now();
 const currentHeld = (now - holdStartTime) / 1000;
 
 holding = false;
+PF.aura(core, false);
 if(rafId) cancelAnimationFrame(rafId);
 if(beatTimeoutId) clearTimeout(beatTimeoutId);
 clearPulseTimers();
@@ -979,6 +985,7 @@ hint.textContent = '次の者へ、コアを渡せ';
 safeFlash.classList.remove('show');
 void safeFlash.offsetWidth;
 safeFlash.classList.add('show');
+PF.pop(core, { color: 0x30d158, power: 1.6 });
 
 cooldown = true;
 cooldownTimerId = setTimeout(() => { cooldown = false; }, 750);
@@ -987,6 +994,7 @@ cooldownTimerId = setTimeout(() => { cooldown = false; }, 750);
 function triggerExplosion(reason, duration){
 gameActive = false;
 holding = false;
+PF.aura(core, false); PF.fireball(core);
 if(rafId) cancelAnimationFrame(rafId);
 if(beatTimeoutId) clearTimeout(beatTimeoutId);
 clearPulseTimers();
@@ -1059,6 +1067,7 @@ initAudio();
 resetGameState();
 gameActive = true;
 showScreen(gameScreen);
+PF.load(); PF.show(true, { amb: [0xff453a, 0xff8a80, 0xff9f0a] });
 }
 
 startBtn.addEventListener('click', startGame);

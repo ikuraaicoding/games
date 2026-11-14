@@ -101,9 +101,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   let uiMode = '', clockT = 0, rev = false;
   let br = null, bt = null;           // トーナメント表 / いまの試合
 
-  function view(v){ ['a-build', 'a-br', 'a-bt'].forEach(id => { $(id).style.display = id === v ? 'flex' : 'none'; }); VFX.show(v === 'a-bt' && !stopped); }
+  function view(v){ ['a-build', 'a-br', 'a-bt'].forEach(id => { $(id).style.display = id === v ? 'flex' : 'none'; }); VFX.show(v === 'a-bt' && !stopped, { amb: [0xff9f0a, 0xffd60a, 0xff6b3a] }); }
   // 戦闘の演出(arena-fx.js / PixiJS)。使えないスマホでは今までの演出だけになる
-  const VFX = window.NomiArenaFX || { load(){}, ok: () => false, show(){}, intro(){}, fight(){}, attack: () => 0, num(){}, heal(){}, miss(){}, skill(){}, ko(){}, undying(){}, win(){}, fatigue(){} };
+  const VFX = E.fx;
   const SIDEC = [0x64d2ff, 0xff9f0a];          // 上のチーム / 下のチーム
   function onBegin(){
     stopped = false; rev = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
@@ -516,7 +516,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function onFin(m){
     if(!Array.isArray(m.rk)) return;
-    ph = 'fin'; VFX.show(false);
+    ph = 'fin';
     const lines = m.rk.slice(0, 8).filter(x => Array.isArray(x) && Number.isInteger(x[0])).map((x, i) => ({ a: s60(String(x[1])) + '  ' + nmOf(x[0]), b: s60(String(x[2] || '')), cls: i === 0 ? (m.rev ? 'lose' : 'win') : '' }));
     const champ = m.rk[0] && m.rk[0][0];
     if(m.rev){
@@ -526,6 +526,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         lines, stats: s60(m.cp) ? '最下位のパーティ\n' + String(m.cp).slice(0, 300) : ''
       });
       E.audio.scare(); E.vibrate(champ === E.myId ? [0, 200, 80, 400] : [0, 120]);
+      VFX.show(true); later(() => VFX.doom($('r-pen')), 200);
       return;
     }
     E.showResult({
@@ -534,6 +535,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       lines, stats: s60(m.cp) ? '優勝パーティ\n' + String(m.cp).slice(0, 300) : ''
     });
     if(champ === E.myId){ E.vibrate([80, 60, 80, 60, 300]); }
+    VFX.show(true); later(() => { const r = $('r-lines').firstElementChild; VFX.confetti(140); if(r) VFX.rowIn(r, 'win'); VFX.pop($('r-pen'), { color: 0xffd60a, power: 2.5, star: true }); }, 200);
   }
 
   function onMsg(m){

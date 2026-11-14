@@ -7,7 +7,7 @@
 'use strict';
 window.NomiGames = window.NomiGames || {};
 window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
-  const $ = E.$, core = $('c-core'), vignette = $('vignette'), wrap = $('c-wrap');
+  const $ = E.$, core = $('c-core'), vignette = $('vignette'), wrap = $('c-wrap'), PF = E.fx;
   const rndF = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
   const rndI = n => Math.floor(rndF() * n);
   const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 20);
@@ -138,6 +138,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function onBegin(){
     G = { ph: 'idle', holder: -1, turn: 0, elig: [] }; localHolding = false; stopped = false;
     resetLocalFx(); genCracks(); setCrack(0); resizeFx(); scan.style.display = 'block'; E.show('s-core'); render();
+    PF.load(); PF.show(true, { amb: [0xff453a, 0xff8a80, 0xff9f0a] });
   }
   function resetLocalFx(keepDebris){
     clearInterval(shakeT); $('app').style.setProperty('--sx', '0px'); $('app').style.setProperty('--sy', '0px');
@@ -150,12 +151,15 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(stopped || !m || typeof m.t !== 'string') return;
     if(m.t === 'st'){
       if(!['idle', 'hold', 'choose'].includes(m.ph) || !Number.isInteger(m.holder)) return;
-      const prev = G.ph;
+      const prev = G.ph, prevHolder = G.holder;
       G = { ph: m.ph, holder: m.holder, turn: Number.isInteger(m.turn) ? m.turn : 0, elig: Array.isArray(m.elig) ? m.elig.filter(Number.isInteger) : [] };
       if(m.ph === 'hold'){ if(prev !== 'hold' && !(m.holder === E.myId && !localHolding)) startBeat(); }
       else { stopBeat(); if(m.holder !== E.myId) endLocalHold(false); }
       if(m.ph === 'choose' && m.holder === E.myId){ openPicker(G.elig); E.vibrate([60, 40, 60]); }
       if(m.ph === 'idle' && m.holder === E.myId) E.vibrate([80, 40, 80]);
+      // 演出: 長押し中はコアに光が吸い込まれる / 次の人に渡ったら弾ける
+      PF.aura(core, m.ph === 'hold', 0xff453a);
+      if(m.ph === 'idle' && prevHolder >= 0 && prevHolder !== m.holder) PF.pop(core, { color: 0xff453a, power: 1.6 });
       render();
     }else if(m.t === 'boom'){
       if(!Number.isInteger(m.loser)) return;
@@ -205,7 +209,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function shake(a){ $('app').style.setProperty('--sx', ((Math.random() - .5) * a).toFixed(1) + 'px'); $('app').style.setProperty('--sy', ((Math.random() - .5) * a).toFixed(1) + 'px'); }
   function explode(m){
     E.audio.init(); E.audio.boom(); E.vibrate([0, 120, 50, 120, 80, 300, 100, 500, 150, 600]);
-    core.classList.add('burst'); setCrack(1); spawnDebris();
+    core.classList.add('burst'); setCrack(1); spawnDebris(); PF.fireball(core);
     let k = 0; clearInterval(shakeT);
     shakeT = setInterval(() => { k++; shake(Math.max(3, 40 * (1 - k / 24))); if(k >= 24){ clearInterval(shakeT); shake(0); } }, 25);
     [0, 70, 140, 220].forEach(d => later(() => { const r = document.createElement('div'); r.className = 'ring'; wrap.appendChild(r); requestAnimationFrame(() => r.classList.add('go')); later(() => r.remove(), 700); }, d));
@@ -303,7 +307,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   }
 
   function stop(){
-    stopped = true; stopBeat(); endLocalHold(false); clearInterval(shakeT); stopTick(); clearTimeout(H.choose);
+    stopped = true; stopBeat(); endLocalHold(false); clearInterval(shakeT); stopTick(); clearTimeout(H.choose); PF.show(false);
     core.removeEventListener('pointerdown', onDown); core.removeEventListener('pointerup', rel);
     core.removeEventListener('pointercancel', rel); core.removeEventListener('pointerleave', rel); core.removeEventListener('contextmenu', noCtx);
     timers.forEach(clearTimeout); cancelScare(); cancelFake(); resetLocalFx(); scan.style.display = 'none'; $('picker').classList.remove('on');

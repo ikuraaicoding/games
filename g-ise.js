@@ -24,7 +24,7 @@ const MAX_ROUNDS = 20;      // これを過ぎたら、ライフが多い人の�
 const revealMs = (n, anyExact) => 4800 + 450 * n + (anyExact ? 1500 : 0) + 500 + 2800;
 
 window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
-  const $ = E.$;
+  const $ = E.$, PF = E.fx;
   const rndF = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
   let stopped = false;
   const timers = [];
@@ -54,6 +54,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     stopped = false; ph = 'wait'; round = 0; alive = []; lives = new Map(); submitted = []; selP = selG = null; sent = false;
     $('i-top').textContent = 'THUMBS — いっせーのーせ'; $('i-rows').textContent = '';
     chips(); view('view'); say('準備中…', ''); E.show('s-ise');
+    PF.load(); PF.show(true, { amb: [0x30e0a1, 0x8af0c8, 0xffffff] });
   }
 
   function mkBtns(box, count, cls, onPick, label){
@@ -157,22 +158,25 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     at(t + 1200, () => { say('…', ''); E.audio.beep(440, .12, .22); E.vibrate(20); });
     at(t + 1800, () => {
       say('せ!!', ''); E.audio.beep(988, .25, .3); E.vibrate([0, 80]);
+      PF.slam('せ!!', { color: 0x30e0a1, size: 80 });
       rows.forEach(x => {
         const d = document.createElement('div'); d.classList.add('pop');
         const a = document.createElement('span'), b = document.createElement('span');
         a.textContent = E.nameOf(x.id) + '  ' + thumbs(x.p); b.textContent = '';
         if(x.id === E.myId) d.classList.add('me');
         d.appendChild(a); d.appendChild(b); box.appendChild(d); els.set(x.id, { d, a, b });
+        later(() => PF.pop(d, { color: 0x30e0a1, power: .8 }), 80 + els.size * 50);
       });
     });
-    at(t + 3300, () => { say('合計 ' + m.tot + ' 本!', ''); E.audio.beep(784, .2, .28); E.vibrate(60); });
+    at(t + 3300, () => { say('合計 ' + m.tot + ' 本!', ''); E.audio.beep(784, .2, .28); E.vibrate(60); PF.slam('合計 ' + m.tot + ' 本!', { color: 0xffd60a, size: 48 }); });
     let u = t + 4500;
     order.forEach(x => {
       const myT = u; u += 450;
       at(myT, () => {
         const e = els.get(x.id); if(!e) return;
         e.b.textContent = '予想 ' + x.g + (x.d === 0 ? '  ピッタリ!' : '  ズレ ' + x.d);
-        if(x.d === 0){ e.d.classList.add('win'); E.audio.beep(1175, .2, .3); E.vibrate([0, 60, 40, 60]); } else E.audio.beep(520 - Math.min(x.d, 6) * 30, .08, .18);
+        if(x.d === 0){ e.d.classList.add('win'); E.audio.beep(1175, .2, .3); E.vibrate([0, 60, 40, 60]); PF.rowIn(e.d, 'win'); }
+        else{ E.audio.beep(520 - Math.min(x.d, 6) * 30, .08, .18); PF.pop(e.d, { color: 0x8e8e93, power: .5 }); }
       });
     });
     if(anyExact){
@@ -180,6 +184,9 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
         const names = exact.map(x => E.nameOf(x.id)).join('・');
         say(names + ' ピッタリ!', 'ほかの全員に −' + (Number.isFinite(m.ex) ? m.ex : ex) + (exact.length > 1 ? '(人数ぶん重なる)' : ''));
         E.audio.beep(1397, .3, .3); E.vibrate([0, 120, 50, 200]);
+        // ピッタリの人から、ほかの全員へ攻撃が飛ぶ
+        PF.slam('ピッタリ!', { color: 0xffd60a, size: 60, y: .3 });
+        exact.forEach((x, j) => { const src = els.get(x.id); if(src) rows.filter(y => y.d !== 0).forEach((y, k) => { const dst = els.get(y.id); if(dst) later(() => PF.streak(src.d, dst.d, 0xffd60a), 350 + j * 160 + k * 70); }); });
       });
       u += 1500;
     }
@@ -191,6 +198,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
         const own = x.d === 0 ? 0 : x.d, hit = x.dmg - own;           // 自分のズレ + ピッタリの人からの被弾
         e.b.textContent = (x.dmg > 0 ? '−' + x.dmg : '±0') + (own > 0 && hit > 0 ? '(ズレ' + own + '+被弾' + hit + ')' : hit > 0 ? '(被弾)' : '') + ' → ' + (x.life > 0 ? '♥' + x.life : '脱落');
         e.d.classList.remove('win'); if(x.dmg > 0) e.d.classList.add('hurt'); if(x.life <= 0) e.d.classList.add('lose');
+        if(x.life <= 0) PF.shatter(e.d, 0xff453a); else if(x.dmg > 0) PF.hitEl(e.d, 0xff453a, Math.min(1, x.dmg / 5));
       });
       alive = alive.filter(id => !dead.includes(id));
       say(m.over ? '決着!' : '', dead.length ? dead.map(id => E.nameOf(id)).join('・') + ' が脱落' : '');
@@ -214,6 +222,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     const iWin = top.some(x => x.id === E.myId);
     const pen = top.length > 1 ? '引き分け: ' + top.map(x => E.nameOf(x.id)).join('・')
       : (iWin ? 'あなたの勝ち' : E.nameOf(top[0].id) + ' の勝ち');
+    later(() => { PF.confetti(120); const r = $('r-lines').firstElementChild; if(r && top.length === 1) PF.rowIn(r, 'win'); }, 200);
     E.showResult({
       title: 'THUMBS',
       reason: (Number.isInteger(m.r) ? m.r : round) + 'ラウンドで決着(はじめのライフ ' + L + ')',
@@ -292,7 +301,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     E.hostBcast({ t: 'res', r: H.round, rows: [], tot: 0, ex: H.ex, dead: [], over: true, wait: 0, rank: ranking(), early: true }, true);
   }
   function stop(){
-    stopped = true; clearInterval(barT); clearTimeout(H.fin); clearTimeout(H.nxt);
+    stopped = true; clearInterval(barT); clearTimeout(H.fin); clearTimeout(H.nxt); PF.show(false);
     timers.forEach(t => { clearTimeout(t); clearInterval(t); });
     $('i-ok').onclick = null;
     ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });

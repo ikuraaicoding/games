@@ -17,7 +17,9 @@ const OVER_MS = 10000;          // 目標をこれだけ過ぎたら自動で止
 const START_GRACE_MS = 30000;   // 押し始めるまでの待ち時間(これを過ぎたら未参加として最下位あつかい)
 
 window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
-  const $ = E.$, pad = $('p-pad');
+  const $ = E.$, pad = $('p-pad'), PF = E.fx;
+  // 演出: 長押し中は止める(動くものを数えて時間がわからないように)
+  const fxOn = () => PF.show(true, { amb: [0x8e7bff, 0xb8acff, 0xffffff] });
   const rndF = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
   let stopped = false;
   const timers = [];
@@ -43,6 +45,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     stopped = false; ph = 'wait'; T = 0; t0 = 0; myMs = null;
     $('p-top').textContent = 'BLIND — 見えないタイマー'; setTarget(); chips();
     setPad('', '準備中…', ''); E.show('s-stop');
+    PF.load(); fxOn();
   }
   const nowTs = e => {
     const n = performance.now(), ts = e && Number.isFinite(e.timeStamp) ? e.timeStamp : n;
@@ -73,13 +76,14 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     const d = ms / 1000 - T;
     setPad('down', (ms / 1000).toFixed(2) + ' 秒', '目標 ' + T + '.00 秒 との差 ' + (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(2) + '\nみんなを待ってるよ…');
     E.vibrate([40, 30, 80]); E.audio.init(); E.audio.beep(660, .15, .22);
+    fxOn(); PF.pop(pad, { color: 0x8e7bff, power: 1.6, star: Math.abs(d) < .3 });
   }
 
   pad.style.touchAction = 'none';
   const onDown = e => {
     e.preventDefault();
     if(stopped || ph !== 'ready') return;
-    ph = 'hold'; t0 = nowTs(e); E.audio.init(); E.vibrate(30);
+    ph = 'hold'; t0 = nowTs(e); E.audio.init(); E.vibrate(30); PF.show(false);
     setPad('hold', '0.00', '離すな…ぴったりで離せ');
     cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
   };
@@ -96,7 +100,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
   // ---- 結果発表: ズレの小さい順に1位から。最下位の前に「ため」 ----
   function showRes(m){
     if(!Array.isArray(m.rows) || !Number.isInteger(m.T)) return;
-    ph = 'res'; cancelAnimationFrame(raf);
+    ph = 'res'; cancelAnimationFrame(raf); fxOn();
     const tgt = m.T * 1000;
     const rows = m.rows.filter(x => x && Number.isInteger(x.id) && ['ok', 'none'].includes(x.st)).slice(0, 8);
     const ok = rows.filter(x => x.st === 'ok' && Number.isFinite(x.ms)).map(x => ({ id: x.id, ms: x.ms, gap: Math.abs(x.ms - tgt) })).sort((a, b) => a.gap - b.gap);
@@ -119,6 +123,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
       if(x.none) b.textContent = '押さなかった';
       else{ const df = (x.ms - tgt) / 1000; b.textContent = (x.ms / 1000).toFixed(2) + '秒 (' + (df >= 0 ? '+' : '−') + Math.abs(df).toFixed(2) + ')'; }
       d.appendChild(a); d.appendChild(b); d.classList.add('pop'); box.appendChild(d);
+      later(() => PF.rowIn(d, last ? 'lose' : i === 0 ? 'win' : ''), 60);
       return x;
     }
     function finish(){
@@ -182,7 +187,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     E.hostBcast({ t: 'res', T: H.T, rows }, true);
   }
   function stop(){
-    stopped = true; cancelAnimationFrame(raf); clearTimeout(H.fin);
+    stopped = true; cancelAnimationFrame(raf); clearTimeout(H.fin); PF.show(false);
     timers.forEach(t => clearTimeout(t));
     pad.removeEventListener('pointerdown', onDown); pad.removeEventListener('pointerup', onUp); pad.removeEventListener('pointercancel', onUp);
     ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });

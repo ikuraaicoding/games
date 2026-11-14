@@ -1,18 +1,14 @@
-/* ARENA の戦闘演出(PixiJS で、カードの上に透明な描画レイヤーを重ねる)
+/* 演出レイヤー(PixiJS で、画面の上に透明な描画レイヤーを重ねる。全ゲーム共通)
  *
- *  - 戦闘のルールや表示(HP・カード)はこれまでどおり HTML。ここは「見た目の上乗せ」だけ
- *  - PixiJS は ARENA を始めたときに読み込む(lib/ に同梱。外部から読み込まない)
+ *  - ゲームのルールや表示はこれまでどおり HTML。ここは「見た目の上乗せ」だけ
+ *  - PixiJS はゲームを始めたときに読み込む(lib/ に同梱。外部から読み込まない)
  *  - 読み込めない・WebGL が使えないスマホでは何もしない(これまでの演出のまま遊べる)
+ *  - タイミングが勝負のゲーム(DRAW の合図待ち、BLIND の長押し中)は、各ゲーム側で止める
  *
- *  NomiArenaFX.load()               … 読み込み開始(何度呼んでもよい)
- *  NomiArenaFX.ok()                 … 使えるか
- *  NomiArenaFX.show(on)             … 戦闘画面の間だけ表示・動かす
- *  NomiArenaFX.intro(nmL, nmR)      … VS 演出
- *  NomiArenaFX.fight()              … FIGHT!
- *  NomiArenaFX.attack(src, dst, o)  … 攻撃(src から dst へ飛ぶ)。着弾までの ms を返す
- *  NomiArenaFX.num(el, text, kind)  … ダメージ数字など
- *  NomiArenaFX.heal(el) / miss(el) / skill(el, title, sub, color) / ko(el) / undying(el)
- *  NomiArenaFX.win(el, text, color) / fatigue()
+ *  共通: load() / ok() / show(on, { amb: [色...] | null })
+ *        slam(文字, o) / pop(el, o) / rowIn(el, kind) / doom(el) / confetti(n) / streak(src, dst, color)
+ *        hitEl(el, color, power) / shatter(el, color) / aura(el, on, color) / fireball(el)
+ *  ARENA: intro / fight / attack / num / heal / miss / skill / ko / undying / win / fatigue
  */
 (function(){
 'use strict';
@@ -20,7 +16,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Go
 const MAX_PARTS = 700;
 let P = null, app = null, state = 'idle', loading = null, visible = false;
 let L = {}, tex = {}, pool = [], parts = [], tweens = [], cutQ = [], cutBusy = false;
-let shakeAmp = 0, shakeX = 0, shakeY = 0, ambT = 0;
+let shakeAmp = 0, shakeX = 0, shakeY = 0, ambT = 0, ambCols = null, auras = [];
 const reduce = (() => { try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } })();
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -43,7 +39,7 @@ function load(){
       P = window.PIXI;
       app = new P.Application();
       await app.init({ backgroundAlpha: 0, antialias: false, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true, preference: 'webgl', resizeTo: window, powerPreference: 'low-power', hello: false });
-      const cv = app.canvas; cv.id = 'a-fx'; cv.setAttribute('aria-hidden', 'true');
+      const cv = app.canvas; cv.id = 'pfx'; cv.setAttribute('aria-hidden', 'true');
       (document.getElementById('app') || document.body).appendChild(cv);
       app.stage.eventMode = 'none';
       ['amb', 'back', 'fx', 'top', 'ui', 'flash'].forEach(k => { L[k] = new P.Container(); app.stage.addChild(L[k]); });
@@ -139,13 +135,23 @@ function update(dt){
     shakeAmp = 0; shakeX = 0; shakeY = 0;
     if(appEl){ appEl.style.setProperty('--sx', '0px'); appEl.style.setProperty('--sy', '0px'); }
   }
-  // 火の粉(ずっと漂う)
+  // 火の粉(ずっと漂う。ゲームごとの色)
   ambT -= dt;
-  if(ambT <= 0){
+  if(ambCols && ambT <= 0){
     ambT = 140;
     const W = app.screen.width, H = app.screen.height;
-    part({ layer: L.amb, t: tex.glow, x: rnd(0, W), y: H + 10, vx: rnd(-14, 14), vy: rnd(-60, -25), life: rnd(5000, 9000), s0: rnd(.08, .2), s1: .02, a0: .55, a1: 0, tint: [0xff9f0a, 0xffd60a, 0xff6b3a][Math.floor(rnd(0, 3))] });
+    part({ layer: L.amb, t: tex.glow, x: rnd(0, W), y: H + 10, vx: rnd(-14, 14), vy: rnd(-60, -25), life: rnd(5000, 9000), s0: rnd(.08, .2), s1: .02, a0: .55, a1: 0, tint: ambCols[Math.floor(rnd(0, ambCols.length))] });
   }
+  // オーラ(要素のまわりから光が吸い込まれる。時間がたつほど強く)
+  auras.forEach(a => {
+    a.t += dt; a.acc += dt * (1 + Math.min(a.t / 1000, 8) * .6);
+    const d = center(a.el); if(!d) return;
+    while(a.acc > 60){
+      a.acc -= 60;
+      const ang = rnd(0, 6.3), r = Math.max(d.w, d.h) * rnd(.55, .9), k = Math.min(1, a.t / 6000);
+      part({ t: tex.spark, x: d.x + Math.cos(ang) * r, y: d.y + Math.sin(ang) * r, vx: -Math.cos(ang) * r * 2.2, vy: -Math.sin(ang) * r * 2.2, align: true, life: 400, s0: .5 + k * .5, s1: .9 + k * .6, a0: .1, a1: .95, tint: Math.random() < .3 ? 0xffffff : a.col });
+    }
+  });
 }
 function shake(a){ if(!reduce) shakeAmp = Math.max(shakeAmp, a); }
 function flash(color, a, ms){
@@ -173,7 +179,7 @@ function kill(t){ if(t && !t.destroyed){ if(t.parent) t.parent.removeChild(t); t
 
 // ---------------- 表示の切り替え ----------------
 function clearAll(){
-  parts.forEach(p => free(p.s)); parts = []; tweens = []; cutQ = []; cutBusy = false;
+  parts.forEach(p => free(p.s)); parts = []; tweens = []; cutQ = []; cutBusy = false; auras = [];
   [L.amb, L.back, L.fx, L.top, L.ui].forEach(c => { if(c) c.removeChildren().forEach(ch => {
     if(ch instanceof P.Sprite){ ch.visible = false; if(pool.indexOf(ch) < 0) pool.push(ch); }
     else ch.destroy({ children: true });
@@ -183,8 +189,9 @@ function clearAll(){
   const appEl = document.getElementById('app');
   if(appEl){ appEl.style.setProperty('--sx', '0px'); appEl.style.setProperty('--sy', '0px'); }
 }
-function show(on){
+function show(on, o){
   visible = !!on;
+  if(o && 'amb' in o) ambCols = o.amb;
   if(!ok()) return;
   app.canvas.style.display = on ? 'block' : 'none';
   if(on){ app.resize(); app.ticker.start(); }
@@ -371,5 +378,102 @@ function fatigue(){
   tween(400, p => { t.alpha = 1 - p; }, () => kill(t), 900);
 }
 
-window.NomiArenaFX = { load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue };
+// ---------------- 共通の演出(ほかのゲーム用) ----------------
+// 画面のまん中に大きな文字をたたきつける
+function slam(str, o){
+  if(!ok() || !visible) return;
+  o = o || {};
+  const W = app.screen.width, H = app.screen.height, col = o.color === undefined ? 0xffd60a : o.color;
+  const y = o.el ? (center(o.el) || { y: H * .4 }).y : H * (o.y || .4);
+  const t = text(str, { size: o.size || 56, fill: o.fill === undefined ? 0xffffff : o.fill, stroke: col, sw: 8, glow: col, blur: 22, layer: L.top });
+  if(t.width > W * .92) t.scale.set(W * .92 / t.width);
+  const s1 = t.scale.x;
+  t.position.set(W / 2, y);
+  if(o.flash !== false) flash(col, o.flash || .35, 260);
+  shake(o.shake === undefined ? 8 : o.shake);
+  tween(280, p => { t.scale.set(s1 * (2.4 - 1.4 * ease.back(p))); });
+  part({ layer: L.top, t: tex.ring, x: W / 2, y, s0: .2, s1: 3, a0: 1, life: 480, tint: col });
+  burst(W / 2, y, o.n || 40, { layer: L.top, t: tex.spark, v0: 350, v1: 1000, l0: 260, l1: 620, s0: 1.1, s1: .2, drag: .07, align: true, tint: [0xffffff, col] });
+  tween(320, p => { t.alpha = 1 - p; t.scale.set(s1 * (1 + p * .3)); }, () => kill(t), o.hold || 700);
+}
+// 要素のところでキラッと
+function pop(el, o){
+  if(!ok() || !visible) return;
+  const d = center(el); if(!d) return;
+  o = o || {};
+  const col = o.color === undefined ? 0xffffff : o.color, pw = o.power || 1;
+  part({ t: tex.glow, x: d.x, y: d.y, s0: 1 + pw, s1: .2, a0: .8, life: 260, tint: col });
+  part({ t: tex.ring, x: d.x, y: d.y, s0: .15, s1: Math.min(3, d.w / 90) * (.6 + pw * .3), a0: .8, life: 380, tint: col });
+  burst(d.x, d.y, Math.round(12 * pw), { t: o.star ? tex.star : tex.spark, v0: 150, v1: 380 + pw * 200, l0: 300, l1: 600, s0: o.star ? 1 : .9, s1: .1, drag: .06, align: !o.star, vr: o.star ? 8 : 0, r: Math.min(d.w * .35, 80), tint: [0xffffff, col] });
+}
+// 結果の行が出たとき。kind: 'win' / 'lose' / ''
+function rowIn(el, kind){
+  if(!ok() || !visible) return;
+  if(kind === 'win'){ pop(el, { color: 0xffd60a, power: 2, star: true }); shake(4); }
+  else if(kind === 'lose') doom(el);
+  else pop(el, { color: 0xffffff, power: .7 });
+}
+// 負けの演出(赤い爆発とヒビ)
+function doom(el){
+  if(!ok() || !visible) return;
+  const d = center(el); if(!d) return;
+  flash(0xff1a1a, .4, 420); shake(18);
+  burst(d.x, d.y, 50, { t: tex.glow, v0: 120, v1: 620, l0: 400, l1: 1000, s0: .8, s1: .05, drag: .05, r: d.w * .3, tint: [0xff453a, 0xff9f0a, 0x8b0000] });
+  burst(d.x, d.y, 22, { t: tex.shard, v0: 220, v1: 640, l0: 700, l1: 1300, s0: 1.4, s1: .6, g: 1000, vr: 12, r: d.w * .3, tint: [0xff453a, 0xd0d0d8], add: false });
+  [0, 110].forEach(dl => part({ t: tex.ring, x: d.x, y: d.y, s0: .2, s1: Math.max(2, d.w / 60), life: 520, tint: 0xff453a, delay: dl }));
+}
+// 紙吹雪
+function confetti(n){
+  if(!ok() || !visible) return;
+  const W = app.screen.width, cols = [0xff453a, 0xffd60a, 0x30d158, 0x64d2ff, 0xbf5af2, 0xff9f0a, 0xffffff];
+  for(let i = 0; i < (n || 120); i++) part({ t: tex.rect, x: rnd(0, W), y: rnd(-90, -10), vx: rnd(-50, 50), vy: rnd(80, 260), g: 90, drag: .01, life: rnd(2000, 3200), s0: rnd(.8, 1.3), s1: .9, a0: 1, a1: .6, vr: rnd(-6, 6), rot: rnd(0, 6), flip: true, tint: cols[i % cols.length], add: false, layer: L.top, delay: rnd(0, 700) });
+}
+// src から dst へ光が飛ぶ(当たると小さく弾ける)
+function streak(srcEl, dstEl, color){
+  if(!ok() || !visible) return 0;
+  const s = center(srcEl), d = center(dstEl); if(!s || !d) return 0;
+  const col = color === undefined ? 0xffffff : color, T = 260;
+  const head = part({ t: tex.glow, x: s.x, y: s.y, s0: .9, s1: .9, life: T, tint: col });
+  tween(T, p => {
+    const k = ease.in(p), x = s.x + (d.x - s.x) * k, y = s.y + (d.y - s.y) * k - Math.sin(p * Math.PI) * 40;
+    if(head) head.s.position.set(x, y);
+    part({ t: tex.glow, x, y, s0: .5, s1: .05, a0: .8, life: 260, tint: col });
+  }, () => hitEl(dstEl, col, .5));
+  return T;
+}
+function hitEl(el, color, power){
+  if(!ok() || !visible) return;
+  const d = center(el); if(!d) return;
+  impact(d, { ratio: power === undefined ? .4 : power, color: color === undefined ? 0xff453a : color });
+}
+// 砕ける(脱落など)
+function shatter(el, color){
+  if(!ok() || !visible) return;
+  const d = center(el); if(!d) return;
+  const col = color === undefined ? 0xff453a : color;
+  burst(d.x, d.y, 28, { t: tex.shard, v0: 160, v1: 520, l0: 700, l1: 1200, s0: 1.3, s1: .5, g: 900, vr: 12, r: d.w * .35, tint: [col, 0xffffff], add: false });
+  part({ t: tex.ring, x: d.x, y: d.y, s0: .2, s1: 1.8, life: 420, tint: col });
+  shake(9);
+}
+// 要素にオーラをつける / 消す
+function aura(el, on, color){
+  if(!ok()) return;
+  auras = auras.filter(a => a.el !== el);
+  if(on) auras.push({ el, t: 0, acc: 0, col: color === undefined ? 0xff453a : color });
+}
+// 大爆発(CORE)
+function fireball(el){
+  if(!ok() || !visible) return;
+  const d = center(el); if(!d) return;
+  auras = [];
+  part({ t: tex.glow, x: d.x, y: d.y, s0: 2, s1: 9, a0: 1, life: 520, tint: 0xffb340 });
+  part({ t: tex.glow, x: d.x, y: d.y, s0: 1.5, s1: 6, a0: 1, life: 380, tint: 0xffffff });
+  [0, 80, 170].forEach(dl => part({ t: tex.ring, x: d.x, y: d.y, s0: .3, s1: 6, a0: 1, life: 600, tint: dl ? 0xff453a : 0xffd60a, delay: dl }));
+  burst(d.x, d.y, 90, { t: tex.spark, v0: 500, v1: 1600, l0: 300, l1: 800, s0: 1.6, s1: .2, drag: .04, align: true, tint: [0xffffff, 0xffd60a, 0xff9f0a, 0xff453a] });
+  burst(d.x, d.y, 60, { t: tex.glow, v0: 150, v1: 700, l0: 600, l1: 1300, s0: 1, s1: .1, drag: .05, tint: [0xff9f0a, 0xff453a, 0xffd60a] });
+  burst(d.x, d.y, 30, { t: tex.shard, v0: 300, v1: 900, l0: 800, l1: 1500, s0: 1.6, s1: .6, g: 1100, vr: 14, tint: [0xffd2c2, 0xff453a], add: false });
+}
+
+window.NomiFX = { load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
+window.NomiArenaFX = window.NomiFX;
 })();
