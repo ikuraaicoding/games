@@ -68,7 +68,7 @@ textarea{ font-size:.7rem; height:64px; font-family:ui-monospace,monospace; word
 @keyframes toastIn{ 0%{ opacity:0; transform:translateY(-14px); } 100%{ opacity:1; transform:none; } }
 @keyframes toastOut{ 100%{ opacity:0; transform:translateY(-10px); } }
 #banner.on ~ #toasts{ top:calc(max(10px,env(safe-area-inset-top)) + 64px); }
-#s-lobby, #s-result, #s-arena{ padding-bottom:calc(max(24px,env(safe-area-inset-bottom)) + 60px); }
+#s-lobby, #s-result, #s-arena, #s-race{ padding-bottom:calc(max(24px,env(safe-area-inset-bottom)) + 60px); }
 #rx{ position:fixed; inset:0; z-index:47; pointer-events:none; overflow:hidden; }
 .rx{ position:absolute; bottom:16%; display:flex; flex-direction:column; align-items:center; gap:2px; animation:rxUp 2.6s ease-out forwards; }
 .rx .e{ font-size:48px; line-height:1; filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
@@ -376,7 +376,7 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .cat-st{ display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:.68rem; color:var(--sub); }
 .cat-st .skc{ margin-left:0; font-size:.7rem; }
 .cat-row{ display:flex; flex-direction:column; gap:1px; padding:7px 0; border-top:1px solid var(--line); }
-.cat-st + .cat-row{ border-top:0; }
+.cat-st + .cat-row, .cat-sec > .cat-row:first-child{ border-top:0; }
 .cat-row b{ font-size:.86rem; font-weight:800; }
 .cat-row span{ font-size:.72rem; color:var(--sub); line-height:1.55; }
 .cat-row .cat-5{ color:var(--acc); font-size:.66rem; }
@@ -416,6 +416,99 @@ body:not(.solo) .solo-only{ display:none; }
 .aopt .seg2 button[disabled]{ opacity:.35; }
 .aopt-note{ width:100%; font-size:.66rem; color:var(--sub); text-align:right; margin-top:4px; min-height:1em; }
 
+/* RACE */
+#s-race{ padding-bottom:max(18px,env(safe-area-inset-bottom)); }
+#rc-top{ font-size:.72rem; font-weight:700; letter-spacing:.26em; color:var(--acc); min-height:20px; margin:4px 0 10px; text-transform:uppercase; }
+#rc-lost{ display:block; font-style:normal; font-size:.62rem; font-weight:700; color:var(--red); min-height:1em; }
+#rc-tbar, #rc-pbar{ height:4px; background:var(--surface2); border-radius:99px; margin:8px 0 10px; overflow:hidden; }
+#rc-tbar i, #rc-pbar i{ display:block; height:100%; width:100%; background:var(--acc); transform-origin:left; transform:scaleX(0); transition:transform .2s linear; }
+#rc-tbar.over i{ background:var(--red); }
+#rc-note{ font-size:.8rem; color:var(--sub); min-height:20px; margin-bottom:8px; text-align:left; }
+#rc-note.over{ color:var(--red); font-weight:700; }
+#rc-panel{ display:grid; gap:8px; }
+.agrid.two{ grid-template-columns:1fr 1fr; }
+.rg-car{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:12px 14px; text-align:left; display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.rg-stats{ display:grid; gap:5px; }
+.rg-st{ display:grid; grid-template-columns:4.4em 1fr 3.6em; align-items:center; gap:8px; }
+.rg-st .k{ font-size:.68rem; font-weight:700; color:var(--sub); }
+.rg-st .bar{ position:relative; height:8px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+.rg-st .bar i{ position:absolute; left:0; top:0; bottom:0; background:var(--acc); border-radius:99px; }
+.rg-st .bar i.up{ background:var(--green); border-radius:0 99px 99px 0; }
+.rg-st .bar i.dn{ background:var(--red); border-radius:0 99px 99px 0; }
+.rg-st .v{ font-size:.82rem; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rg-st .v em{ font-style:normal; font-size:.72rem; margin-left:2px; }
+.rg-st .v em.up{ color:var(--green); } .rg-st .v em.dn{ color:var(--red); }
+.rg-part{ border-top:1px solid var(--line); padding-top:7px; display:flex; flex-direction:column; gap:2px; }
+.rg-part.flash{ animation:acflash .9s ease-out; border-radius:8px; }
+.rg-ph{ display:flex; align-items:center; gap:6px; min-width:0; }
+.rg-ph b{ flex:1; min-width:0; font-size:.84rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rg-slot{ font-style:normal; font-size:.58rem; font-weight:800; padding:2px 6px; border-radius:6px; white-space:nowrap; }
+.rg-slot.s0{ color:#ff8a80; background:rgba(255,69,58,.16); } .rg-slot.s1{ color:#ffc266; background:rgba(255,159,10,.16); }
+.rg-slot.s2{ color:#d6d6de; background:rgba(200,200,215,.14); } .rg-slot.s3{ color:#9ad0ff; background:rgba(79,163,255,.18); }
+.rg-rar{ font-size:.56rem; font-weight:900; padding:2px 5px; border-radius:5px; color:#000; background:var(--dim); }
+.rg-rar.r1{ background:#64d2ff; } .rg-rar.r2{ background:#bf5af2; } .rg-rar.r3{ background:#ffd60a; }
+.rg-tu{ display:inline-flex; gap:2px; } .rg-tu i{ width:7px; height:7px; border-radius:2px; background:var(--surface2); } .rg-tu i.on{ background:var(--acc); }
+.rg-pd{ font-size:.7rem; color:var(--sub); line-height:1.5; display:flex; flex-direction:column; }
+.rg-tr{ color:#9ad0ff; font-size:.68rem; }
+.rg-tr.big{ font-size:.76rem; font-weight:700; }
+.rg-new{ --rc:var(--dim); background:var(--surface); border:1px solid color-mix(in srgb, var(--rc) 55%, transparent); border-radius:16px; padding:12px 14px; text-align:left; display:flex; flex-direction:column; gap:4px; }
+.rg-new.r1{ --rc:#64d2ff; } .rg-new.r2{ --rc:#bf5af2; } .rg-new.r3{ --rc:#ffd60a; box-shadow:0 0 30px color-mix(in srgb, var(--rc) 25%, transparent); }
+.rg-new.reveal{ animation:acrev .55s cubic-bezier(.2,1.4,.4,1); }
+.rg-nh{ display:flex; align-items:center; gap:7px; } .rg-nh b{ font-size:1.05rem; font-weight:800; }
+.rg-new .rg-pd{ font-size:.8rem; color:var(--text); font-weight:700; }
+.rg-cur{ display:flex; flex-direction:column; gap:1px; text-align:left; font-size:.72rem; color:var(--sub); padding:0 4px; }
+.rg-cur small{ font-size:.6rem; font-weight:700; letter-spacing:.06em; color:var(--dim); }
+#rc-panel > .rg-stats, #rc-pbody > .rg-stats{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-top:6px; text-align:left; }
+.rg-crs{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; text-align:left; display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+.rg-crs.rain{ border-color:rgba(100,170,255,.45); background:linear-gradient(rgba(60,110,180,.14), var(--surface)); }
+.rg-crs-h{ display:flex; justify-content:space-between; align-items:center; gap:8px; } .rg-crs-h b{ font-size:.92rem; font-weight:800; }
+.rg-w{ font-size:.66rem; font-weight:800; padding:2px 9px; border-radius:99px; background:rgba(255,214,10,.16); color:#ffd60a; white-space:nowrap; }
+.rg-w.rain{ background:rgba(100,170,255,.18); color:#9ad0ff; }
+.rg-strip{ display:flex; gap:2px; height:15px; }
+.rg-strip i{ font-style:normal; border-radius:3px; font-size:.6rem; font-weight:900; line-height:15px; text-align:center; color:rgba(0,0,0,.7); overflow:hidden; min-width:3px; }
+.rg-strip .t-s{ background:#8e8e98; } .rg-strip .t-c{ background:#ff9f0a; } .rg-strip .t-h{ background:#30d158; } .rg-strip .t-d{ background:#a0703c; }
+.rg-crs-i{ font-size:.7rem; color:var(--sub); line-height:1.5; }
+.rg-ptime{ display:flex; justify-content:space-between; align-items:baseline; text-align:left; }
+.rg-ptime span{ font-size:.72rem; font-weight:700; color:var(--sub); } .rg-ptime b{ font-size:1.6rem; font-weight:800; font-variant-numeric:tabular-nums; }
+#rc-pbar i{ transform:scaleX(1); }
+.rg-sets{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+.rg-set{ background:var(--surface); border:1px solid var(--line2); border-radius:14px; padding:12px 4px; display:flex; flex-direction:column; gap:3px; align-items:center; color:var(--text); }
+.rg-set b{ font-size:.86rem; font-weight:800; } .rg-set small{ font-size:.62rem; color:var(--sub); }
+.rg-set.on{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 16%, transparent); color:var(--acc); }
+.rg-hint{ font-size:.7rem; color:var(--sub); margin-top:6px; text-align:left; line-height:1.6; }
+.rg-stand{ display:grid; gap:4px; margin-top:6px; }
+.rg-stand div{ display:flex; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:7px 12px; font-size:.8rem; font-weight:700; }
+.rg-stand div.me{ border-color:var(--acc); }
+#rc-res{ gap:8px; }
+.rg-rtab{ display:grid; gap:6px; }
+.rg-rtab div{ display:grid; grid-template-columns:2.6em 1fr auto 2.6em; gap:8px; align-items:center; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.86rem; font-weight:700; text-align:left; font-variant-numeric:tabular-nums; }
+.rg-rtab .n{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.rg-rtab .t{ color:var(--sub); font-size:.74rem; } .rg-rtab b{ color:var(--acc); text-align:right; }
+.rg-rtab div.win{ border-color:#ffd60a; } .rg-rtab div.me{ background:color-mix(in srgb, var(--acc) 12%, transparent); }
+#rc-run{ position:absolute; inset:0; overflow:hidden; display:none; z-index:2; background:#0d130f; }
+#rc-cv{ position:absolute; left:0; top:0; display:block; touch-action:none; }
+.rh{ position:absolute; left:0; right:0; top:0; padding:max(10px,env(safe-area-inset-top)) 12px 28px; display:flex; flex-direction:column; gap:6px; pointer-events:none; background:linear-gradient(rgba(9,9,11,.88) 60%, rgba(9,9,11,0)); text-align:left; }
+#rc-prog .rg-strip{ height:7px; } #rc-prog .rg-strip i{ font-size:0; }
+.rg-dots{ position:relative; height:14px; margin:0 6px; }
+.rg-dots i{ position:absolute; top:2px; width:10px; height:10px; margin-left:-5px; border-radius:50%; border:1.5px solid #09090b; }
+.rg-dots i.me{ width:14px; height:14px; margin-left:-7px; top:0; border-color:#fff; z-index:2; }
+.rh-row{ display:flex; justify-content:space-between; align-items:flex-end; }
+#rc-pos{ font-size:2.5rem; font-weight:900; line-height:1; }
+#rc-pos small{ font-size:.8rem; color:var(--sub); margin-left:4px; font-weight:700; }
+#rc-spd{ font-size:2.1rem; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
+#rc-spd small{ font-size:.7rem; color:var(--sub); margin-left:4px; }
+#rc-spd.nit{ color:#9ad0ff; text-shadow:0 0 18px #4fa3ff; }
+#rc-next{ font-size:.76rem; font-weight:700; color:var(--text); background:rgba(0,0,0,.5); border:1px solid var(--line); border-radius:10px; padding:6px 10px; align-self:flex-start; max-width:100%; }
+#rc-cd{ position:absolute; left:0; right:0; top:36%; text-align:center; font-size:5rem; font-weight:900; display:none; pointer-events:none; text-shadow:0 6px 30px rgba(0,0,0,.7); }
+#rc-cd.on{ display:block; } #rc-cd.go{ color:var(--green); } #rc-cd.wait{ font-size:1.3rem; color:var(--sub); }
+#rc-nit{ position:absolute; right:14px; left:74px; bottom:max(14px,env(safe-area-inset-bottom)); height:86px; border-radius:22px; border:0; background:linear-gradient(180deg,#4fa3ff,#1f6fd8); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; box-shadow:0 10px 30px rgba(31,111,216,.5), inset 0 1px 0 rgba(255,255,255,.4); touch-action:none; transition:transform .08s; }
+#rc-nit b{ font-size:1.7rem; letter-spacing:.14em; font-weight:900; }
+#rc-nit small{ font-size:.72rem; font-weight:700; opacity:.9; }
+#rc-nit:active{ transform:scale(.97); }
+#rc-nit[disabled]{ background:rgba(40,40,46,.9); color:var(--dim); box-shadow:none; }
+#rc-nit.on{ background:linear-gradient(180deg,#bfe3ff,#4fa3ff); color:#04223f; animation:nitp .18s infinite alternate; }
+@keyframes nitp{ 0%{ box-shadow:0 0 20px rgba(79,163,255,.6); } 100%{ box-shadow:0 0 50px rgba(160,215,255,.95); } }
+
 /* RESULT */
 #s-result{ justify-content:center; }
 #s-result h2{ font-size:3rem; font-weight:800; letter-spacing:-.01em; color:var(--acc); margin:0 0 6px; }
@@ -435,6 +528,7 @@ body:not(.solo) .solo-only{ display:none; }
   <symbol id="i-blind" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M10 2.5h4M12 2.5V6"/><path d="M4.5 6 19.5 21"/></symbol>
   <symbol id="i-thumbs" viewBox="0 0 24 24"><path d="M7.5 12V5.5a2 2 0 0 1 4 0V12"/><rect x="5" y="12" width="14" height="9" rx="3"/><path d="M11.5 15.5H19M11.5 18.5H19"/></symbol>
   <symbol id="i-arena" viewBox="0 0 24 24"><path d="M4 4l9.5 9.5M4 4v3.5M4 4h3.5"/><path d="M20 4l-9.5 9.5M20 4v3.5M20 4h-3.5"/><path d="M8 15l-3 3 1 1 3-3M16 15l3 3-1 1-3-3"/><path d="M6.5 13.5l4 4M17.5 13.5l-4 4"/></symbol>
+  <symbol id="i-race" viewBox="0 0 24 24"><path d="M3.5 16.5a8.5 8.5 0 0 1 17 0"/><path d="M12 16.5l4.2-5"/><circle cx="12" cy="16.5" r="1.3"/><path d="M6.2 12.4l1.2.8M17.8 12.4l-1.2.8M12 8v1.4"/><path d="M3 20h18"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z"/><path d="M8 9.5h8M8 12h5"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
@@ -463,7 +557,7 @@ body:not(.solo) .solo-only{ display:none; }
   <h1 class="t">ONLINE</h1>
   <div class="sub">各自のスマホで遊ぶ。</div>
   <div class="field"><label for="name">ニックネーム(8文字まで・本名はNG)</label><input type="text" id="name" maxlength="8" placeholder="例: たろう" autocomplete="off"></div>
-  <div class="gsel" id="seg-game"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
+  <div class="gsel" id="seg-game"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>改造レース</small></span></button></div>
   <div class="help" style="margin-top:8px">ホストが遊ぶゲーム(ロビーでも変えられます)</div>
   <button class="btn main" id="b-host">部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">参加する(QRを読む)</button>
@@ -500,13 +594,18 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="plist" id="l-list"></div>
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
-    <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button></div>
+    <div class="gsel" id="l-seg"><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>改造レース</small></span></button></div>
     <div id="l-arena" class="hide" style="width:100%;max-width:420px">
       <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="10">10分</button></div></div>
       <div class="aopt"><span>ゲージ</span><div class="seg2"><button data-h="0" class="on">ふつう(10秒)</button><button data-h="1">ハード(5秒)</button></div></div>
       <div class="aopt"><span>キャラ数</span><div class="seg2"><button data-n="3" class="on">3体</button><button data-n="5">5体バトル</button></div></div>
       <div class="aopt-note" id="l-a5"></div>
       <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位(負け残り)</button></div></div>
+    </div>
+    <div id="l-race" class="hide" style="width:100%;max-width:420px">
+      <div class="aopt"><span>ガレージ</span><div class="seg2"><button data-m="1">1分</button><button data-m="3" class="on">3分</button><button data-m="5">5分</button></div></div>
+      <div class="aopt"><span>グランプリ</span><div class="seg2"><button data-r="1">1戦</button><button data-r="3" class="on">3戦</button></div></div>
+      <div class="aopt"><span>決めるのは</span><div class="seg2"><button data-v="top" class="on">優勝</button><button data-v="last">最下位</button></div></div>
     </div>
     <div id="l-core" class="hide" style="width:100%;max-width:420px">
       <div class="aopt"><span style="width:auto">見ている人の音</span><div class="seg2"><button data-w="normal" class="on">ふつう</button><button data-w="low">小さめ</button><button data-w="off">なし</button></div></div>
@@ -585,6 +684,36 @@ body:not(.solo) .solo-only{ display:none; }
   </div>
   <div id="a-info" class="ainfo"></div>
 </div>
+<!-- RACE -->
+<div class="screen" id="s-race">
+  <div id="rc-top"></div>
+  <div id="rc-gar" class="av">
+    <div class="a-hud"><div><small>残り時間</small><b id="rc-time">--:--</b></div><div><small>行動ストック(最大3)</small><b id="rc-tk">0</b><em id="rc-lost"></em></div></div>
+    <div id="rc-tbar"><i></i></div>
+    <div id="rc-note"></div>
+    <div id="rc-panel"></div>
+    <button class="cat-open" id="rc-catbtn" type="button">パーツと特性の一覧</button>
+    <div class="ilab">マイカー(上: ステータス / 下: パーツとチューンLv)</div>
+    <div id="rc-car"></div>
+    <div id="rc-scout"></div>
+  </div>
+  <div id="rc-pit" class="av">
+    <div class="rg-ptime"><span>ピット — スタートまで</span><b id="rc-pt">12秒</b></div>
+    <div id="rc-pbar"><i></i></div>
+    <div id="rc-pbody"></div>
+  </div>
+  <div id="rc-run">
+    <canvas id="rc-cv"></canvas>
+    <div class="rh">
+      <div id="rc-prog"></div>
+      <div class="rh-row"><div id="rc-pos"></div><div id="rc-spd">0<small>km/h</small></div></div>
+      <div id="rc-next"></div>
+    </div>
+    <div id="rc-cd"></div>
+    <button id="rc-nit" type="button"><b>NITRO</b><small id="rc-nl"></small></button>
+  </div>
+  <div id="rc-res" class="av"></div>
+</div>
 <div id="a-cat" class="acat"></div>
 
 <!-- 結果 -->
@@ -615,6 +744,7 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="icons.js"></script>
 <script src="pfx.js"></script>
 <script src="g-arena.js"></script>
+<script src="g-race.js"></script>
 <script src="bots.js"></script>
 <script src="online.js"></script>
 </body>
