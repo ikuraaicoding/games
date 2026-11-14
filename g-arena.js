@@ -7,6 +7,7 @@
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。一番高いステの系統(攻撃/防御/HP)のスキルつき
  *       装備ガチャ : 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
+ *     キャラガチャの天井: SR以上が PITY 回続けて出なかったら、次は SR以上が確定
  *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
  *     戦闘は自動のターン制。プレイヤーが操作できるのは「スキルを使うタイミング」だけ(各キャラ1試合1回)
@@ -17,7 +18,7 @@
 'use strict';
 window.NomiGames = window.NomiGames || {};
 
-const CFG = { TICK_MS: 10000, HARD_MS: 5000, CAP: 3, STEP_MS: 650, STEP5_MS: 480, VS_MS: 2800, END_MS: 2800, BR_MS: 4200, MAX_ROUNDS: 30, BUILD_MS: 0 };
+const CFG = { TICK_MS: 10000, HARD_MS: 5000, CAP: 3, PITY: 5, STEP_MS: 650, STEP5_MS: 480, VS_MS: 2800, END_MS: 2800, BR_MS: 4200, MAX_ROUNDS: 30, BUILD_MS: 0 };
 const MINS = [1, 3, 5, 10];
 // 5体バトルを選べるか(育成タイムが短いと5体そろわないので)
 const can5 = (mins, hard) => mins >= 5 || (hard && mins >= 3);
@@ -150,6 +151,8 @@ function showCatalog(){
     body.appendChild(sec);
   });
   // 武器
+  body.appendChild(el('div', 'eyebrow', 'キャラガチャ'));
+  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '%。天井: SR以上が' + CFG.PITY + '回続けて出なかったら、次は SR以上が確定'));
   body.appendChild(el('div', 'eyebrow', '武器'));
   body.appendChild(el('p', 'cat-note', '装備ガチャで出る。★1(+1)' + pct(BAL.wv[0]) + '% / ★2(+2)' + pct(BAL.wv[1]) + '% / ★3(+3)' + pct(BAL.wv[2]) + '%。剣・盾・護符は同じ確率。特殊効果は、上がるステと同じ系統のものがつく。だれにでも装備できる(1体1つ)'));
   ['a', 'd', 'h'].forEach(t => {
@@ -370,7 +373,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(' + Math.round(tickMs / 1000) + '秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
     note.classList.toggle('over', me.tk >= CFG.CAP);
     const skOk = me.p.some(c => c.sk.lv < SK_MAX);
-    box.appendChild(bigBtn('キャラガチャ', 'ステ合計6〜21。一番高いステに合ったスキルつき', can, () => act('ch')));
+    const pity = me.pt === 0 ? '次は SR以上 確定!' : me.pt > 0 ? 'あと' + me.pt + '回で SR以上 確定' : '';
+    const chb = bigBtn('キャラガチャ', 'ステ合計6〜21。一番高いステに合ったスキルつき', can, () => act('ch'));
+    if(pity){ const t = chb.querySelector('b'); const pe = el('em', 'pity' + (me.pt === 0 ? ' sure' : ''), pity); t.appendChild(pe); }
+    box.appendChild(chb);
     box.appendChild(bigBtn('装備ガチャ', '剣(攻+)・盾(防+)・護符(HP+)。系統に合った効果つき', can, () => act('wp')));
     box.appendChild(bigBtn('スキル強化', skOk ? 'えらんだキャラのスキルLv+1' : '全員Lv' + SK_MAX + '(最大)', can && skOk, () => { uiMode = 'sk'; renderPanel(); }));
   }
@@ -383,7 +389,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(m.rev && !rev){ rev = true; $('a-top').textContent = 'ARENA — 最下位決定戦(負け残り)'; }
     const pend = m.pend && ((m.pend.k === 'ch' && okC(m.pend.c)) || (m.pend.k === 'wp' && okW(m.pend.w) && m.pend.w)) ? m.pend : null;
     const prevLen = me ? me.p.length : 0;
-    me = { p: m.p, tk: m.tk, pend, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0 };
+    me = { p: m.p, tk: m.tk, pend, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, pt: isInt(m.pt, 0, 99) ? m.pt : -1 };
     if(m.of === 1 && !m.end) overflow();
     if(Number.isFinite(m.rem)){ localEnd = performance.now() + m.rem; }
     nextAt = Number.isFinite(m.nx) && m.nx >= 0 ? performance.now() + m.nx : 0;
@@ -686,9 +692,11 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   // =====================================================================
   const H = { rev: false, phase: 'idle', P: new Map(), names: [], endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, rs: null, B: null, stepT: 0, mi: 0, outR: new Map() };
 
-  function rollChar(){
-    let r = rndF(), tot = 6;
-    for(const [p, lo, hi] of BAL.rar){ if(r < p){ tot = ri(lo, hi); break; } r -= p; tot = ri(lo, hi); }
+  // sure = true: SR以上が確定(天井)。SR と SSR の出やすさの比はそのまま
+  function rollChar(sure){
+    const tbl = sure ? BAL.rar.filter(x => x[1] >= 15) : BAL.rar, sum = tbl.reduce((a, x) => a + x[0], 0);
+    let r = rndF() * sum, tot = 6;
+    for(const [p, lo, hi] of tbl){ if(r < p){ tot = ri(lo, hi); break; } r -= p; tot = ri(lo, hi); }
     const s = [1, 1, 1], w = [rndF() + .25, rndF() + .25, rndF() + .25];
     for(let k = 3; k < tot; k++){
       const idx = [0, 1, 2].filter(i => s[i] < 10), sum = idx.reduce((a, i) => a + w[i], 0);
@@ -718,6 +726,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const now = performance.now();
     const o = { t: 'me', s: ++H.seq, ps: H.N, ti: H.TICK, p: p.party, tk: p.tk, lost: p.lost, pend: p.pend, rem: Math.max(0, Math.round(H.endAt - now)), nx: H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(p.rv) o.rv = p.rv;
+    o.pt = Math.max(0, CFG.PITY - p.miss);               // あと何回で SR以上が確定か(0 = 次が確定)
     if(H.rev) o.rev = 1;
     if(extra) Object.assign(o, extra);
     E.hostSend(id, o, true);
@@ -732,7 +741,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const buildMs = CFG.BUILD_MS || mins * 60000;
     const now = performance.now();
     H.endAt = now + buildMs; H.nextTick = now + H.TICK;
-    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null }));
+    E.players().forEach(p => H.P.set(p.id, { party: [starter()], tk: 1, lost: 0, pend: null, n: 0, rv: null, miss: 0 }));
     H.P.forEach((_, id) => sendMe(id));
     H.tickT = setInterval(() => {
       if(H.phase !== 'build') return;
@@ -752,7 +761,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(m.t === 'act'){
       if(p.tk <= 0 || p.pend) { sendMe(id); return; }
       if(m.a === 'ch'){
-        const c = rollChar();
+        const c = rollChar(p.miss >= CFG.PITY);
+        p.miss = c.a + c.d + c.h >= 15 ? 0 : p.miss + 1;
         p.tk--;
         if(p.party.length < H.N){ p.party.push(c); p.rv = { n: ++H.rvn, k: 'ch', i: p.party.length - 1 }; }
         else p.pend = { k: 'ch', c };
