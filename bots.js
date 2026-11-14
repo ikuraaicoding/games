@@ -96,8 +96,11 @@ function make(id, send, chat){
               let wi = 0; m.p.forEach((c, i) => { if(score(c) < score(m.p[wi])) wi = i; });
               if(score(m.pend.c) > score(m.p[wi])) slot = wi;
             }else if(m.pend.w){
-              const free = m.p.findIndex(c => !c.w);
-              if(free >= 0) slot = free;
+              // 武器と同じ系統(一番高いステ)のキャラに付けたい
+              const top = c => { const mx = Math.max(c.a, c.d, c.h); return c.a === mx ? 'a' : c.d === mx ? 'd' : 'h'; };
+              const fit = m.p.findIndex(c => !c.w && top(c) === m.pend.w.t), free = m.p.findIndex(c => !c.w);
+              if(fit >= 0) slot = fit;
+              else if(free >= 0) slot = free;
               else{ let li = 0; m.p.forEach((c, i) => { if(c.w.v < m.p[li].w.v) li = i; }); if(m.p[li].w.v < m.pend.w.v) slot = li; }
             }
             send({ t: 'dec', slot, n: ++a.n });

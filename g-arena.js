@@ -4,8 +4,8 @@
  *  1. 育成タイム(1/3/5/10分・ロビーで選ぶ)。全員「攻3 防3 HP3」のキャラ1体からスタート
  *  2. 10秒ごと(ハードモードは5秒ごと)に「行動」が1回たまる(最大3回までストック。満タンのまま次がたまると、あふれて無駄になる)
  *     行動ごとに次の1つを選ぶ
- *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。固有スキルつき
- *       装備ガチャ : 攻撃か防御が上がる武器。特殊効果を1つ持つ
+ *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。一番高いステの系統(攻撃/防御/HP)のスキルつき
+ *       装備ガチャ : 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
  *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
@@ -29,60 +29,90 @@ const NAMES = ['アッシュ', 'ベル', 'カイ', 'ドラコ', 'エマ', 'フ�
 // ---------------- バランス(数字はここだけで決める。説明文もここから作る) ----------------
 // ステータスは1上がるごとに約1.12倍。攻+1=与ダメ1.12倍、防+1=被ダメ1/1.12、HP+1=最大HP1.12倍。
 // どれに振っても価値は同じなので、特化キャラ(攻10など)も、役割がハマれば戦える。
+// スキルと武器は「攻・防・HP」の3系統。キャラは一番高いステの系統のスキルを持ち、武器は上がるステと同じ系統の効果を持つ。
 const BAL = {
   base: 1.12, K: 10, hp0: 60, rnd: .18,
   fatFrom: 6, fatMul: 1.3,                       // 長期戦: 7ラウンド目から、与ダメが毎ラウンド1.3倍ずつ増える
   // スキル [Lv1の値, Lvごとの伸び]
-  sk: { pow: [1.8, .55], swp: [.6, .18], snp: [1.4, .3], drain: [.5, .25], heal: [.12, .07], wall: [.35, .12], taunt: [.25, .12], ctr: [.9, .45] },
-  drainMul: 1.5, tauntHits: 3,
-  fx: { dbl: .6, first: .75, firstN: 2, vamp: .2, critP: .25, critM: 2, thorn: .22, pre: 1.25, evade: .2, regen: .04, pierce: .3, last: 1.5, undying: .15 },
+  sk: { pow: [1.7, .5], swp: [.65, .2], snp: [1.45, .32], rush: [.65, .16],
+        wall: [.4, .13], taunt: [.35, .13], ctr: [1.2, .5], fort: [1.8, .55],
+        heal: [.1, .06], drain: [.1, .035], rain: [.05, .03], rev: [.15, .08] },
+  drainHeal: .4, tauntHits: 3, rushN: 3,
+  fx: { dbl: .65, critP: .25, critM: 2, pre: 1, pierce: .35, last: 1.5, exe: .5, exeM: 2, rage: .12, rageMax: 5,
+        first: .8, firstN: 3, thorn: .27, evade: .22, cap: .13, aegis: .08,
+        vamp: .55, regen: .04, undying: .25, bless: .03 },
   // ガチャ: キャラの合計値の出やすさ [確率, 下限, 上限] / 武器の強化値の出やすさ
   rar: [[.45, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21]],
   wv: [.55, .32, .13], wAdd: [1, 2, 3]
 };
+// 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
+const AOE5 = { swp: .6, rain: .7, aegis: .7 };
+const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
+// 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
+const CAT = { a: '攻撃', d: '防御', h: 'HP' };
 // スキルの強さ(Lvで強くなる)
 const SKV = {};
-['pow', 'swp', 'snp', 'drain', 'heal', 'wall', 'taunt', 'ctr'].forEach(k => { SKV[k] = lv => BAL.sk[k][0] + BAL.sk[k][1] * (lv - 1); });
+Object.keys(BAL.sk).forEach(k => { SKV[k] = lv => BAL.sk[k][0] + BAL.sk[k][1] * (lv - 1); });
 const pct = x => Math.round(x * 100);
 const mul = x => (Math.round(x * 100) / 100).toString();
 const SK = {
-  pow:   { nm: '渾身',     d: lv => '次の攻撃が ' + mul(SKV.pow(lv)) + '倍' },
-  swp:   { nm: '薙ぎ払い', d: lv => '次の攻撃が敵全員に(' + pct(SKV.swp(lv)) + '%)' },
-  snp:   { nm: '狙撃',     d: lv => '次の攻撃で一番弱った敵を ' + mul(SKV.snp(lv)) + '倍で撃つ(挑発を無視)' },
-  drain: { nm: '吸収',     d: lv => '次の攻撃が' + mul(BAL.drainMul) + '倍、与えたダメの' + pct(SKV.drain(lv)) + '%回復' },
-  heal:  { nm: '治癒',     d: lv => 'すぐ: 一番弱った味方をHP' + pct(SKV.heal(lv)) + '%回復' },
-  wall:  { nm: '鉄壁',     d: lv => 'すぐ: 味方全員、次の被ダメ −' + pct(SKV.wall(lv)) + '%' },
-  taunt: { nm: '挑発',     d: lv => 'すぐ: 敵の攻撃を' + BAL.tauntHits + '回ぶん引き受ける(被ダメ −' + pct(SKV.taunt(lv)) + '%)' },
-  ctr:   { nm: '反撃',     d: lv => 'すぐ: 次に攻撃されたら ' + pct(SKV.ctr(lv)) + '% でやり返す' }
+  // 攻撃系(攻がいちばん高いキャラ)
+  pow:   { c: 'a', nm: '渾身',     d: lv => '次の攻撃が ' + mul(SKV.pow(lv)) + '倍' },
+  swp:   { c: 'a', nm: '薙ぎ払い', d: (lv, n) => '次の攻撃が敵全員に(' + pct(SKV.swp(lv) * aoe('swp', n)) + '%)' },
+  snp:   { c: 'a', nm: '狙撃',     d: lv => '次の攻撃で一番弱った敵を ' + mul(SKV.snp(lv)) + '倍で撃つ(挑発を無視)' },
+  rush:  { c: 'a', nm: '連撃',     d: lv => '次の手番で' + BAL.rushN + '回攻撃(1回' + pct(SKV.rush(lv)) + '%)' },
+  // 防御系(防がいちばん高いキャラ)
+  wall:  { c: 'd', nm: '鉄壁',     d: lv => 'すぐ: 味方全員、次の被ダメ −' + pct(SKV.wall(lv)) + '%' },
+  taunt: { c: 'd', nm: '挑発',     d: lv => 'すぐ: 敵の攻撃を' + BAL.tauntHits + '回ぶん引き受ける(被ダメ −' + pct(SKV.taunt(lv)) + '%)' },
+  ctr:   { c: 'd', nm: '反撃',     d: lv => 'すぐ: 次に攻撃されたら ' + pct(SKV.ctr(lv)) + '% でやり返す' },
+  fort:  { c: 'd', nm: '不動',     d: lv => 'すぐ: 自分の防+' + mul(SKV.fort(lv)) + '(試合のあいだずっと)' },
+  // HP系(HPがいちばん高いキャラ)
+  heal:  { c: 'h', nm: '治癒',     d: lv => 'すぐ: 一番弱った味方をHP' + pct(SKV.heal(lv)) + '%回復' },
+  drain: { c: 'h', nm: '吸収',     d: lv => '次の攻撃に自分の最大HPの' + pct(SKV.drain(lv)) + '%を上乗せ(防御無視)、与えたダメの' + pct(BAL.drainHeal) + '%回復' },
+  rain:  { c: 'h', nm: '癒しの雨', d: (lv, n) => 'すぐ: 味方全員をHP' + pct(SKV.rain(lv) * aoe('rain', n)) + '%回復' },
+  rev:   { c: 'h', nm: '蘇生',     d: lv => 'すぐ: 倒れた味方1体をHP' + pct(SKV.rev(lv)) + '%で復活(いなければ一番弱った味方を半分回復)' }
 };
 const SK_KEYS = Object.keys(SK);
-const SK_NOW = { heal: 1, wall: 1, taunt: 1, ctr: 1 };
+const SK_OF = { a: [], d: [], h: [] }; SK_KEYS.forEach(k => SK_OF[SK[k].c].push(k));
+const SK_NOW = { heal: 1, wall: 1, taunt: 1, ctr: 1, fort: 1, rain: 1, rev: 1 };
 
-// 武器の特殊効果(d: くわしい説明 / s: 試合中のカードに出す短い説明)
+// 武器の特殊効果(t: 剣=攻 / 盾=防 / 護符=HP。d: くわしい説明 / s: 試合中のカードに出す短い説明)
 const F_ = BAL.fx;
 const FX = {
-  dbl:     { nm: '双撃', d: () => '2回攻撃(1回' + pct(F_.dbl) + '%)', s: () => '2回攻撃' },
-  first:   { nm: '守護', d: () => '最初に受ける' + F_.firstN + '回のダメージ −' + pct(F_.first) + '%', s: () => '最初の' + F_.firstN + '回 −' + pct(F_.first) + '%' },
-  vamp:    { nm: '吸血', d: () => '与えたダメージの' + pct(F_.vamp) + '%回復', s: () => '与ダメ' + pct(F_.vamp) + '%回復' },
-  crit:    { nm: '会心', d: () => pct(F_.critP) + '%の確率でダメージ' + mul(F_.critM) + '倍', s: () => pct(F_.critP) + '%で' + mul(F_.critM) + '倍' },
-  thorn:   { nm: '茨',   d: () => '受けたダメージの' + pct(F_.thorn) + '%を相手に返す', s: () => '被ダメ' + pct(F_.thorn) + '%返し' },
-  pre:     { nm: '先制', d: () => '試合開始の瞬間に先制攻撃(' + mul(F_.pre) + '倍)', s: () => '開幕に先制' },
-  evade:   { nm: '疾風', d: () => pct(F_.evade) + '%の確率で攻撃をかわす', s: () => pct(F_.evade) + '%で回避' },
-  regen:   { nm: '再生', d: () => '自分の手番ごとにHP' + pct(F_.regen) + '%回復', s: () => '毎手番' + pct(F_.regen) + '%回復' },
-  pierce:  { nm: '貫通', d: () => '相手の防御を' + pct(F_.pierce) + '%無視(硬い相手ほど効く)', s: () => '防御' + pct(F_.pierce) + '%無視' },
-  last:    { nm: '背水', d: () => 'HP半分以下で与ダメージ' + mul(F_.last) + '倍', s: () => 'HP半分以下' + mul(F_.last) + '倍' },
-  undying: { nm: '不死', d: () => '倒れる攻撃を1度だけ耐えて、HP' + pct(F_.undying) + '%で踏みとどまる', s: () => '1度だけ耐える' }
+  // 剣(攻+)
+  dbl:     { t: 'a', nm: '双撃', d: () => '2回攻撃(1回' + pct(F_.dbl) + '%)', s: () => '2回攻撃' },
+  crit:    { t: 'a', nm: '会心', d: () => pct(F_.critP) + '%の確率でダメージ' + mul(F_.critM) + '倍', s: () => pct(F_.critP) + '%で' + mul(F_.critM) + '倍' },
+  pre:     { t: 'a', nm: '先制', d: () => '試合開始の瞬間に先制攻撃' + (F_.pre === 1 ? '' : '(' + mul(F_.pre) + '倍)'), s: () => '開幕に先制' },
+  pierce:  { t: 'a', nm: '貫通', d: () => '相手の防御を' + pct(F_.pierce) + '%無視(硬い相手ほど効く)', s: () => '防御' + pct(F_.pierce) + '%無視' },
+  last:    { t: 'a', nm: '背水', d: () => 'HP半分以下で与ダメージ' + mul(F_.last) + '倍', s: () => 'HP半分以下' + mul(F_.last) + '倍' },
+  exe:     { t: 'a', nm: '処刑', d: () => 'HP' + pct(F_.exe) + '%以下の敵へのダメージ' + mul(F_.exeM) + '倍', s: () => '弱った敵に' + mul(F_.exeM) + '倍' },
+  rage:    { t: 'a', nm: '闘志', d: () => '攻撃を受けるたびに与ダメ+' + pct(F_.rage) + '%(最大+' + pct(F_.rage * F_.rageMax) + '%)', s: () => '殴られるほど強く' },
+  // 盾(防+)
+  first:   { t: 'd', nm: '守護', d: () => '最初に受ける' + F_.firstN + '回のダメージ −' + pct(F_.first) + '%', s: () => '最初の' + F_.firstN + '回 −' + pct(F_.first) + '%' },
+  thorn:   { t: 'd', nm: '茨',   d: () => '受けたダメージの' + pct(F_.thorn) + '%を相手に返す', s: () => '被ダメ' + pct(F_.thorn) + '%返し' },
+  evade:   { t: 'd', nm: '疾風', d: () => pct(F_.evade) + '%の確率で攻撃をかわす', s: () => pct(F_.evade) + '%で回避' },
+  cap:     { t: 'd', nm: '堅牢', d: () => '1回に受けるダメージは最大HPの' + pct(F_.cap) + '%まで', s: () => '被ダメ上限' + pct(F_.cap) + '%' },
+  aegis:   { t: 'd', nm: '加護', d: n => '味方全員の被ダメ −' + pct(F_.aegis * aoe('aegis', n)) + '%(何人持っていても同じ)', s: n => '味方の被ダメ−' + pct(F_.aegis * aoe('aegis', n)) + '%' },
+  // 護符(HP+)
+  vamp:    { t: 'h', nm: '吸血', d: () => '与えたダメージの' + pct(F_.vamp) + '%回復', s: () => '与ダメ' + pct(F_.vamp) + '%回復' },
+  regen:   { t: 'h', nm: '再生', d: () => '自分の手番ごとにHP' + pct(F_.regen) + '%回復', s: () => '毎手番' + pct(F_.regen) + '%回復' },
+  undying: { t: 'h', nm: '不死', d: () => '倒れる攻撃を1度だけ耐えて、HP' + pct(F_.undying) + '%で踏みとどまる', s: () => '1度だけ耐える' },
+  bless:   { t: 'h', nm: '祝福', d: () => '自分の手番ごとに、一番弱った味方をHP' + pct(F_.bless) + '%回復', s: () => '毎手番 味方回復' }
 };
 const FX_KEYS = Object.keys(FX);
+const FX_OF = { a: [], d: [], h: [] }; FX_KEYS.forEach(k => FX_OF[FX[k].t].push(k));
+const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防', h: 'HP' };
 
 const rarOf = tot => tot <= 10 ? 'N' : tot <= 14 ? 'R' : tot <= 18 ? 'SR' : 'SSR';
-const wName = w => FX[w.fx].nm + 'の' + (w.t === 'a' ? '剣' : '盾');
-const wStat = w => (w.t === 'a' ? '攻' : '防') + '+' + w.v;
+const wName = w => FX[w.fx].nm + 'の' + W_KIND[w.t];
+const wStat = w => W_STAT[w.t] + '+' + w.v;
+// キャラの系統: 一番高いステ(同点ならその中からランダム。全部の差が1以内なら万能)
+function catOf(a, d, h, rnd){ const s = [a, d, h], mx = Math.max(a, d, h), mn = Math.min(a, d, h); if(mx - mn <= 1) return ''; const top = ['a', 'd', 'h'].filter((k, i) => s[i] === mx); return top[Math.floor(rnd() * top.length)]; }
 const maxHp = h => Math.round(BAL.hp0 * Math.pow(BAL.base, h - 3));
 
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
-function okW(w){ return w === null || (w && (w.t === 'a' || w.t === 'd') && isInt(w.v, 1, 3) && FX[w.fx]); }
+function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && FX[w.fx] && FX[w.fx].t === w.t); }
 function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
@@ -155,10 +185,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const w = c.w || null;
     d.appendChild(statRow('攻', c.a, w && w.t === 'a' ? w.v : 0));
     d.appendChild(statRow('防', c.d, w && w.t === 'd' ? w.v : 0));
-    d.appendChild(statRow('HP', c.h, 0));
-    const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[c.sk.t].nm + ' Lv' + c.sk.lv)); k.appendChild(el('span', '', SK[c.sk.t].d(c.sk.lv))); d.appendChild(k);
+    d.appendChild(statRow('HP', c.h, w && w.t === 'h' ? w.v : 0));
+    const k = el('div', 'ac-k'); const kb = el('b', '', SK[c.sk.t].nm + ' Lv' + c.sk.lv); kb.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c] + 'スキル')); k.appendChild(kb); k.appendChild(el('span', '', SK[c.sk.t].d(c.sk.lv, pSize))); d.appendChild(k);
     const wd = el('div', 'ac-w' + (w ? ' wr wr' + w.v : ''));
-    if(w){ wd.appendChild(el('b', '', '★'.repeat(w.v) + ' ' + wName(w) + ' ' + wStat(w))); wd.appendChild(el('span', '', FX[w.fx].d())); }
+    if(w){ wd.appendChild(el('b', '', '★'.repeat(w.v) + ' ' + wName(w) + ' ' + wStat(w))); wd.appendChild(el('span', '', FX[w.fx].d(pSize))); }
     else wd.appendChild(el('span', '', '装備なし'));
     d.appendChild(wd);
     return d;
@@ -167,17 +197,52 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const d = el('div', 'ac wc r-' + (w.v === 3 ? 'SSR' : w.v === 2 ? 'SR' : 'R') + ' reveal');
     const h = el('div', 'ac-h'); h.appendChild(el('span', 'rar', '★'.repeat(w.v))); h.appendChild(el('b', '', wName(w))); h.appendChild(el('span', 'tot', wStat(w)));
     d.appendChild(h);
-    const wd = el('div', 'ac-w'); wd.appendChild(el('b', '', '特殊効果')); wd.appendChild(el('span', '', FX[w.fx].d())); d.appendChild(wd);
+    const wd = el('div', 'ac-w'); wd.appendChild(el('b', '', '特殊効果')); wd.appendChild(el('span', '', FX[w.fx].d(pSize))); d.appendChild(wd);
     return d;
   }
 
+  // ステータスを1行で(w を渡すと、その武器をつけたあとの値を「5→8」で見せる)
+  function statLine(c, w){
+    const d = el('span', 'sline'), cw = c.w || null;
+    [['攻', 'a'], ['防', 'd'], ['HP', 'h']].forEach(([lab, k]) => {
+      const base = c[k], now = cw && cw.t === k ? cw.v : 0;
+      const it = el('span', 'sl-i'); it.appendChild(el('i', '', lab));
+      if(w){
+        const nx = w.t === k ? w.v : 0;
+        if(nx !== now){ it.appendChild(el('b', '', String(base + now))); it.appendChild(el('em', nx > now ? 'up' : 'dn', '→' + (base + nx))); }
+        else it.appendChild(el('b', '', String(base + now)));
+      }else{
+        it.appendChild(el('b', '', String(base)));
+        if(now) it.appendChild(el('em', 'up', '+' + now));
+      }
+      d.appendChild(it);
+    });
+    return d;
+  }
+  // 5体のとき用の細いカード(タップでくわしく)
+  function slimCard(c, extra){
+    const rar = rarOf(c.a + c.d + c.h), w = c.w || null;
+    const d = el('div', 'ac slim r-' + rar + (extra ? ' ' + extra : ''));
+    d.appendChild(avOf(c, 40));
+    const m = el('div', 'sl-m');
+    const t = el('div', 'sl-t'); t.appendChild(el('span', 'rar', rar)); t.appendChild(el('b', '', c.nm)); t.appendChild(statLine(c)); m.appendChild(t);
+    const b = el('div', 'sl-b');
+    const k = el('span', 'sl-k', SK[c.sk.t].nm + ' Lv' + c.sk.lv); k.appendChild(el('i', 'skc c-' + SK[c.sk.t].c, CAT[SK[c.sk.t].c])); b.appendChild(k);
+    b.appendChild(el('span', 'sl-w' + (w ? ' wr' + w.v : ''), w ? '★'.repeat(w.v) + ' ' + wName(w) : '装備なし'));
+    m.appendChild(b); d.appendChild(m);
+    d.onclick = () => { const box = $('a-info'); box.textContent = ''; box.appendChild(charCard(c)); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる')); box.onclick = () => box.classList.remove('on'); box.classList.add('on'); };
+    return d;
+  }
+  const partyCard = (c, extra) => pSize === 5 ? slimCard(c, extra) : charCard(c, extra);
   function renderBuild(){
     if(!me) return;
     $('a-tk').textContent = String(me.tk);
     $('a-tk').parentElement.classList.toggle('full', me.tk >= CFG.CAP);
     $('a-lost').textContent = me.lost ? 'あふれた ' + me.lost + '回' : '';
     const party = $('a-party'); party.textContent = '';
-    me.p.forEach((c, i) => party.appendChild(charCard(c, me.flash === i ? 'flash' : '')));
+    party.classList.toggle('slim', pSize === 5);
+    if(party.previousElementSibling) party.previousElementSibling.textContent = 'パーティ(最大' + pSize + '体)' + (pSize === 5 ? ' — タップでくわしく' : '');
+    me.p.forEach((c, i) => party.appendChild(partyCard(c, me.flash === i ? 'flash' : '')));
     for(let i = me.p.length; i < pSize; i++){ const e = el('div', 'ac empty', '空き枠 — キャラガチャで仲間が増える'); party.appendChild(e); }
     me.flash = -1;
     renderPanel();
@@ -198,7 +263,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     E.send({ t: 'dec', slot, n: ++nonce }, true);
   }
   // c を渡すと、左にそのキャラの顔を出す(だれを選んでいるか分かりやすく)
-  function bigBtn(title, sub, on, fn, c){
+  function bigBtn(title, sub, on, fn, c, stats){
     const b = el('button', 'abtn');
     let tx = b;
     if(c){
@@ -206,7 +271,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       b.appendChild(avOf(c, 40));
       tx = el('span', 'abtn-t'); b.appendChild(tx);
     }
-    tx.appendChild(el('b', '', title)); tx.appendChild(el('small', '', sub));
+    tx.appendChild(el('b', '', title));
+    if(stats) tx.appendChild(stats);
+    if(sub) tx.appendChild(el('small', '', sub));
     b.disabled = !on; b.onclick = fn; return b;
   }
   function renderPanel(){
@@ -220,17 +287,17 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         note.classList.remove('over');
         note.textContent = 'パーティがいっぱい。だれと入れ替える?(装備とスキルLvは引き継ぐ)';
         box.appendChild(charCard(pd.c, 'reveal'));
-        const g = el('div', 'agrid');
+        const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
         const nt = pd.c.a + pd.c.d + pd.c.h;
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + (c.sk.lv > 1 ? ' / スキルLv' + c.sk.lv + 'を引き継ぐ' : ''), true, () => decide(i), c)));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + ' / ' + SK[c.sk.t].nm + 'Lv' + c.sk.lv + (c.w ? ' / ' + '★'.repeat(c.w.v) + wName(c.w) : '') + (c.sk.lv > 1 ? '(スキルLvと装備は引き継ぐ)' : c.w ? '(装備は引き継ぐ)' : ''), true, () => decide(i), c, statLine(c))));
         g.appendChild(bigBtn('捨てる', 'いまのパーティのまま', true, () => decide(-1)));
         box.appendChild(g);
       }else{
         note.classList.remove('over');
         note.textContent = 'だれに装備する?(前の装備は捨てる)';
         box.appendChild(wCard(pd.w));
-        const g = el('div', 'agrid');
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i), c)));
+        const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', (c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし') + ' / ' + SK[c.sk.t].nm + 'Lv' + c.sk.lv, true, () => decide(i), c, statLine(c, pd.w))));
         g.appendChild(bigBtn('捨てる', '装備しない', true, () => decide(-1)));
         box.appendChild(g);
       }
@@ -239,8 +306,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     if(uiMode === 'sk'){
       note.classList.remove('over');
       note.textContent = 'どのキャラのスキルを強化する?';
-      const g = el('div', 'agrid');
-      me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); }, c)); });
+      const g = el('div', 'agrid' + (pSize === 5 ? ' slim' : ''));
+      me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1, pSize), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); }, c)); });
       g.appendChild(bigBtn('やめる', '', true, () => { uiMode = ''; renderPanel(); }));
       box.appendChild(g);
       return;
@@ -250,8 +317,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(' + Math.round(tickMs / 1000) + '秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
     note.classList.toggle('over', me.tk >= CFG.CAP);
     const skOk = me.p.some(c => c.sk.lv < SK_MAX);
-    box.appendChild(bigBtn('キャラガチャ', 'ステ合計6〜21のキャラ。スキルつき', can, () => act('ch')));
-    box.appendChild(bigBtn('装備ガチャ', '攻か防が上がる武器。特殊効果つき', can, () => act('wp')));
+    box.appendChild(bigBtn('キャラガチャ', 'ステ合計6〜21。一番高いステに合ったスキルつき', can, () => act('ch')));
+    box.appendChild(bigBtn('装備ガチャ', '剣(攻+)・盾(防+)・護符(HP+)。系統に合った効果つき', can, () => act('wp')));
     box.appendChild(bigBtn('スキル強化', skOk ? 'えらんだキャラのスキルLv+1' : '全員Lv' + SK_MAX + '(最大)', can && skOk, () => { uiMode = 'sk'; renderPanel(); }));
   }
   function onMe(m){
@@ -294,7 +361,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   function renderPartyOnly(){
     if(!me) return;
     const party = $('a-party'); party.textContent = '';
-    me.p.forEach(c => party.appendChild(charCard(c)));
+    me.p.forEach(c => party.appendChild(partyCard(c)));
   }
   function fanfare(rar){
     E.audio.init();
@@ -337,8 +404,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
 
   // ---- 試合 ----
-  const FL = { used: 1, armed: 2, wall: 4, taunt: 8, ctr: 16, first: 32, und: 64 };
-  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && (u.wt === 'a' || u.wt === 'd') && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
+  const FL = { used: 1, armed: 2, wall: 4, taunt: 8, ctr: 16, first: 32, und: 64, fort: 128 };
+  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && FX[u.fx].t === u.wt && isInt(u.wv, 1, 3))) && typeof u.r === 'string'; }
   function onMs(m){
     if(!isInt(m.mi, 1, 1e6) || !m.a || !m.b || !Array.isArray(m.a.u) || !Array.isArray(m.b.u)) return;
     const N = m.a.u.length;
@@ -378,7 +445,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       const hpt = el('div', 'bu-hp', u.mhp + '/' + u.mhp); c.appendChild(hpt);
       c.appendChild(el('div', 'bu-s', '攻' + u.A + ' 防' + u.D));
       const wv = el('div', 'bu-w' + (u.fx ? ' wr wr' + u.wv : ' none'));
-      if(u.fx){ wv.appendChild(el('b', '', FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); wv.appendChild(el('span', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].s())); }
+      if(u.fx){ wv.appendChild(el('b', '', wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv }))); wv.appendChild(el('span', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].s(bt.N))); }
       else wv.appendChild(el('span', '', '装備なし'));
       c.appendChild(wv);
       c.onclick = e => { if(e.target.closest('.bu-sk')) return; showInfo(u); };
@@ -386,10 +453,10 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       let btn;
       if(side === bt.mySide){
         btn = el('button', 'bu-sk');
-        btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv)));
+        btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
         btn.onclick = () => useSkill(ui);
       }else{
-        btn = el('div', 'bu-sk ro'); btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv)));
+        btn = el('div', 'bu-sk ro'); btn.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); btn.appendChild(el('small', '', SK[u.sk].d(u.lv, bt.N)));
       }
       c.appendChild(btn);
       row.appendChild(c);
@@ -404,11 +471,11 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const h = el('div', 'ac-h'); h.appendChild(avOf(u, 56));
     const nmb = el('div', 'ac-nm'); nmb.appendChild(el('span', 'rar', u.r)); nmb.appendChild(el('b', '', u.nm)); h.appendChild(nmb);
     h.appendChild(el('span', 'tot', '最大HP ' + u.mhp)); card.appendChild(h);
-    const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0;
-    card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', u.h, 0));
-    const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv))); card.appendChild(k);
+    const bA = u.wt === 'a' ? u.wv : 0, bD = u.wt === 'd' ? u.wv : 0, bH = u.wt === 'h' ? u.wv : 0;
+    card.appendChild(statRow('攻', u.A - bA, bA)); card.appendChild(statRow('防', u.D - bD, bD)); card.appendChild(statRow('HP', u.h, bH));
+    const k = el('div', 'ac-k'); k.appendChild(el('b', '', SK[u.sk].nm + ' Lv' + u.lv)); k.appendChild(el('span', '', SK[u.sk].d(u.lv, bt.N))); card.appendChild(k);
     const w = el('div', 'ac-w' + (u.fx ? ' wr wr' + u.wv : ''));
-    if(u.fx){ w.appendChild(el('b', '', '★'.repeat(u.wv) + ' ' + FX[u.fx].nm + (u.wt === 'a' ? 'の剣 攻+' : 'の盾 防+') + u.wv)); w.appendChild(el('span', '', FX[u.fx].d())); }
+    if(u.fx){ w.appendChild(el('b', '', '★'.repeat(u.wv) + ' ' + wName({ t: u.wt, fx: u.fx }) + ' ' + wStat({ t: u.wt, v: u.wv }))); w.appendChild(el('span', '', FX[u.fx].d(bt.N))); }
     else w.appendChild(el('span', '', '装備なし'));
     card.appendChild(w);
     box.appendChild(card); box.appendChild(el('div', 'ainfo-x', 'タップで閉じる'));
@@ -449,7 +516,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       newHp[ui] = { hp, was: cd.hp, und: (cd.fl & FL.und) && !(fl & FL.und) };
       cd.hp = hp; cd.fl = fl;
       cd.st.textContent = '';
-      [['armed', '溜'], ['wall', '壁'], ['taunt', '挑'], ['ctr', '返'], ['first', '守'], ['und', '不']].forEach(([k, t]) => { if(fl & FL[k]) cd.st.appendChild(el('span', '', t)); });
+      [['armed', '溜'], ['wall', '壁'], ['taunt', '挑'], ['ctr', '返'], ['first', '守'], ['und', '不'], ['fort', '固']].forEach(([k, t]) => { if(fl & FL[k]) cd.st.appendChild(el('span', '', t)); });
       if(cd.btn.tagName === 'BUTTON') cd.btn.disabled = !!(fl & FL.used) || hp <= 0 || bt.done;
       if((fl & FL.used) && !cd.btn.classList.contains('done')){ cd.btn.classList.add('fired', 'done'); cd.btn.lastChild.textContent = '使用済み'; }
     });
@@ -576,11 +643,13 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       for(const i of idx){ if((x -= w[i]) < 0){ j = i; break; } }
       s[j]++;
     }
-    return { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
+    const cat = catOf(s[0], s[1], s[2], rndF);
+    return { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(cat ? SK_OF[cat] : SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
   }
   function rollWeapon(){
     const r = rndF(), i = r < BAL.wv[0] ? 0 : r < BAL.wv[0] + BAL.wv[1] ? 1 : 2;
-    return { t: rndF() < .5 ? 'a' : 'd', v: BAL.wAdd[i], fx: pick(FX_KEYS) };
+    const t = pick(['a', 'd', 'h']);
+    return { t, v: BAL.wAdd[i], fx: pick(FX_OF[t]) };
   }
   function starter(){ return { nm: 'ルーキー', a: 3, d: 3, h: 3, sk: { t: 'pow', lv: 1 }, w: null, av: 0 }; }
   function readMins(){
@@ -698,8 +767,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   // =====================================================================
   function mkUnit(c, side, i){
     const w = c.w || null;
-    return { side, i, nm: c.nm, r: rarOf(c.a + c.d + c.h), A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp: maxHp(c.h), hp: maxHp(c.h),
-      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
+    return { side, i, nm: c.nm, r: rarOf(c.a + c.d + c.h), A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp: maxHp(c.h + (w && w.t === 'h' ? w.v : 0)), hp: maxHp(c.h + (w && w.t === 'h' ? w.v : 0)),
+      sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, fort: 0, rg: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
   }
   const pubU = u => u ? { nm: u.nm, r: u.r, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h, a: u.a, d: u.d, av: u.av } : null;
   function newBattle(idA, idB, rnd, n){
@@ -726,6 +795,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
   }
   function hurt(B, u, dmg, L, F, kind, src){
     u.hp -= dmg; F.push([idxOf(B, u), dmg, kind || 'd', src === undefined ? -1 : src]);      // 4つめ = 攻撃した側(演出用)
+    if(u.fx === 'rage' && u.hp > 0 && u.rg < BAL.fx.rageMax) u.rg++;
     if(u.hp <= 0){
       if(u.und){ u.und = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.fx.undying)); L.push(u.nm + ' は不死の力で踏みとどまった!'); }
       else{ u.hp = 0; u.armed = ''; u.taunt = 0; u.ctr = 0; L.push(u.nm + ' は倒れた'); }
@@ -738,13 +808,18 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     const D = a.fx === 'pierce' ? d.D * (1 - f.pierce) : d.D;
     let x = BAL.K * Math.pow(BAL.base, a.A - D) * mult * fat(B);
     if(a.fx === 'last' && a.hp * 2 <= a.mhp) x *= f.last;
+    if(a.fx === 'rage' && a.rg) x *= 1 + f.rage * a.rg;
+    const tags = [];
+    if(a.fx === 'exe' && d.hp <= d.mhp * f.exe){ x *= f.exeM; tags.push('処刑'); }
     const crit = a.fx === 'crit' && B.rnd() < f.critP; if(crit) x *= f.critM;
     x *= 1 - BAL.rnd + B.rnd() * BAL.rnd * 2;
-    const tags = [];
+    if(opt.flat) x += opt.flat * fat(B);
+    if(mates(B, d).some(m => m.fx === 'aegis')) x *= 1 - f.aegis * aoe('aegis', B.N);
     if(d.first > 0){ x *= 1 - f.first; d.first--; tags.push('守護'); }
     if(d.wall){ x *= 1 - d.wall; d.wall = 0; tags.push('鉄壁'); }
     if(d.taunt){ x *= 1 - d.taunt; if(--d.tauntN <= 0) d.taunt = 0; }
-    const dmg = Math.max(1, Math.round(x));
+    let dmg = Math.max(1, Math.round(x));
+    if(d.fx === 'cap'){ const c = Math.max(1, Math.round(d.mhp * f.cap)); if(dmg > c){ dmg = c; tags.push('堅牢'); } }
     L.push((opt.lab || a.nm) + ' → ' + d.nm + ' ' + dmg + (crit ? ' 会心!' : '') + (tags.length ? '(' + tags.join('・') + ')' : ''));
     hurt(B, d, dmg, L, F, crit ? 'c' : 'd', idxOf(B, a));
     if(alive(a)){
@@ -768,18 +843,29 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     else if(u.sk === 'wall') mates(B, u).forEach(x => { x.wall = Math.max(x.wall, v); });
     else if(u.sk === 'taunt'){ u.taunt = v; u.tauntN = BAL.tauntHits; }
     else if(u.sk === 'ctr') u.ctr = v;
+    else if(u.sk === 'fort'){ u.D += v; u.fort = 1; L.push(u.nm + ' の防が +' + mul(v)); }
+    else if(u.sk === 'rain') mates(B, u).forEach(x => heal(B, x, x.mhp * v * aoe('rain', B.N), L, F));
+    else if(u.sk === 'rev'){
+      const down = B.u.filter(x => x && x.side === u.side && x.hp <= 0);
+      if(down.length){
+        const t = down.reduce((m, x) => x.mhp > m.mhp ? x : m, down[0]);
+        t.hp = Math.max(1, Math.round(t.mhp * v)); F.push([idxOf(B, t), t.hp, 'h']); L.push(t.nm + ' が復活した!');
+      }else{ const ms = mates(B, u); const t = ms.reduce((m, x) => x.hp / x.mhp < m.hp / m.mhp ? x : m, ms[0]); const h = heal(B, t, t.mhp * v / 2, L, F); L.push(t.nm + ' のHPが ' + h + ' 回復'); }
+    }
   }
   function unitAct(B, u, L, F){
     if(u.fx === 'regen') heal(B, u, u.mhp * BAL.fx.regen, L, F);
+    if(u.fx === 'bless'){ const ms = mates(B, u); const t = ms.reduce((m, x) => x.hp / x.mhp < m.hp / m.mhp ? x : m, ms[0]); heal(B, t, t.mhp * BAL.fx.bless, L, F); }
     const mode = u.armed; u.armed = '';
     const v = mode ? SKV[mode](u.lv) : 0;
-    if(mode === 'swp'){ foes(B, u).forEach(e => { if(alive(u)) hit(B, u, e, v, L, F); }); return; }
-    const m = mode === 'pow' ? v : mode === 'snp' ? v : mode === 'drain' ? BAL.drainMul : 1;
+    if(mode === 'swp'){ foes(B, u).forEach(e => { if(alive(u)) hit(B, u, e, v * aoe('swp', B.N), L, F); }); return; }
+    if(mode === 'rush'){ for(let h = 0; h < BAL.rushN && alive(u); h++){ const t = target(B, u, ''); if(!t) break; hit(B, u, t, v, L, F); } return; }
+    const m = mode === 'pow' ? v : mode === 'snp' ? v : 1;
     const hits = u.fx === 'dbl' ? 2 : 1;
     for(let h = 0; h < hits; h++){
       if(!alive(u)) break;
       const t = target(B, u, h === 0 ? mode : ''); if(!t) break;
-      hit(B, u, t, m * (hits === 2 ? BAL.fx.dbl : 1), L, F, { drain: mode === 'drain' ? v : 0 });
+      hit(B, u, t, m * (hits === 2 ? BAL.fx.dbl : 1), L, F, h === 0 && mode === 'drain' ? { flat: u.mhp * v, drain: BAL.drainHeal } : {});
     }
   }
   function nextActor(B){
@@ -822,7 +908,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     checkEnd(B);
     return { L, F };
   }
-  const flags = u => u ? (u.used ? 1 : 0) | (u.armed ? 2 : 0) | (u.wall ? 4 : 0) | (u.taunt ? 8 : 0) | (u.ctr ? 16 : 0) | (u.first ? 32 : 0) | (u.und ? 64 : 0) : 0;
+  const flags = u => u ? (u.used ? 1 : 0) | (u.armed ? 2 : 0) | (u.wall ? 4 : 0) | (u.taunt ? 8 : 0) | (u.ctr ? 16 : 0) | (u.first ? 32 : 0) | (u.und ? 64 : 0) | (u.fort ? 128 : 0) : 0;
   const snap = B => B.u.map(u => u ? [u.hp, flags(u)] : null);
 
   function startMatch(r, j){

@@ -22,7 +22,7 @@ let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'aren
 // ---------- 音 ----------
 let ac = null;
 const audio = {
-  init(){ if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(ac && ac.state === 'suspended') ac.resume(); },
+  init(){ if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(!ac) return; if(window.NomiSound) window.NomiSound.track(ac); else if(ac.state !== 'running') ac.resume(); },
   heartbeat(vol){
     if(!ac) return; const t = ac.currentTime;
     [[58, 0, .22, .6], [46, .16, .2, .4]].forEach(([f, d, len, g]) => {
@@ -126,7 +126,8 @@ function camMsg(e){
 //  状態
 // =====================================================================
 let role = null, room = null, guest = null, myId = -1;
-let roster = [];                    // [{id,name,rtt}]
+let roster = [];                    // [{id,name,rtt,aw}]  aw = しばらく通信が届いていない
+const bench = new Set();            // ゲームの途中で通信がもどってきた人(そのゲームには参加せず、次のゲームから)
 let curId = null, game = null, lastGame = null, userLocked = false, solo = false;
 const nameOf = id => { const p = roster.find(r => r.id === id); return p ? p.name : '?'; };
 
@@ -147,7 +148,7 @@ const E = {
   quiet: on => setQuiet(on),
   get isHost(){ return role === 'host'; },
   get myId(){ return myId; },
-  players: () => roster.slice(),
+  players: () => roster.filter(p => !bench.has(p.id)),
   send(obj, rel){ obj.g = curId; if(role === 'host'){ if(game && game.hostOnMsg) game.hostOnMsg(0, obj); } else if(guest) guest.send(obj, !!rel); },
   hostSend(id, obj, rel){ obj.g = curId; if(id === 0){ if(game && game.onMsg) game.onMsg(obj); } else if(room) room.sendTo(id, obj, !!rel); },
   hostBcast(obj, rel){ obj.g = curId; if(room) room.bcast(obj, !!rel); if(game && game.onMsg) game.onMsg(obj); },
@@ -205,6 +206,8 @@ const RULES = [
     '育成タイム(1〜10分)の間にパーティを強くする。最初は全員「攻3 防3 HP3」のキャラ1体',
     '10秒ごとに行動が1回たまる(ハードモードは5秒ごと。最大3回。満タンのままだと、あふれて無駄になる)',
     '行動ごとに「キャラガチャ」「装備ガチャ」「スキル強化」から1つ選ぶ。パーティは最大3体(5体バトルなら5体)',
+    'キャラは一番高いステに合ったスキルを持つ(攻→攻撃スキル、防→防御スキル、HP→回復・粘りスキル)',
+    '武器は 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果がつく',
     '5体バトルは、育成タイム5分以上(ハードなら3分以上)のときにホストが選べる',
     '時間切れで、ランダムなトーナメント。戦闘は自動',
     '試合中にできるのは、各キャラのスキルを使うタイミングを選ぶことだけ(1試合1回)',
@@ -253,7 +256,7 @@ function renderLobby(){
     const row = document.createElement('div'); row.className = 'prow';
     const a = document.createElement('span'); a.textContent = p.name;
     const right = document.createElement('span');
-    const tag = document.createElement('small'); tag.textContent = p.id === 0 ? (solo ? 'あなた' : 'ホスト') : (p.id === myId ? 'あなた' : (solo ? 'CPU' : '')); right.appendChild(tag);
+    const tag = document.createElement('small'); tag.textContent = (p.aw ? '通信待ち… ' : '') + (p.id === 0 ? (solo ? 'あなた' : 'ホスト') : (p.id === myId ? 'あなた' : (solo ? 'CPU' : ''))); right.appendChild(tag);
     if(role === 'host' && p.id !== 0){
       const k = document.createElement('button'); k.className = 'kick'; k.textContent = solo ? '✕ 減らす' : '✕ 外す'; k.style.marginLeft = '8px';
       k.addEventListener('click', () => { room.kick(p.id); }); right.appendChild(k);
@@ -387,7 +390,7 @@ window.__chatVis = id => { $('chat-btn').classList.toggle('hide', !inRoom() || i
 //  ホスト
 // =====================================================================
 function hostLeave(p, why){
-  roster = roster.filter(r => r.id !== p.id);
+  roster = roster.filter(r => r.id !== p.id); bench.delete(p.id);
   if(game && game.hostOnLeave) game.hostOnLeave(p.id);
   pushRoster();
   if(why !== 'kicked') flashBanner(p.name + ' が抜けたよ', 3000);
@@ -433,7 +436,11 @@ async function hostCreate(){
   try{
     room = await R.host({
       onNet,
-      onJoin: p => { pushRoster(); flashBanner(p.name + ' が参加したよ', 2500); vibrate(60); },
+      onJoin: (p, back) => {
+        // 通信が切れて外れていた人がもどってきた。ゲームの途中なら、そのゲームには入れず次から
+        if(back && curId){ bench.add(p.id); room.sendTo(p.id, { t: 'lobby', why: '通信が切れていた間にゲームが進んだので、次のゲームから参加してね' }, true); }
+        pushRoster(); flashBanner(p.name + (back ? ' がもどってきたよ' : ' が参加したよ'), 2500); vibrate(60);
+      },
       onLeave: hostLeave,
       onMsg: (id, o) => { if(o && o.t === 'chat'){ hostChat(id, o); return; } if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }
     });
@@ -444,18 +451,22 @@ async function hostCreate(){
 }
 function refreshRtt(){
   let ch = false;
-  roster.forEach(r => { const p = room.peers.get(r.id); if(p && p.rtt !== r.rtt){ r.rtt = p.rtt; ch = true; } });
+  roster.forEach(r => {
+    const p = room.peers.get(r.id); if(!p) return;
+    if(p.rtt !== r.rtt){ r.rtt = p.rtt; ch = true; }
+    const aw = room.away && room.away(r.id) ? 1 : 0; if(aw !== (r.aw || 0)){ r.aw = aw; ch = true; if($('s-lobby').classList.contains('active')) renderLobby(); }
+  });
   if(ch) room.bcast({ t: 'roster', players: roster }, false);
 }
 function pushRoster(){
-  roster = [{ id: 0, name: myName, rtt: 0 }].concat(Array.from(room.peers.values()).map(p => ({ id: p.id, name: p.name, rtt: p.rtt })));
+  roster = [{ id: 0, name: myName, rtt: 0 }].concat(Array.from(room.peers.values()).map(p => ({ id: p.id, name: p.name, rtt: p.rtt, aw: room.away && room.away(p.id) ? 1 : 0 })));
   room.bcast({ t: 'roster', players: roster, want: wantGame }, true);
   if($('s-lobby').classList.contains('active')) renderLobby();
 }
 function startGame(gid){
   if(role !== 'host' || roster.length < 2 || !window.NomiGames[gid]) return;
   if(game && game.stop) game.stop();
-  room.setLocked(true);
+  room.setLocked(true); bench.clear();
   curId = gid; lastGame = gid; document.body.dataset.game = gid; game = window.NomiGames[gid].make(E);
   room.bcast({ t: 'begin', g: gid }, true);
   audio.init(); keepAwake();
@@ -464,7 +475,7 @@ function startGame(gid){
 function toLobby(why){
   if(game && game.stop) game.stop();
   game = null; curId = null; resetFx();
-  if(role === 'host'){ room.setLocked(userLocked); room.bcast({ t: 'lobby', why: why || '' }, true); }
+  if(role === 'host'){ room.setLocked(userLocked); room.bcast({ t: 'lobby', why: why || '' }, true); if(bench.size){ bench.clear(); pushRoster(); } }
   $('picker').classList.remove('on');
   renderLobby(); show('s-lobby');
   if(why) flashBanner(why, 4000);
@@ -491,7 +502,8 @@ async function joinWith(text){
       name: myName, onNet,
       onWelcome: id => { role = 'guest'; myId = id; roster = []; keepAwake(); audio.init(); renderLobby(); show('s-lobby'); },
       onMsg: guestMsg,
-      onStall: () => showBanner('ホストの応答がありません(ホストのスマホが止まってるかも)'),
+      onStall: () => showBanner('ホストの応答がありません(ホストのスマホが止まってるかも)…待っています'),
+      onResume: () => { if($('banner').textContent.indexOf('ホストの応答がありません') === 0) flashBanner('ホストとつながり直したよ', 2000); },
       onEnd: why => {
         const wasIn = role === 'guest';
         guestCleanup();
@@ -508,7 +520,7 @@ function guestCleanup(){
 function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
   if(o.t === 'roster' && Array.isArray(o.players)){
-    roster = o.players.filter(p => p && Number.isInteger(p.id)).slice(0, 8).map(p => ({ id: p.id, name: clean(p.name) || '?', rtt: Number.isFinite(p.rtt) ? p.rtt : 0 }));
+    roster = o.players.filter(p => p && Number.isInteger(p.id)).slice(0, 8).map(p => ({ id: p.id, name: clean(p.name) || '?', rtt: Number.isFinite(p.rtt) ? p.rtt : 0, aw: p.aw === 1 ? 1 : 0 }));
     if(RULES.some(x => x.g === o.want)) hostWant = o.want;
     if($('s-lobby').classList.contains('active')) renderLobby();
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){

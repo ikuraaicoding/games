@@ -233,6 +233,31 @@ summary{ font-size:.76rem; color:var(--sub); }
 .abtn.wf svg.face{ border-radius:10px; }
 .abtn-t{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .abtn small{ font-size:.7rem; color:var(--sub); }
+/* ステータスを1行で */
+.sline{ display:inline-flex; gap:8px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.sl-i{ display:inline-flex; align-items:baseline; gap:2px; font-size:.78rem; }
+.sl-i i{ font-style:normal; font-size:.62rem; font-weight:700; color:var(--sub); }
+.sl-i b{ font-size:.8rem !important; font-weight:800; color:var(--text); }
+.sl-i em{ font-style:normal; font-weight:800; font-size:.74rem; }
+.sl-i em.up{ color:var(--green); } .sl-i em.dn{ color:var(--red); }
+/* 5体のときのパーティ(細いカード) */
+#a-party.slim{ gap:6px; }
+.agrid.slim{ gap:6px; }
+.agrid.slim .abtn{ padding:8px 12px; border-radius:13px; }
+.agrid.slim .abtn b{ font-size:.9rem; }
+.agrid.slim .abtn.wf svg.face{ width:34px; height:34px; }
+#a-party.slim .ac.empty{ padding:9px; font-size:.7rem; }
+.ac.slim{ display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:12px; }
+.ac.slim svg.face{ border-radius:9px; flex:none; }
+.sl-m{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.sl-t{ display:flex; align-items:center; gap:6px; min-width:0; }
+.sl-t .rar{ font-size:.5rem; padding:2px 4px; }
+.sl-t > b{ font-size:.86rem; font-weight:800; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sl-b{ display:flex; align-items:center; gap:8px; font-size:.66rem; color:var(--sub); min-width:0; white-space:nowrap; }
+.sl-k{ color:var(--text); font-weight:700; }
+.sl-k .skc{ margin-left:4px; font-size:.54rem; padding:1px 5px; }
+.sl-w{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.sl-w.wr1{ color:#64d2ff; } .sl-w.wr2{ color:#bf5af2; } .sl-w.wr3{ color:#ffd60a; }
 .abtn:active{ transform:scale(.98); border-color:var(--acc); background:color-mix(in srgb, var(--acc) 12%, transparent); }
 .abtn[disabled]{ opacity:.3; pointer-events:none; }
 #a-party{ display:grid; gap:8px; }
@@ -289,6 +314,8 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .team{ text-align:left; }
 .tname{ font-size:.72rem; font-weight:700; color:var(--sub); margin:0 2px 6px; letter-spacing:.06em; }
 .team.mine .tname{ color:var(--acc); }
+.skc{ font-style:normal; font-size:.6rem; font-weight:800; margin-left:8px; padding:2px 7px; border-radius:6px; vertical-align:2px; }
+.skc.c-a{ color:#ff6b61; background:rgba(255,69,58,.16); } .skc.c-d{ color:#a9b6c4; background:rgba(142,154,166,.2); } .skc.c-h{ color:#4fdc78; background:rgba(48,209,88,.16); }
 .trow{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
 /* 5体バトル: 1列に5体ならべるため、カードを小さくする(くわしくはタップで) */
 .trow.n5{ grid-template-columns:repeat(5,1fr); gap:4px; }
@@ -542,12 +569,13 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="stats" id="r-stats"></div>
   <button class="btn main" id="r-again">もう一回</button>
   <button class="btn" id="r-lobby">ロビーにもどる(ゲームを選ぶ)</button>
-  <button class="btn" id="r-quit">やめる</button>
+  <button class="btn" id="r-quit">部屋から退出する</button>
 </div>
 
 </div>
 <div id="picker"><h3>誰に渡す?</h3><div class="help" id="pk-sub"></div><div class="bar"><i id="pk-bar"></i></div><div class="list" id="pk-list"></div></div>
 
+<script src="sound.js"></script>
 <script src="lib/qrcode.js"></script>
 <script src="lib/jsQR.js"></script>
 <script src="mqtt.js"></script>

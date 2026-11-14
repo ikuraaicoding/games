@@ -297,7 +297,7 @@ function miss(el){
   const d = center(el); if(!d) return;
   for(let i = 0; i < 4; i++) part({ t: tex.spark, x: d.x - d.w * .6, y: d.y + rnd(-d.h * .3, d.h * .3), vx: rnd(900, 1300), vy: 0, align: true, life: 260, s0: 1.4, s1: .6, a0: .7, tint: 0xcfe6ff, delay: i * 40 });
 }
-const SKC = { pow: 0xff453a, swp: 0xff9f0a, snp: 0x64d2ff, drain: 0xbf5af2, heal: 0x30d158, wall: 0x8e9aa6, taunt: 0xffd60a, ctr: 0xff375f };
+const SKC = { pow: 0xff453a, swp: 0xff9f0a, snp: 0x64d2ff, rush: 0xffd60a, drain: 0xbf5af2, heal: 0x30d158, rain: 0x64d2ff, rev: 0xfff4c2, wall: 0x8e9aa6, taunt: 0xffd60a, ctr: 0xff375f, fort: 0xa1a1aa };
 function skill(el, title, sub, sk){
   if(!ok() || !visible) return;
   const col = SKC[sk] || 0xff9f0a;
@@ -474,6 +474,13 @@ function fireball(el){
   burst(d.x, d.y, 30, { t: tex.shard, v0: 300, v1: 900, l0: 800, l1: 1500, s0: 1.6, s1: .6, g: 1100, vr: 14, tint: [0xffd2c2, 0xff453a], add: false });
 }
 
-window.NomiFX = { load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
+// 確認用: いま画面に残っているものの数
+function _stat(){
+  if(!ok()) return null;
+  const cnt = c => c.children.length;
+  const tx = app.renderer.texture && app.renderer.texture.managedTextures ? app.renderer.texture.managedTextures.length : -1;
+  return { parts: parts.length, tweens: tweens.length, pool: pool.length, layers: ['amb', 'back', 'fx', 'top', 'ui'].map(k => cnt(L[k])).join(','), managedTextures: tx };
+}
+window.NomiFX = { _stat, load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
 window.NomiArenaFX = window.NomiFX;
 })();

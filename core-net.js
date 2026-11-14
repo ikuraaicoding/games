@@ -44,7 +44,8 @@ const penaltyText = () => noalc ? '2点ペナルティ' : '2口飲む';
 let ac = null;
 function initAudio(){
   if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); }
-  if(ac && ac.state === 'suspended') ac.resume();
+  if(!ac) return;
+  if(window.NomiSound) window.NomiSound.track(ac); else if(ac.state !== 'running') ac.resume();
 }
 function heartbeat(vol){
   if(!ac) return;
