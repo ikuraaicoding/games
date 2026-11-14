@@ -42,28 +42,30 @@ const audio = {
   },
   updateDrone(sec){ if(!this.drone) return; const t = ac.currentTime, s = Math.min(sec, 12); this.drone.o.frequency.setTargetAtTime(38 + s * 3.5, t, .1); this.drone.f.frequency.setTargetAtTime(140 + s * 40, t, .1); },
   stopDrone(){ if(!this.drone) return; const t = ac.currentTime, d = this.drone; this.drone = null; d.g.gain.cancelScheduledValues(t); d.g.gain.setTargetAtTime(.0001, t, .05); d.o.stop(t + .3); },
-  boom(){
-    if(!ac) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
+  boom(v){
+    const k = v === undefined ? 1 : v;
+    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.5);
     const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
     n.buffer = buf; f.type = 'lowpass'; f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(60, t + 1);
-    g.gain.setValueAtTime(1.5, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.2); n.connect(f); f.connect(g); g.connect(ac.destination); n.start(t);
+    g.gain.setValueAtTime(1.5 * k, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.2); n.connect(f); f.connect(g); g.connect(ac.destination); n.start(t);
     [420, 580, 890, 1250].forEach((fr, i) => {
       const o = ac.createOscillator(), gg = ac.createGain(); o.type = i % 2 ? 'square' : 'sawtooth';
       o.frequency.setValueAtTime(fr, t); o.frequency.exponentialRampToValueAtTime(fr * .2, t + .3);
-      gg.gain.setValueAtTime(.25, t); gg.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gg); gg.connect(ac.destination); o.start(t); o.stop(t + .4);
+      gg.gain.setValueAtTime(.25 * k, t); gg.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gg); gg.connect(ac.destination); o.start(t); o.stop(t + .4);
     });
   },
-  scare(){
-    if(!ac) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
+  scare(v){
+    const k = v === undefined ? 1 : v;
+    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
     const n = ac.createBufferSource(), ng = ac.createGain(); n.buffer = buf;
-    ng.gain.setValueAtTime(1.4, t); ng.gain.exponentialRampToValueAtTime(.001, t + .5); n.connect(ng); ng.connect(ac.destination); n.start(t);
+    ng.gain.setValueAtTime(1.4 * k, t); ng.gain.exponentialRampToValueAtTime(.001, t + .5); n.connect(ng); ng.connect(ac.destination); n.start(t);
     const o = ac.createOscillator(), og = ac.createGain(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(60, t + .25);
-    og.gain.setValueAtTime(.5, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
+    og.gain.setValueAtTime(.5 * k, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
   },
   beep(freq, len, vol){
     if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
@@ -336,7 +338,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-core').classList.toggle('hide', g !== 'core'); }
 // ARENA の育成タイム
 (function(){
   let m = '5'; try{ m = localStorage.getItem('arena-min') || '5'; }catch(e){}
@@ -349,6 +351,13 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   const vs = document.querySelectorAll('#l-arena button[data-v]');
   const setV = x => { vs.forEach(b => b.classList.toggle('on', b.dataset.v === x)); try{ localStorage.setItem('arena-mode', x); }catch(e){} };
   setV(v === 'last' ? 'last' : 'top'); vs.forEach(b => b.addEventListener('click', () => setV(b.dataset.v)));
+})();
+// CORE: 見ている人(コアを持っていない人)の音
+(function(){
+  let w = 'normal'; try{ w = localStorage.getItem('core-watch') || 'normal'; }catch(e){}
+  const bs = document.querySelectorAll('#l-core button[data-w]');
+  const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset.w === x)); try{ localStorage.setItem('core-watch', x); }catch(e){} };
+  set(['normal', 'low', 'off'].includes(w) ? w : 'normal'); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.w)));
 })();
 document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));

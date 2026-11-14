@@ -68,6 +68,9 @@ function make(id, send){
             c.holding = true; const t0 = performance.now(), n = ri(1, 1e6);
             send({ t: 'press', n });
             c.ka = every(() => send({ t: 'ka', n }), 400);
+            // 人間のスマホと同じように、ドッキリ(約35%)とフェイクのヒビを起こす
+            if(rnd() < .35) later(() => { if(c.holding) send({ t: 'sfx', s: ri(0, 2) }); }, 200 + rnd() * 650);
+            later(() => { if(c.holding) send({ t: 'sfx', f: Math.round((.35 + rnd() * .65) * 100) / 100, d: ri(120, 380) }); }, 500 + rnd() * 200);
             c.hold = later(() => { clearInterval(c.ka); c.holding = false; send({ t: 'release', n, held: Math.round(performance.now() - t0) }); }, 1700 + rnd() * 3800);
           }, ri(700, 2200));
         }else if(m.ph === 'choose' && Array.isArray(m.elig) && m.elig.length){
