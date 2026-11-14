@@ -358,6 +358,26 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .bu-w.none span{ color:var(--dim); }
 .ainfo{ position:fixed; inset:0; z-index:35; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:rgba(9,9,11,.82); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
 .ainfo.on{ display:flex; }
+/* スキルと武器の一覧 */
+.acat{ position:fixed; inset:0; z-index:50; display:none; flex-direction:column; background:var(--bg); }
+.acat.on{ display:flex; }
+.cat-h{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:calc(env(safe-area-inset-top) + 14px) 16px 12px; border-bottom:1px solid var(--line); }
+.cat-h b{ font-size:1.05rem; font-weight:800; }
+.cat-x{ background:var(--surface); border:1px solid var(--line2); border-radius:10px; padding:8px 14px; font-size:.8rem; font-weight:700; color:var(--text); }
+.cat-b{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px calc(env(safe-area-inset-bottom) + 24px); text-align:left; max-width:560px; width:100%; margin:0 auto; }
+.cat-b .eyebrow{ margin:16px 0 4px; }
+.cat-note{ font-size:.72rem; color:var(--sub); line-height:1.7; margin:0 0 8px; }
+.cat-sec{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:10px; }
+.cat-st{ display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:.68rem; color:var(--sub); }
+.cat-st .skc{ margin-left:0; font-size:.7rem; }
+.cat-row{ display:flex; flex-direction:column; gap:1px; padding:7px 0; border-top:1px solid var(--line); }
+.cat-st + .cat-row{ border-top:0; }
+.cat-row b{ font-size:.86rem; font-weight:800; }
+.cat-row span{ font-size:.72rem; color:var(--sub); line-height:1.55; }
+.cat-row .cat-5{ color:var(--acc); font-size:.66rem; }
+.cat-open{ display:block; margin:10px 0 2px auto; background:transparent; border:1px dashed var(--line2); border-radius:10px; padding:7px 12px; font-size:.72rem; font-weight:700; color:var(--sub); }
+.rcard .cat-open{ margin:2px 16px 16px; width:calc(100% - 32px); padding:10px; text-align:center; font-size:.78rem; color:var(--acc); border-color:color-mix(in srgb, var(--acc) 45%, transparent); }
+body.catopen #chat-btn, body.catopen #chat-sheet, body.catopen #chat-bg{ display:none !important; }
 .ainfo .ac{ width:100%; max-width:380px; animation:acrev .3s ease-out; }
 .ainfo-x{ margin-top:14px; font-size:.72rem; color:var(--sub); }
 .bu-st{ display:flex; gap:3px; min-height:15px; }
@@ -546,6 +566,7 @@ body:not(.solo) .solo-only{ display:none; }
     <div id="a-tbar"><i></i></div>
     <div id="a-note"></div>
     <div id="a-panel"></div>
+    <button class="cat-open" id="a-catbtn" type="button">スキルと武器の一覧</button>
     <div class="ilab">パーティ(最大3体)</div>
     <div id="a-party" style="margin-top:6px"></div>
   </div>
@@ -559,6 +580,7 @@ body:not(.solo) .solo-only{ display:none; }
   </div>
   <div id="a-info" class="ainfo"></div>
 </div>
+<div id="a-cat" class="acat"></div>
 
 <!-- 結果 -->
 <div class="screen" id="s-result">
