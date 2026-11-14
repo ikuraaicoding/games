@@ -22,7 +22,7 @@ class MQ {
   constructor(url, h){
     this.url = url; this.h = h || {};
     this.ws = null; this.ok = false; this.buf = new Uint8Array(0);
-    this.ping = null; this.topics = []; this.pid = 1; this.closedByUs = false;
+    this.ping = null; this.topics = []; this.pid = 1; this.closedByUs = false; this.lastRx = 0;
     this.id = 'nomi' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(x => x.toString(16).padStart(2, '0')).join('');
   }
   open(){
@@ -34,9 +34,11 @@ class MQ {
       const vh = cat([utf('MQTT'), Uint8Array.of(4, 0x02, 0, 30)]);      // level4, clean session, keepalive 30s
       ws.send(packet(0x10, cat([vh, utf(this.id)])));
     };
-    ws.onmessage = e => this.feed(new Uint8Array(e.data));
+    ws.onmessage = e => { this.lastRx = Date.now(); this.feed(new Uint8Array(e.data)); };
     ws.onclose = () => { this.ok = false; clearInterval(this.ping); if(this.h.onClose && !this.closedByUs) this.h.onClose(this); };
     ws.onerror = () => {};
+    // 電波が弱いと、つなぐ途中のまま止まることがある → 10秒でやり直す
+    clearTimeout(this.conT); this.conT = setTimeout(() => { if(!this.ok) this.drop(); }, 10000);
   }
   feed(chunk){
     this.buf = cat([this.buf, chunk]);
@@ -61,7 +63,12 @@ class MQ {
         this.ok = true;
         this.topics.forEach(t => this.sendSub(t));
         clearInterval(this.ping);
-        this.ping = setInterval(() => { try{ this.ws.send(Uint8Array.of(0xC0, 0)); }catch(e){} }, 20000);
+        // 生きているか定期的に確かめる。電波が切り替わると、切れたことに気づかないまま「つながったふり」をすることがあるので、
+        // しばらく何も届かなければ、こちらから切ってつなぎ直す
+        this.ping = setInterval(() => {
+          if(Date.now() - this.lastRx > 25000){ this.drop(); return; }
+          this.pingNow();
+        }, 8000);
         if(this.h.onOpen) this.h.onOpen(this);
       }else this.close();
     }else if(type === 3){                             // PUBLISH
@@ -84,8 +91,15 @@ class MQ {
     if(!this.ok) return false;
     try{ this.ws.send(packet(0x30, cat([utf(topic), TE.encode(text)]))); return true; }catch(e){ return false; }
   }
+  pingNow(){ try{ this.ws.send(Uint8Array.of(0xC0, 0)); }catch(e){} }
+  // 通信が死んでいる: 切って、つなぎ直してもらう(onClose を呼ぶ)
+  drop(){
+    if(this.closedByUs) return;
+    this.close();                                     // closedByUs のままにして、ws.onclose から二重に呼ばれないようにする
+    if(this.h.onClose) this.h.onClose(this);
+  }
   close(){
-    this.closedByUs = true; clearInterval(this.ping); this.ok = false;
+    this.closedByUs = true; clearInterval(this.ping); clearTimeout(this.conT); this.ok = false;
     try{ this.ws.send(Uint8Array.of(0xE0, 0)); }catch(e){}
     try{ this.ws.close(); }catch(e){}
   }
