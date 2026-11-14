@@ -17,8 +17,12 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   let localHolding = false, downAt = 0, pn = 0, kaT = null, beatT = null, holdSince = 0, shakeT = null, pickBarT = null, stopped = false;
   const timers = [];
   const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+  // 見ている人(コアを持っていない人)の音の大きさ。ホストがロビーで決める(0=ふつう 1=小さめ 2=なし)
+  let watchLv = 0;
+  const WAT = { hb: [.28, .12, 0], scare: [.5, .2, 0], boom: [1, .4, 0] };
+  const watchVib = (normal, low) => { if(watchLv === 0) E.vibrate(normal); else if(watchLv === 1 && low) E.vibrate(low); };
 
-  // ---- 元のCOREのドッキリ演出(持ち主の端末の中だけで起きる。通信には影響しない) ----
+  // ---- 元のCOREのドッキリ演出(持ち主の端末で起きて、見ている人の画面にも配る。音の大きさはロビーの設定。勝負には関係しない) ----
   const crackSvg = $('c-crack'), fxCv = $('fx'), fxCtx = fxCv.getContext('2d'), scan = $('scanlines');
   let cracks = [], fakeT = null, scareT = null, debris = [], debrisRaf = 0;
   const rr = (a, b) => a + Math.random() * (b - a);
@@ -45,11 +49,15 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     fakeT = setTimeout(() => {
       fakeT = null;
       if(!localHolding || stopped) return;
-      const level = 0.35 + Math.random() * 0.65, dur = 120 + Math.random() * 260;
-      cracks.forEach(c => { if(Math.random() < 0.6){ c.el.style.opacity = level; c.el.style.strokeWidth = (c.max * level).toFixed(2); } });
-      E.vibrate(20); core.dataset.fake = String((+core.dataset.fake || 0) + 1);
-      later(() => { if(localHolding) setCrack(0); }, dur);
+      const level = Math.round((0.35 + Math.random() * 0.65) * 100) / 100, dur = Math.round(120 + Math.random() * 260);
+      fakeFx(level, dur, true);
+      E.send({ t: 'sfx', f: level, d: dur }, false);             // 見ている人の画面にも出す
     }, 500 + Math.random() * 200);
+  }
+  function fakeFx(level, dur, mine){
+    cracks.forEach(c => { if(Math.random() < 0.6){ c.el.style.opacity = level; c.el.style.strokeWidth = (c.max * level).toFixed(2); } });
+    if(mine){ E.vibrate(20); core.dataset.fake = String((+core.dataset.fake || 0) + 1); }
+    later(() => { if(mine ? localHolding : G.ph === 'hold') setCrack(0); }, dur);
   }
   // ドッキリ罠: 押し始めの1秒以内に、思わず離させる(約35%・種類もタイミングもランダム。限界時間とは無関係)
   function cancelScare(){ if(scareT){ clearTimeout(scareT); scareT = null; } }
@@ -60,11 +68,18 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(!localHolding || stopped) return;
     core.dataset.scare = String((+core.dataset.scare || 0) + 1);
     const kind = Math.floor(Math.random() * 3);
-    E.audio.scare(); E.vibrate([80, 30, 120]); shakePulse(34);
+    scareFx(kind, true);
+    E.send({ t: 'sfx', s: kind }, false);                         // 見ている人の画面にも出す
+  }
+  // ドッキリの見た目と音(mine=自分が持っている / そうでなければ、見ている人用に音と振動を控えめに)
+  function scareFx(kind, mine){
+    E.audio.scare(mine ? 1 : WAT.scare[watchLv]);
+    if(mine) E.vibrate([80, 30, 120]); else watchVib([60, 30, 80], 40);
+    shakePulse(34);
     if(kind === 0){ const s = $('strobe'); s.classList.remove('on'); void s.offsetWidth; s.classList.add('on'); }
     else if(kind === 1){
       setCrack(1); const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
-      later(() => { if(localHolding) setCrack(0); }, 350);
+      later(() => { if(mine ? localHolding : G.ph === 'hold') setCrack(0); }, 350);
     }else{
       core.style.transition = 'transform .06s ease-out'; core.style.transform = 'scale(1.18)';
       later(() => { core.style.transition = 'transform .25s ease-in'; core.style.transform = 'scale(1)'; }, 120);
@@ -113,9 +128,10 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     stopBeat(); holdSince = performance.now();
     const loop = () => {
       const held = (performance.now() - holdSince) / 1000, mine = G.holder === E.myId;
-      E.audio.heartbeat(mine ? .6 : .28);
+      const hv = mine ? .6 : WAT.hb[watchLv];
+      if(hv > 0) E.audio.heartbeat(hv);
       core.animate([{ transform: 'scale(1)' }, { transform: 'scale(' + (1 + Math.min(.05, .02 + held * .004)) + ')' }, { transform: 'scale(1)' }], { duration: 300 });
-      E.vibrate(mine ? 35 : 20);
+      if(mine) E.vibrate(35); else watchVib(20, 0);
       if(mine) E.audio.updateDrone(held);
       vignette.style.opacity = mine ? Math.min(1, held / 9).toFixed(3) : 0;
       beatT = setTimeout(loop, Math.max(330, 620 - held * 32));
@@ -151,6 +167,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     if(stopped || !m || typeof m.t !== 'string') return;
     if(m.t === 'st'){
       if(!['idle', 'hold', 'choose'].includes(m.ph) || !Number.isInteger(m.holder)) return;
+      if(Number.isInteger(m.wv) && m.wv >= 0 && m.wv <= 2) watchLv = m.wv;
       const prev = G.ph, prevHolder = G.holder;
       G = { ph: m.ph, holder: m.holder, turn: Number.isInteger(m.turn) ? m.turn : 0, elig: Array.isArray(m.elig) ? m.elig.filter(Number.isInteger) : [] };
       if(m.ph === 'hold'){ if(prev !== 'hold' && !(m.holder === E.myId && !localHolding)) startBeat(); }
@@ -161,8 +178,14 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
       PF.aura(core, m.ph === 'hold', 0xff453a);
       if(m.ph === 'idle' && prevHolder >= 0 && prevHolder !== m.holder) PF.pop(core, { color: 0xff453a, power: 1.6 });
       render();
+    }else if(m.t === 'sfx'){
+      // ほかの人のスマホで起きたドッキリ / フェイクのヒビ
+      if(m.h === E.myId || G.ph !== 'hold' || m.h !== G.holder) return;
+      if(Number.isInteger(m.s) && m.s >= 0 && m.s <= 2) scareFx(m.s, false);
+      else if(Number.isFinite(m.f) && m.f >= .3 && m.f <= 1 && Number.isFinite(m.d) && m.d >= 50 && m.d <= 800) fakeFx(m.f, m.d, false);
     }else if(m.t === 'boom'){
       if(!Number.isInteger(m.loser)) return;
+      if(Number.isInteger(m.wv) && m.wv >= 0 && m.wv <= 2) watchLv = m.wv;
       G.ph = 'result'; stopBeat(); endLocalHold(false); $('picker').classList.remove('on');
       explode(m);
     }
@@ -208,7 +231,9 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   // ---- 爆発演出 ----
   function shake(a){ $('app').style.setProperty('--sx', ((Math.random() - .5) * a).toFixed(1) + 'px'); $('app').style.setProperty('--sy', ((Math.random() - .5) * a).toFixed(1) + 'px'); }
   function explode(m){
-    E.audio.init(); E.audio.boom(); E.vibrate([0, 120, 50, 120, 80, 300, 100, 500, 150, 600]);
+    const mine = m.loser === E.myId, BV = [0, 120, 50, 120, 80, 300, 100, 500, 150, 600];
+    E.audio.init(); E.audio.boom(mine ? 1 : WAT.boom[watchLv]);
+    if(mine) E.vibrate(BV); else watchVib(BV, [0, 150]);
     core.classList.add('burst'); setCrack(1); spawnDebris(); PF.fireball(core);
     let k = 0; clearInterval(shakeT);
     shakeT = setInterval(() => { k++; shake(Math.max(3, 40 * (1 - k / 24))); if(k >= 24){ clearInterval(shakeT); shake(0); } }, 25);
@@ -229,23 +254,24 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   }
 
   // ---------------- ホスト(審判) ----------------
-  const H = { phase: 'idle', sub: 'idle', holder: 0, last: -1, threshold: 0, total: 0, holdStart: 0, lastKa: 0, over: 0, turn: 0, tick: null, choose: null };
+  const H = { wv: 0, sfx: 0, phase: 'idle', sub: 'idle', holder: 0, last: -1, threshold: 0, total: 0, holdStart: 0, lastKa: 0, over: 0, turn: 0, tick: null, choose: null };
   const ids = () => E.players().map(p => p.id);
   function eligible(){
     let a = ids().filter(id => id !== H.holder && id !== H.last);
     if(!a.length) a = ids().filter(id => id !== H.holder);
     return a;
   }
-  const stMsg = ph => ({ t: 'st', ph, holder: H.holder, turn: H.turn, elig: ph === 'choose' ? eligible() : [] });
+  const stMsg = ph => ({ t: 'st', ph, holder: H.holder, turn: H.turn, elig: ph === 'choose' ? eligible() : [], wv: H.wv });
+  function readWatch(){ try{ const b = document.querySelector('#l-core button[data-w].on'); return b ? Math.max(0, ['normal', 'low', 'off'].indexOf(b.dataset.w)) : 0; }catch(e){ return 0; } }
   function hostStart(){
-    H.phase = 'play'; H.sub = 'idle'; H.last = -1; H.turn = 0; H.total = 0;
+    H.phase = 'play'; H.sub = 'idle'; H.last = -1; H.turn = 0; H.total = 0; H.wv = readWatch();
     H.threshold = 7 + rndF() * 23;                  // 秘密。ホストの中だけにあり、通信には載せない
     const a = ids(); H.holder = a[rndI(a.length)];
     E.hostBcast(stMsg('idle'), true);
   }
   function stopTick(){ clearInterval(H.tick); H.tick = null; }
   function startHold(){
-    H.sub = 'hold'; H.holdStart = performance.now(); H.lastKa = H.holdStart; H.over = 0;
+    H.sub = 'hold'; H.holdStart = performance.now(); H.lastKa = H.holdStart; H.over = 0; H.sfx = 0;
     clearInterval(H.tick); H.tick = setInterval(hostTick, 25);
     E.hostBcast(stMsg('hold'), true);
   }
@@ -287,7 +313,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
   function boom(loser, reason, lastSec){
     if(H.phase !== 'play') return;
     H.phase = 'result'; stopTick(); clearTimeout(H.choose);
-    E.hostBcast({ t: 'boom', loser, name: E.nameOf(loser), reason, turns: H.turn, sec: Math.round(H.total * 100) / 100, last: Math.round((lastSec || 0) * 100) / 100 }, true);
+    E.hostBcast({ t: 'boom', loser, name: E.nameOf(loser), reason, turns: H.turn, sec: Math.round(H.total * 100) / 100, last: Math.round((lastSec || 0) * 100) / 100, wv: H.wv }, true);
   }
   function hostOnMsg(id, m){
     if(!m || typeof m.t !== 'string' || H.phase !== 'play' || H.holder !== id) return;
@@ -295,6 +321,12 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     else if(m.t === 'ka'){ if(H.sub === 'hold') H.lastKa = performance.now(); else if(H.sub === 'idle') startHold(); }   // pressが落ちても、kaで開始できる
     else if(m.t === 'release'){ if(H.sub === 'hold') onRelease(m); }
     else if(m.t === 'pass'){ if(H.sub === 'choose' && Number.isInteger(m.to)) doPass(m.to); }
+    else if(m.t === 'sfx' && H.sub === 'hold' && H.sfx < 4){
+      // 持ち主のスマホで起きたドッキリを、みんなに配る(見た目だけ。勝負には関係しない)
+      H.sfx++;
+      if(Number.isInteger(m.s) && m.s >= 0 && m.s <= 2) E.hostBcast({ t: 'sfx', h: id, s: m.s }, false);
+      else if(Number.isFinite(m.f) && m.f >= .3 && m.f <= 1 && Number.isFinite(m.d) && m.d >= 50 && m.d <= 800) E.hostBcast({ t: 'sfx', h: id, f: Math.round(m.f * 100) / 100, d: Math.round(m.d) }, false);
+    }
   }
   function hostOnLeave(id){
     if(H.phase !== 'play' || H.holder !== id) return;

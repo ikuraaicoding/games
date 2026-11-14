@@ -42,28 +42,30 @@ const audio = {
   },
   updateDrone(sec){ if(!this.drone) return; const t = ac.currentTime, s = Math.min(sec, 12); this.drone.o.frequency.setTargetAtTime(38 + s * 3.5, t, .1); this.drone.f.frequency.setTargetAtTime(140 + s * 40, t, .1); },
   stopDrone(){ if(!this.drone) return; const t = ac.currentTime, d = this.drone; this.drone = null; d.g.gain.cancelScheduledValues(t); d.g.gain.setTargetAtTime(.0001, t, .05); d.o.stop(t + .3); },
-  boom(){
-    if(!ac) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
+  boom(v){
+    const k = v === undefined ? 1 : v;
+    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.5);
     const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
     n.buffer = buf; f.type = 'lowpass'; f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(60, t + 1);
-    g.gain.setValueAtTime(1.5, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.2); n.connect(f); f.connect(g); g.connect(ac.destination); n.start(t);
+    g.gain.setValueAtTime(1.5 * k, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.2); n.connect(f); f.connect(g); g.connect(ac.destination); n.start(t);
     [420, 580, 890, 1250].forEach((fr, i) => {
       const o = ac.createOscillator(), gg = ac.createGain(); o.type = i % 2 ? 'square' : 'sawtooth';
       o.frequency.setValueAtTime(fr, t); o.frequency.exponentialRampToValueAtTime(fr * .2, t + .3);
-      gg.gain.setValueAtTime(.25, t); gg.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gg); gg.connect(ac.destination); o.start(t); o.stop(t + .4);
+      gg.gain.setValueAtTime(.25 * k, t); gg.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gg); gg.connect(ac.destination); o.start(t); o.stop(t + .4);
     });
   },
-  scare(){
-    if(!ac) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
+  scare(v){
+    const k = v === undefined ? 1 : v;
+    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
     const n = ac.createBufferSource(), ng = ac.createGain(); n.buffer = buf;
-    ng.gain.setValueAtTime(1.4, t); ng.gain.exponentialRampToValueAtTime(.001, t + .5); n.connect(ng); ng.connect(ac.destination); n.start(t);
+    ng.gain.setValueAtTime(1.4 * k, t); ng.gain.exponentialRampToValueAtTime(.001, t + .5); n.connect(ng); ng.connect(ac.destination); n.start(t);
     const o = ac.createOscillator(), og = ac.createGain(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(60, t + .25);
-    og.gain.setValueAtTime(.5, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
+    og.gain.setValueAtTime(.5 * k, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
   },
   beep(freq, len, vol){
     if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
@@ -170,6 +172,79 @@ const E = {
 // =====================================================================
 //  ロビー表示
 // =====================================================================
+// ---------- ゲームの一覧とルール(ロビーで、だれでも読める) ----------
+const RULES = [
+  { g: 'tap', nm: 'DRAW', sub: '早撃ち', ic: 'i-draw', r: [
+    '全員が画面に指を置いて、そのまま待つ',
+    'しばらくすると画面が緑になる。その瞬間に指を離す',
+    'いちばん離すのが遅かった人の負け',
+    '緑になる前に離すと、フライングで負け',
+    'ほぼ同時(0.01秒以内)の人がいたら、その人たちだけで再戦',
+    '反応の速さは自分のスマホの中で測るので、通信の遅れは関係ない'] },
+  { g: 'stop', nm: 'BLIND', sub: '見えないタイマー', ic: 'i-blind', r: [
+    '目標の秒数(10〜20秒)が出る',
+    '画面を長押しするとタイマースタート。最初の3秒だけ時間が見えて、あとは隠れる',
+    '目標ぴったりだと思ったら指を離す',
+    '目標にいちばん近い人が1位、いちばん遠い人が最下位',
+    'ほかの人がいつ離したかは、発表まで分からない'] },
+  { g: 'ise', nm: 'THUMBS', sub: 'いっせーのーせ', ic: 'i-thumbs', r: [
+    '毎ラウンド、こっそり「自分が立てる親指の数(0〜2本)」と「全員の合計の予想」を決める',
+    '「いっせーのーせ!」で全員の親指が公開されて、合計が決まる',
+    '予想がズレた人は、ズレた数だけライフが減る',
+    'ピッタリ当てた人はノーダメージ。かわりに、ほかの全員にダメージ(人数が多いほど大きい)',
+    'ライフが0になったら脱落。最後まで残った人の勝ち',
+    'はじめのライフは 4 + 人数×2'] },
+  { g: 'core', nm: 'CORE', sub: '爆弾リレー', ic: 'i-core', r: [
+    'コアを持っている人は、1.5秒以上 長押ししてから離し、次の人に渡す',
+    '1.5秒より早く離すと、その場で爆発して負け',
+    'コアには、だれにも分からない限界(みんなが長押しした時間の合計)がある。限界を超えたときに持っていた人の負け',
+    '自分に渡してきた人には、すぐには返せない',
+    '長押し中にドッキリが起きることがある。驚いて離さないように!'] },
+  { g: 'arena', nm: 'ARENA', sub: '育成バトル', ic: 'i-arena', r: [
+    '育成タイム(3〜10分)の間にパーティを強くする。最初は全員「攻3 防3 HP3」のキャラ1体',
+    '10秒ごとに行動が1回たまる(最大3回。満タンのままだと、あふれて無駄になる)',
+    '行動ごとに「キャラガチャ」「装備ガチャ」「スキル強化」から1つ選ぶ。パーティは最大3体',
+    '時間切れで、ランダムなトーナメント。戦闘は自動',
+    '試合中にできるのは、各キャラのスキルを使うタイミングを選ぶことだけ(1試合1回)',
+    'ホストの設定で「優勝を決める」か「最下位を決める(負け残り)」かが変わる'] }
+];
+let hostWant = '';                 // 参加者側: ホストがいま選んでいるゲーム
+let rulesTouched = false;          // 参加者が自分でルールを開いたか(開いたら、勝手に開き直さない)
+function buildRules(){
+  const box = $('l-rlist'); box.textContent = '';
+  const NS = 'http://www.w3.org/2000/svg';
+  const icon = (id, cls) => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'ic' + (cls ? ' ' + cls : '')); const u = document.createElementNS(NS, 'use'); u.setAttribute('href', '#' + id); s.appendChild(u); return s; };
+  RULES.forEach(x => {
+    const d = document.createElement('details'); d.className = 'rcard g-' + x.g; d.dataset.g = x.g;
+    const sm = document.createElement('summary');
+    const tile = document.createElement('span'); tile.className = 'tile'; tile.appendChild(icon(x.ic)); sm.appendChild(tile);
+    const rn = document.createElement('span'); rn.className = 'rn';
+    const b = document.createElement('b'); b.textContent = x.nm; const s = document.createElement('small'); s.textContent = x.sub;
+    rn.appendChild(b); rn.appendChild(s); sm.appendChild(rn);
+    const pk = document.createElement('span'); pk.className = 'pick hide'; pk.textContent = 'ホストが選択中'; sm.appendChild(pk);
+    sm.appendChild(icon('i-chev', 'chev'));
+    sm.addEventListener('click', () => { rulesTouched = true; });
+    d.appendChild(sm);
+    const ol = document.createElement('ol');
+    x.r.forEach(t => { const li = document.createElement('li'); li.textContent = t; ol.appendChild(li); });
+    d.appendChild(ol);
+    box.appendChild(d);
+  });
+}
+function renderRules(){
+  const host = role === 'host', cur = host ? '' : hostWant;
+  document.querySelectorAll('#l-rlist details.rcard').forEach(d => {
+    const on = !!cur && d.dataset.g === cur;
+    d.classList.toggle('now', on);
+    d.querySelector('.pick').classList.toggle('hide', !on);
+    if(on && !rulesTouched) d.open = true;
+    else if(!rulesTouched && !host) d.open = false;
+  });
+}
+// ホスト: いま選んでいるゲームを参加者に知らせる(ロビーで、ルールに「選択中」を出すため)
+function bcastWant(){ if(role === 'host' && room && !solo && !curId) room.bcast({ t: 'want', want: wantGame }, false); }
+buildRules();
+
 function renderLobby(){
   const list = $('l-list'); list.textContent = '';
   roster.forEach(p => {
@@ -194,8 +269,9 @@ function renderLobby(){
   $('l-start').disabled = !(host && roster.length >= 2);
   $('l-help').textContent = solo ? 'スマホの中だけで動くお試しモード(通信なし)。CPUの人数を決めて、ゲームを選んで開始!' : host
     ? (roster.length < 2 ? 'QRを読んでもらってね(あと' + (2 - roster.length) + '人以上)。全員同じQRでOK!' : roster.length + '人いるよ。ゲームを選んで開始! 全員そろったら「受付を締める」を押すと安心だよ。')
-    : 'ホストがゲームを始めるのを待っているよ…';
+    : 'ホストがゲームを始めるのを待っているよ…\n待っている間に、下でルールを読んでおこう';
   document.querySelectorAll('#l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === wantGame));
+  vis('l-rules', true); renderRules();
 }
 
 // =====================================================================
@@ -259,7 +335,7 @@ function refreshRtt(){
 }
 function pushRoster(){
   roster = [{ id: 0, name: myName, rtt: 0 }].concat(Array.from(room.peers.values()).map(p => ({ id: p.id, name: p.name, rtt: p.rtt })));
-  room.bcast({ t: 'roster', players: roster }, true);
+  room.bcast({ t: 'roster', players: roster, want: wantGame }, true);
   if($('s-lobby').classList.contains('active')) renderLobby();
 }
 function startGame(gid){
@@ -319,10 +395,13 @@ function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
   if(o.t === 'roster' && Array.isArray(o.players)){
     roster = o.players.filter(p => p && Number.isInteger(p.id)).slice(0, 8).map(p => ({ id: p.id, name: clean(p.name) || '?', rtt: Number.isFinite(p.rtt) ? p.rtt : 0 }));
+    if(RULES.some(x => x.g === o.want)) hostWant = o.want;
     if($('s-lobby').classList.contains('active')) renderLobby();
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
     if(game && game.stop) game.stop();
     curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
+  }else if(o.t === 'want'){
+    if(RULES.some(x => x.g === o.want)){ hostWant = o.want; if($('s-lobby').classList.contains('active')) renderRules(); }
   }else if(o.t === 'lobby'){
     if(game && game.stop) game.stop();
     game = null; curId = null; resetFx(); $('picker').classList.remove('on'); renderLobby(); show('s-lobby');
@@ -336,7 +415,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-core').classList.toggle('hide', g !== 'core'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
   let m = '5'; try{ m = localStorage.getItem('arena-min') || '5'; }catch(e){}
@@ -349,6 +428,13 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   const vs = document.querySelectorAll('#l-arena button[data-v]');
   const setV = x => { vs.forEach(b => b.classList.toggle('on', b.dataset.v === x)); try{ localStorage.setItem('arena-mode', x); }catch(e){} };
   setV(v === 'last' ? 'last' : 'top'); vs.forEach(b => b.addEventListener('click', () => setV(b.dataset.v)));
+})();
+// CORE: 見ている人(コアを持っていない人)の音
+(function(){
+  let w = 'normal'; try{ w = localStorage.getItem('core-watch') || 'normal'; }catch(e){}
+  const bs = document.querySelectorAll('#l-core button[data-w]');
+  const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset.w === x)); try{ localStorage.setItem('core-watch', x); }catch(e){} };
+  set(['normal', 'low', 'off'].includes(w) ? w : 'normal'); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.w)));
 })();
 document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
