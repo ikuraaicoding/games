@@ -195,9 +195,16 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
     me.pend = null; uiMode = 'busy'; renderPanel();
     E.send({ t: 'dec', slot, n: ++nonce }, true);
   }
-  function bigBtn(title, sub, on, fn){
+  // c を渡すと、左にそのキャラの顔を出す(だれを選んでいるか分かりやすく)
+  function bigBtn(title, sub, on, fn, c){
     const b = el('button', 'abtn');
-    b.appendChild(el('b', '', title)); b.appendChild(el('small', '', sub));
+    let tx = b;
+    if(c){
+      b.classList.add('wf', 'r-' + rarOf(c.a + c.d + c.h));
+      b.appendChild(avOf(c, 40));
+      tx = el('span', 'abtn-t'); b.appendChild(tx);
+    }
+    tx.appendChild(el('b', '', title)); tx.appendChild(el('small', '', sub));
     b.disabled = !on; b.onclick = fn; return b;
   }
   function renderPanel(){
@@ -213,7 +220,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         box.appendChild(charCard(pd.c, 'reveal'));
         const g = el('div', 'agrid');
         const nt = pd.c.a + pd.c.d + pd.c.h;
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + (c.sk.lv > 1 ? ' / スキルLv' + c.sk.lv + 'を引き継ぐ' : ''), true, () => decide(i))));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' と交代', '合計' + (c.a + c.d + c.h) + ' → ' + nt + (c.sk.lv > 1 ? ' / スキルLv' + c.sk.lv + 'を引き継ぐ' : ''), true, () => decide(i), c)));
         g.appendChild(bigBtn('捨てる', 'いまのパーティのまま', true, () => decide(-1)));
         box.appendChild(g);
       }else{
@@ -221,7 +228,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
         note.textContent = 'だれに装備する?(前の装備は捨てる)';
         box.appendChild(wCard(pd.w));
         const g = el('div', 'agrid');
-        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i))));
+        me.p.forEach((c, i) => g.appendChild(bigBtn(c.nm + ' に装備', c.w ? '今: ' + '★'.repeat(c.w.v) + ' ' + wName(c.w) + ' ' + wStat(c.w) : '今: なし', true, () => decide(i), c)));
         g.appendChild(bigBtn('捨てる', '装備しない', true, () => decide(-1)));
         box.appendChild(g);
       }
@@ -231,7 +238,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, mak
       note.classList.remove('over');
       note.textContent = 'どのキャラのスキルを強化する?';
       const g = el('div', 'agrid');
-      me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); })); });
+      me.p.forEach((c, i) => { const lv = c.sk.lv, mx = lv >= SK_MAX; g.appendChild(bigBtn(c.nm + ' — ' + SK[c.sk.t].nm + ' Lv' + lv + (mx ? '(最大)' : ' → ' + (lv + 1)), mx ? 'これ以上は上がらない' : SK[c.sk.t].d(lv + 1), !mx && me.tk > 0, () => { uiMode = ''; act('sk', i); }, c)); });
       g.appendChild(bigBtn('やめる', '', true, () => { uiMode = ''; renderPanel(); }));
       box.appendChild(g);
       return;
