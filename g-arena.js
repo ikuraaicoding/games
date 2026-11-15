@@ -52,7 +52,7 @@ const BAL = {
   uq: { ken: .25, rai: .24, hao: .8, gol: .25, leo: .17, faf: .8, fafH: .05, cel: .015, phx: .24, ygg: .32 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
-const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.4, hao: .75, ygg: 1.45, gol: 1.25 };
+const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.6, ken: 1.2, hao: .75, ygg: 1.45, gol: 1.25 };
 const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
 // 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
 const CAT = { a: '攻撃', d: '防御', h: 'HP' };
@@ -113,7 +113,7 @@ const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防
 // c: 系統(一番高いステ) / un: 能力の名前 / d: くわしい説明 / s: 試合中のカードに出す短い説明
 const U_ = BAL.uq;
 const UQ = {
-  ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: () => '自分の手番ごとに、' + pct(U_.ken) + '%の確率でもう1回攻撃', s: () => pct(U_.ken) + '%で連続攻撃' },
+  ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: n => '自分の手番ごとに、' + pct(U_.ken * aoe('ken', n)) + '%の確率でもう1回攻撃', s: n => pct(U_.ken * aoe('ken', n)) + '%で連続攻撃' },
   rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
   hao: { c: 'a', nm: 'ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
   gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: n => '受けるダメージがいつも −' + pct(U_.gol * aoe('gol', n)) + '%', s: n => '被ダメ−' + pct(U_.gol * aoe('gol', n)) + '%' },
@@ -1008,7 +1008,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(u.uq === 'cel') mates(B, u).forEach(x => heal(B, x, x.mhp * BAL.uq.cel * aoe('cel', B.N), L, F));
     act1(B, u, L, F);
     // アルス: ときどき、もう1回攻撃
-    if(u.uq === 'ken' && alive(u) && B.rnd() < BAL.uq.ken){
+    if(u.uq === 'ken' && alive(u) && B.rnd() < BAL.uq.ken * aoe('ken', B.N)){
       const t = target(B, u, '');
       if(t){ L.push('◆ ' + u.nm + ' の連斬!'); F.push([idxOf(B, u), 0, 'u']); hit(B, u, t, 1, L, F); }
     }
