@@ -851,7 +851,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const list = el('div', 'rx-list');
     rk.forEach((x, i) => {
       const c = by.get(x[0]); if(!c) return;
-      const d = el('details', 'rx-p' + (x[0] === E.myId ? ' me' : '')); d.open = true;
+      const d = el('details', 'rx-p' + (x[0] === E.myId ? ' me' : ''));
       const s = el('summary');
       s.appendChild(el('span', 'rx-rk', (i + 1) + '位'));
       const nm = el('span', 'rx-nm', E.nameOf(x[0])); if(x[0] === E.myId) nm.appendChild(el('small', '', 'あなた')); s.appendChild(nm);
