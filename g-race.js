@@ -35,10 +35,9 @@ const PH = {
   v0: 166, vk: 5.6,                          // 最高速(km/h) = v0 + vk × 最高速
   c0: 110, ck: 2.9, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
   rainC: .8,                                 // 雨: コーナーの上限 ×0.8
-  // レインマスター: 雨のときだけ、コーナーの上限 ×0.86(ふつうは ×0.8)。晴れでは何もしない
-  // 天気予報を見て選ぶ賭けにするため、当たれば大きく得・はずれれば損になるように決めた
-  // シミュレーション(6台・平均16.7%): 晴れで勝率12%・雨で32%・全体(雨は約3割)で約18%
-  rainT: .86,
+  // ハイグリップ: コーナーの上限 晴れ ×gripS / 雨 ×gripR(雨はみんなすべるので、グリップの差が大きく出る)
+  // シミュレーション(6台・平均16.7%): 晴れで勝率15%・雨で27%・全体で約19%。3戦のグランプリでも約19%
+  gripS: 1.015, gripR: 1.06,
   a0: 16, ak: 4, aFall: .8,                 // 加速(km/h/秒) = (a0 + ak × 加速) × (1 − aFall × 速度/最高速)
   aMin: 2,
   hillV: .82, hillA: .55,                    // 上り坂: 上限 ×0.82、加速 ×0.55
@@ -81,7 +80,7 @@ const TR = {
   hill:   { nm: 'ヒルクライム',       d: () => '上り坂で速度が落ちにくい(上限×' + PH.hillT[0] + ')' },
   rocket: { nm: 'ロケットスタート',   d: () => 'スタートから' + PH.rocketT + '秒 加速×' + PH.rocketA },
   chase:  { nm: '追い込み',           d: () => '後ろ半分にいるとき 最高速+' + r1(PH.chaseV * 100) + '%' },
-  rain:   { nm: 'レインマスター',     d: () => '雨のとき、コーナーで速度が落ちにくい(上限×' + PH.rainT + '。ふつうは×' + PH.rainC + ')。晴れでは効かない' },
+  grip:   { nm: 'ハイグリップ',       d: () => 'コーナーが ' + r1((PH.gripS - 1) * 100) + '%速い。雨の日は ' + r1((PH.gripR - 1) * 100) + '%速い' },
   drift:  { nm: 'ドリフト',           d: () => 'コーナーが ' + r1(PH.drift * 100) + '%速い' },
   dirt:   { nm: 'オフロード',         d: () => 'ダートで減速しにくい(上限×' + PH.dirtT[0] + ')' },
   dbl:    { nm: 'ダブルニトロ',       d: () => 'ニトロを2回使える(1回の時間は' + pc(PH.dblN) + '%)' },
@@ -201,7 +200,8 @@ function capOf(R, r, seg){
   const t = seg[0];
   if(t === 'c'){
     let c = r.cc * PH.cs[Math.abs(seg[2]) - 1];
-    if(R.rain) c *= r.tr.rain ? PH.rainT : PH.rainC;
+    if(R.rain) c *= PH.rainC;
+    if(r.tr.grip) c *= R.rain ? PH.gripR : PH.gripS;
     if(r.tr.drift) c *= 1 + PH.drift;
     return Math.min(c, vmax);
   }
@@ -266,7 +266,7 @@ const SK_ON = {
   hill:   (R, r, t) => t === 'h',
   rocket: R => R.t < PH.rocketT,
   chase:  (R, r) => r.lower,
-  rain:   (R, r, t) => R.rain && t === 'c',
+  grip:   (R, r, t) => t === 'c',
   drift:  (R, r, t) => t === 'c',
   dirt:   (R, r, t) => t === 'd'
 };
