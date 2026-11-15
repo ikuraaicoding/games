@@ -3,7 +3,7 @@
  * 流れ
  *  1. スキル選び: ランダムな4つから1つ選ぶ(レース中に自動で発動)
  *  2. ガレージタイム(1/3/5分・ロビーで選ぶ)。全員同じ車・体力100からスタート
- *     10秒ごとに「行動」が1回たまる(最大3回。満タンのまま次がたまると、あふれて無駄になる)
+ *     10秒ごと(ハードモードは5秒ごと)に「行動」が1回たまる(ためておけるのは1回だけ。使わないまま次がたまると、あふれて無駄になる)
  *       エンジン強化 / ターボ強化 / タイヤ強化: 成功で 最高速 / 加速 / コーナー +2、失敗で −1。体力を使う
  *       休む: 体力を回復
  *     体力が60を切ると失敗することがある(低いほど失敗しやすい)
@@ -19,7 +19,7 @@
 window.NomiGames = window.NomiGames || {};
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Segoe UI',sans-serif";
-const CFG = { TICK_MS: 10000, CAP: 3, SK_MS: 20000, PIT_MS: 8000, CD_MS: 4200, DT: 100, SNAP_N: 4, RES_MS: 7500, AFTER_MS: 12000, MAX_RACE_S: 100, GARAGE_MS: 0, RAIN: -1 };   // GARAGE_MS / RAIN はテスト用(0なら設定どおり / -1なら天気はランダム)
+const CFG = { TICK_MS: 10000, HARD_MS: 5000, CAP: 1, SK_MS: 20000, PIT_MS: 8000, CD_MS: 4200, DT: 100, SNAP_N: 4, RES_MS: 7500, AFTER_MS: 12000, MAX_RACE_S: 100, GARAGE_MS: 0, RAIN: -1 };   // GARAGE_MS / RAIN はテスト用(0なら設定どおり / -1なら天気はランダム)
 const MINS = [1, 3, 5];
 const PTS = [10, 7, 5, 4, 3, 2, 1, 0];
 
@@ -58,7 +58,8 @@ const PH = {
   // ガレージ: ステータスの最初の値 / 成功で+gain、失敗で−loss
   start: 3, gain: 2, loss: 1, stMax: 40,
   // 体力: 最大100。強化で −cost、休むで +rest。safe 未満で失敗することがある(1足りないごとに失敗率 +failK%)
-  hpMax: 100, cost: 25, rest: 40, safe: 60, failK: 1.4, failMax: .9,
+  // rest は、最適な遊び方を計算して決めた(+50: 体力50から1回で満タン。休むのは行動の3割ほどで、体力が少し足りないときに賭けるかどうかで差がつく)
+  hpMax: 100, cost: 25, rest: 50, safe: 60, failK: 1.4, failMax: .9,
   // 好調: 行動のたびに 30% の確率で、強化のどれか1つが「好調」になる(成功で +4)
   hotP: .3, hotGain: 4,
   nit: 6                                     // ニトロの強さ(全員同じ)
@@ -310,7 +311,7 @@ function showCatalog(){
   const rows = list => { const b = elx('div', 'cat-sec'); list.forEach(([a, t]) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', a)); r.appendChild(elx('span', '', t)); b.appendChild(r); }); body.appendChild(b); };
   sec('ステータス', '最初は全部' + PH.start + '。' + PH.soft + 'を超えると伸びがゆるやかになる。コースは運なので、どれかに寄せるか、まんべんなく上げるかは作戦しだい');
   rows([['最高速', '直線・坂・ダートでの速さの上限'], ['加速', 'コーナーのあとやスタートの立ち上がり'], ['コーナー', 'コーナーでの速さの上限(きついコーナーほど大事)']]);
-  sec('ガレージでできること', '10秒ごとに行動が1回たまる(最大' + CFG.CAP + '回)');
+  sec('ガレージでできること', CFG.TICK_MS / 1000 + '秒ごと(ハードモードは' + CFG.HARD_MS / 1000 + '秒ごと)に行動が1回たまる。ためておけるのは' + CFG.CAP + '回だけ');
   rows(TRN.map((nm, i) => [nm, '成功で ' + ST[i] + ' +' + PH.gain + '、失敗で −' + PH.loss + '。体力 −' + PH.cost]).concat([['休む', '体力 +' + PH.rest + '(最大' + PH.hpMax + ')']]));
   sec('体力と失敗', '体力が' + PH.safe + '以上なら必ず成功。' + PH.safe + 'を切ると失敗することがある(体力が1下がるごとに失敗率 +' + PH.failK + '%)');
   rows([PH.safe - 10, PH.safe - 20, PH.safe - 30, PH.safe - 40].map(h => ['体力' + h, '失敗率 ' + pc(failP(h)) + '%']));
@@ -339,7 +340,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   //  参加者側(表示)
   // =====================================================================
   let ph = 'wait', me = null, meSeq = -1, lastRv = 0, nonce = 0, localEnd = 0, nextAt = 0, uiMode = '', clockT = 0, rev = false, nR = 1;
-  let pit = null, rc = null, raf = 0, lastPts = null;
+  let pit = null, rc = null, raf = 0, lastPts = null, tickMs = CFG.TICK_MS;
 
   function view(v){
     ['rc-gar', 'rc-pit', 'rc-run', 'rc-res'].forEach(id => { $(id).style.display = id === v ? 'flex' : 'none'; });
@@ -348,7 +349,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     PF.show(!stopped && v !== 'rc-gar', { amb: v === 'rc-run' ? null : [0x4fa3ff, 0x9ad0ff, 0xffffff] });
   }
   function onBegin(){
-    stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; uiMode = ''; pit = null; rc = null; rev = false; nR = 1; lastPts = null;
+    stopped = false; ph = 'wait'; me = null; meSeq = -1; lastRv = 0; uiMode = ''; pit = null; rc = null; rev = false; nR = 1; lastPts = null; tickMs = CFG.TICK_MS;
     $('rc-top').textContent = 'RACE — 育成レース';
     view('rc-gar'); $('rc-panel').textContent = ''; $('rc-car').textContent = '';
     $('rc-time').textContent = '--:--'; $('rc-tk').textContent = '0'; $('rc-note').textContent = '準備中…';
@@ -369,8 +370,10 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       const rem = localEnd - now;
       $('rc-time').textContent = fmt(rem); $('rc-time').classList.toggle('hot', rem < 15000);
       const bar = $('rc-tbar').firstElementChild;
-      if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / CFG.TICK_MS) + ')'; } else bar.style.transform = 'scaleX(0)';
-      $('rc-tbar').classList.toggle('over', !!(me && me.tk >= CFG.CAP));
+      if(nextAt > 0 && me){ const left = Math.max(0, nextAt - now); bar.style.transform = 'scaleX(' + (1 - left / tickMs) + ')'; } else bar.style.transform = 'scaleX(0)';
+      // 行動を持ったまま、次がたまるまで3秒を切ったら赤くする(このままだと、あふれる)
+      const soon = !!(me && me.tk >= CFG.CAP && nextAt > 0 && nextAt - now < 3000);
+      $('rc-tbar').classList.toggle('over', soon); $('rc-note').classList.toggle('over', soon);
     }else if(ph === 'pit' && pit){
       const rem = pit.end - now;
       $('rc-pt').textContent = Math.max(0, Math.ceil(rem / 1000)) + '秒';
@@ -462,8 +465,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(me.last){ const l = me.last; box.appendChild(el('div', 'rg-last ' + l.k, l.txt)); }
     const can = me.tk > 0 && uiMode !== 'busy';
     const lastSec = localEnd - performance.now() < 20000;
-    note.textContent = me.tk >= CFG.CAP ? '満タン! 使わないと次の行動があふれて無駄になる' : me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(10秒ごとに1回たまる)') : '次の行動がたまるのを待とう…';
-    note.classList.toggle('over', me.tk >= CFG.CAP);
+    note.textContent = me.tk > 0 ? (lastSec ? 'もうすぐ終了! 行動を使い切ろう' : '行動を選ぼう(' + Math.round(tickMs / 1000) + '秒ごとに1回。使わないと次があふれて無駄になる)') : '次の行動がたまるのを待とう…';
     const f = failP(me.car.hp), g = el('div', 'agrid two');
     TRN.forEach((nm, i) => {
       const hot = me.hot === i;
@@ -480,6 +482,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(!okCar(m.car) || !isInt(m.tk, 0, 9)) return;
     meSeq = m.s;
     if(isInt(m.R, 1, 3)) nR = m.R;
+    if(m.ti === CFG.HARD_MS || m.ti === CFG.TICK_MS) tickMs = m.ti;
     if(m.rev && !rev){ rev = true; }
     const skc = Array.isArray(m.skc) ? m.skc.filter(k => typeof k === 'string' && TR[k]).slice(0, SK_N) : [];
     const last = me ? me.last : null;
@@ -903,12 +906,12 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   // =====================================================================
   //  ホスト(審判)
   // =====================================================================
-  const H = { phase: 'idle', P: new Map(), names: [], crs: [], R: 1, ri: -1, rev: false, mins: 3, skEnd: 0, skT: 0, endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, RS: null, goAt: 0, simT: 0, pitT: 0 };
+  const H = { phase: 'idle', P: new Map(), names: [], crs: [], R: 1, ri: -1, rev: false, mins: 3, TICK: CFG.TICK_MS, skEnd: 0, skT: 0, endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, RS: null, goAt: 0, simT: 0, pitT: 0 };
   const readOn = (sel, key, ok, d) => { try{ const b = document.querySelector('#l-race button[data-' + key + '].on'); const v = b ? parseInt(b.dataset[key], 10) : d; return ok(v) ? v : d; }catch(e){ return d; } };
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now(), sk = H.phase === 'sk';
-    const o = { t: 'me', s: ++H.seq, R: H.R, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const o = { t: 'me', s: ++H.seq, R: H.R, ti: H.TICK, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(sk){ o.sk = 1; o.skc = p.skc; }
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
@@ -919,6 +922,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     stopHost();
     H.mins = readOn('', 'm', v => MINS.includes(v), 3);
     H.R = readOn('', 'r', v => v === 1 || v === 3, 3);
+    H.TICK = readOn('', 'h', v => v === 0 || v === 1, 0) === 1 ? CFG.HARD_MS : CFG.TICK_MS;
     try{ const b = document.querySelector('#l-race button[data-v].on'); H.rev = !!(b && b.dataset.v === 'last'); }catch(e){ H.rev = false; }
     H.phase = 'sk'; H.P = new Map(); H.seq = 0; H.rvn = 0; H.RS = null; H.ri = -1;
     H.names = E.players().map(p => [p.id, p.name]);
@@ -935,13 +939,13 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     H.P.forEach(p => { if(!p.car.sk) p.car.sk = p.skc[Math.floor(rndF() * p.skc.length)]; });
     H.phase = 'gar';
     const ms = CFG.GARAGE_MS || H.mins * 60000, now = performance.now();
-    H.endAt = now + ms; H.nextTick = now + CFG.TICK_MS;
+    H.endAt = now + ms; H.nextTick = now + H.TICK;
     H.P.forEach((p, id) => { p.tk = 1; p.hot = rollHot(rndF); sendMe(id); });
     H.tickT = setInterval(() => {
       if(H.phase !== 'gar') return;
-      H.nextTick = performance.now() + CFG.TICK_MS;
+      H.nextTick = performance.now() + H.TICK;
       H.P.forEach((p, id) => { if(p.tk < CFG.CAP){ p.tk++; sendMe(id); } else { p.lost++; sendMe(id, { of: 1 }); } });
-    }, CFG.TICK_MS);
+    }, H.TICK);
     H.endT = setTimeout(endGarage, ms);
   }
   function hostOnMsg(id, m){

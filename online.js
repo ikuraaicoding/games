@@ -220,10 +220,10 @@ const RULES = [
   { g: 'race', nm: 'RACE', sub: '育成レース', ic: 'i-race', r: [
     '最初に、ランダムな4つのスキルから1つ選ぶ(レース中に自動で発動)',
     'ガレージタイム(1〜5分)の間に車をきたえる。最初は全員 最高速3・加速3・コーナー3、体力100',
-    '10秒ごとに行動が1回たまる(最大3回。満タンのままだと、あふれて無駄になる)',
+    '10秒ごとに行動が1回たまる(ハードモードは5秒ごと)。ためておけるのは1回だけで、使わないまま次がたまると、あふれて無駄になる',
     '行動は「エンジン強化(最高速)」「ターボ強化(加速)」「タイヤ強化(コーナー)」「休む」の4つ',
     '強化は成功で+2、失敗で−1。体力を25使う。体力が60を切るとゲージが黄色になり、失敗することがある',
-    '休むと体力が40回復する',
+    '休むと体力が50回復する',
     'ときどき強化のどれか1つが「好調」になる。好調の強化は成功で+4',
     'コースはレースの直前に発表(運)。レースは全員同時。操作はニトロを押すタイミングだけ(1レース1回)',
     'ゴール順にポイント(10・7・5・4・3・2・1・0)。1戦か3戦の合計で順位が決まる',
@@ -597,7 +597,7 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   const setV = x => { vs.forEach(b => b.classList.toggle('on', b.dataset.v === x)); try{ localStorage.setItem('arena-mode', x); }catch(e){} };
   setV(v === 'last' ? 'last' : 'top'); vs.forEach(b => b.addEventListener('click', () => setV(b.dataset.v)));
 })();
-// RACE: ガレージタイム / レース数 / 決めるのは
+// RACE: ガレージタイム / ゲージ / レース数 / 決めるのは
 (function(){
   const one = (key, store, ok, d) => {
     const bs = document.querySelectorAll('#l-race button[data-' + key + ']');
@@ -608,6 +608,7 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   };
   one('m', 'race-min', ['1', '3', '5'], '3');
   one('r', 'race-n', ['1', '3'], '3');
+  one('h', 'race-hard', ['0', '1'], '0');
   one('v', 'race-mode', ['top', 'last'], 'top');
 })();
 // CORE: 見ている人(コアを持っていない人)の音
