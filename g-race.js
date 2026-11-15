@@ -33,8 +33,10 @@ const TRN = ['エンジン強化', 'ターボ強化', 'タイヤ強化'];      /
 
 // ---------------- バランス(数字はここだけで決める。説明文もここから作る) ----------------
 const PH = {
-  v0: 166, vk: 5.6,                          // 最高速(km/h) = v0 + vk × 最高速
-  c0: 110, ck: 2.9, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
+  // 3つのステータスの価値をそろえた(どれを6上げても、タイムの縮み方がほぼ同じ。どこまで育てても同じ)
+  // 加速は上げるほど効き目が頭打ちになるので、最高速も少し上がるようにしている(vka)
+  v0: 168, vk: 4.7, vka: 1.3,                // 最高速(km/h) = v0 + vk × 最高速 + vka × 加速
+  c0: 110, ck: 3.05, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
   rainC: .8,                                 // 雨: コーナーの上限 ×0.8
   // ハイグリップ: コーナーの上限 晴れ ×gripS / 雨 ×gripR(雨はみんなすべるので、グリップの差が大きく出る)
   // シミュレーション(6台・平均16.7%): 晴れで勝率15%・雨で27%・全体で約19%。3戦のグランプリでも約19%
@@ -186,7 +188,7 @@ const eff = x => x <= PH.soft ? x : PH.soft + (x - PH.soft) * PH.softK;
 function mkRacer(id, st0, trs, form){
   const tr = {}; trs.forEach(k => { tr[k] = 1; });
   const f = 1 + (form || 0), st = st0.map(eff);
-  return { id, st, tr, vmax: (PH.v0 + PH.vk * st[0]) * f, acc: (PH.a0 + PH.ak * st[1]) * f, cc: PH.c0 + PH.ck * st[2],
+  return { id, st, tr, vmax: (PH.v0 + PH.vk * st[0] + PH.vka * st[1]) * f, acc: (PH.a0 + PH.ak * st[1]) * f, cc: PH.c0 + PH.ck * st[2],
     nb: PH.n0 + PH.nk * st[3], na: PH.na0 + PH.nak * st[3], nd: (PH.nt0 + PH.ntk * st[3]) * (tr.long ? PH.longN : 1) * (tr.dbl ? PH.dblN : 1),
     nl: tr.dbl ? 2 : 1, nt: 0, d: 0, v: 0, fin: -1, out: false, slip: false, lower: false, pos: 0 };
 }
