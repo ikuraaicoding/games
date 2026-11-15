@@ -667,7 +667,6 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     rxSlots = new Map();
     rk.forEach((x, i) => {
       const id = x[0], d = el('details', 'rx-p' + (id === E.myId ? ' me' : ''));
-      if(i === 0 || id === E.myId) d.open = true;
       const s = el('summary');
       s.appendChild(el('span', 'rx-rk', s60(String(x[1]))));
       const nm = el('span', 'rx-nm', nmOf(id)); if(id === E.myId) nm.appendChild(el('small', '', 'あなた')); s.appendChild(nm);

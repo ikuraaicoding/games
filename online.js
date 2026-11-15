@@ -8,7 +8,7 @@ const R = window.NomiRoom;
 const clean = R.clean;
 // 制御文字は取り除くが、改行(\n)だけは残す(結果画面の複数行表示のため)
 const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 80);
-function show(id){ const was = document.querySelector('.screen.active'); if(!was || was.id !== id){ const c = document.getElementById('a-cat'); if(c) c.classList.remove('on'); document.body.classList.remove('catopen'); } document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
+function show(id){ if(id === 's-menu'){ const f = document.getElementById('cf'); if(f) f.classList.remove('on'); } const was = document.querySelector('.screen.active'); if(!was || was.id !== id){ const c = document.getElementById('a-cat'); if(c) c.classList.remove('on'); document.body.classList.remove('catopen'); } document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
 function vis(id, on, disp){ const e = $(id); e.classList.remove('hide'); e.style.display = on ? (disp || 'block') : 'none'; }
 function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
@@ -22,7 +22,8 @@ let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'aren
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
 let ac = null;
-const live = () => { if(window.NomiSound) ac = window.NomiSound.get(); return ac; };
+let sndAt = -1e9;                 // 最後に音を出そうとした時刻(ボタンの音が二重にならないように使う)
+const live = () => { sndAt = performance.now(); if(window.NomiSound) ac = window.NomiSound.get(); return ac; };
 const audio = {
   init(){ if(window.NomiSound){ ac = window.NomiSound.open(); return; } if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(ac && ac.state !== 'running') ac.resume(); },
   heartbeat(vol){
@@ -620,31 +621,47 @@ document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('c
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 setWant(wantGame);
 
-// ---------- ボタンの音(メニュー・参加・ロビー・結果・チャット・一覧) ----------
-// ゲーム中の操作ボタンは、それぞれのゲームが音を出すので、ここでは鳴らさない
-const UI_AREA = '#s-menu, #s-scan, #s-lobby, #s-result, #chat-sheet';
+// ---------- ボタンの音(すべての画面のボタン) ----------
+// ボタン自身がもう音を出していたら(ニトロ・スキルなど)、二重にならないように鳴らさない
 function uiSE(kind){
   audio.init();
   if(kind === 'go'){ audio.beep(660, .07, .14); setTimeout(() => audio.beep(990, .1, .14), 60); }
   else if(kind === 'back'){ audio.beep(660, .06, .12); setTimeout(() => audio.beep(440, .1, .12), 60); }
   else audio.beep(880, .04, .1);
 }
+let downAt = -1e9;
+document.addEventListener('pointerdown', () => { downAt = performance.now(); }, true);
+// ボタンの処理が終わったあと(document まで上がってきたとき)に鳴らす
 document.addEventListener('click', e => {
-  const b = e.target.closest('button, a.ib');
-  if(!b || b.disabled || !(b.closest(UI_AREA) || b.matches('#chat-btn, .cat-open, .cat-x'))) return;
-  const kind = b.closest('.gsel') || b.matches('.btn.main, #b-join, #b-solo') ? 'go' : b.matches('a.ib, #sc-back, #l-quit, #r-quit, #chat-x, .cat-x') ? 'back' : 'tap';
+  const b = e.target.closest('button, a.ib, .ac.slim');
+  if(!b) return;
+  const now = performance.now(), from = now - downAt < 1500 ? downAt : now - 50;
+  if(sndAt >= from - 5) return;
+  const kind = b.closest('.gsel') || b.matches('.btn.main, #b-join, #b-solo') ? 'go' : b.matches('a.ib, #sc-back, #l-quit, #r-quit, #chat-x, .cat-x, #cf-no, #cf-yes') ? 'back' : 'tap';
   uiSE(kind);
   // ホームへもどるリンク: 音が途切れないよう、少し待ってから移る
-  if(b.tagName === 'A' && b.href && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)){ e.preventDefault(); const to = b.href; setTimeout(() => { location.href = to; }, 170); }
-}, true);
+  if(b.tagName === 'A' && b.href && !e.defaultPrevented && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)){ e.preventDefault(); const to = b.href; setTimeout(() => { location.href = to; }, 170); }
+});
 $('b-host').addEventListener('click', () => { saveName(); audio.init(); hostCreate(); });
 $('b-join').addEventListener('click', () => { saveName(); audio.init(); guestBegin(); });
 $('b-solo').addEventListener('click', () => { saveName(); audio.init(); soloCreate(); });
 $('l-addbot').addEventListener('click', () => { if(solo && room){ room.add(); pushRoster(); } });
 $('sc-back').addEventListener('click', () => { stopScan(); show('s-menu'); });
 $('sc-go').addEventListener('click', () => { const t = $('sc-paste').value.trim(); if(t) joinWith(t); });
-$('l-quit').addEventListener('click', quitAll);
-$('r-quit').addEventListener('click', quitAll);
+$('l-quit').addEventListener('click', askQuit);
+$('r-quit').addEventListener('click', askQuit);
+// ---------- 退出の確認 ----------
+function askQuit(){
+  const host = role === 'host';
+  $('cf-t').textContent = solo ? 'CPU戦をやめますか?' : host ? '部屋を閉じて退出しますか?' : '部屋から退出しますか?';
+  $('cf-m').textContent = solo ? 'メニューにもどります。' : host ? 'ホストが抜けると、部屋がなくなって、みんなのゲームも終わります。' : 'もう一度入るには、ホストのQRを読み直してください。';
+  $('cf-yes').textContent = solo ? 'やめる' : '退出する';
+  $('cf').classList.add('on');
+}
+const closeQuit = () => $('cf').classList.remove('on');
+$('cf-no').addEventListener('click', closeQuit);
+$('cf-yes').addEventListener('click', () => { closeQuit(); quitAll(); });
+$('cf').addEventListener('click', e => { if(e.target === $('cf')) closeQuit(); });
 $('a-catbtn').addEventListener('click', () => window.NomiGames.arena.showCatalog());
 $('l-start').addEventListener('click', () => startGame(wantGame));
 $('l-lock').addEventListener('click', () => { userLocked = !userLocked; if(room) room.setLocked(userLocked); renderLobby(); });
@@ -656,7 +673,7 @@ function quitAll(){
   if(role === 'host' && room){ room.close(); } else if(guest){ guest.close(); }
   room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx(); chatReset();
   document.body.classList.remove('solo');
-  $('picker').classList.remove('on'); hideBanner(); show('s-menu');
+  $('picker').classList.remove('on'); closeQuit(); hideBanner(); show('s-menu');
   if(newVer) location.reload();
 }
 // 新しい版が届いたら読み込み直す(部屋に入っている間は待って、抜けたときに)

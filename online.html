@@ -140,6 +140,14 @@ summary{ font-size:.76rem; color:var(--sub); }
 @keyframes strobe{ 0%{opacity:0} 10%{opacity:1} 25%{opacity:.2} 40%{opacity:.9} 100%{opacity:0} }
 #blackout{ position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:49; transition:opacity .3s; }
 #blackout.on{ opacity:1; }
+/* 退出の確認 */
+.cf{ position:fixed; inset:0; z-index:70; display:none; align-items:center; justify-content:center; padding:24px; background:rgba(9,9,11,.72); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+.cf.on{ display:flex; }
+.cf-box{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line2); border-radius:20px; padding:20px 18px 16px; text-align:center; animation:cfin .22s cubic-bezier(.2,1.3,.4,1); }
+.cf-box b{ display:block; font-size:1.1rem; font-weight:800; }
+.cf-box p{ margin:8px 0 6px; font-size:.82rem; color:var(--sub); line-height:1.7; }
+.cf .btn.cf-yes{ background:var(--red); border-color:var(--red); color:#fff; }
+@keyframes cfin{ 0%{ opacity:0; transform:scale(.92); } 100%{ opacity:1; transform:none; } }
 #picker{ position:fixed; inset:0; z-index:30; background:rgba(9,9,11,.86); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
 #picker.on{ display:flex; }
 #picker h3{ margin:0 0 6px; font-size:1.6rem; font-weight:800; color:var(--text); }
@@ -764,6 +772,14 @@ body:not(.solo) .solo-only{ display:none; }
 
 </div>
 <div id="picker"><h3>誰に渡す?</h3><div class="help" id="pk-sub"></div><div class="bar"><i id="pk-bar"></i></div><div class="list" id="pk-list"></div></div>
+
+<div id="cf" class="cf" role="dialog" aria-modal="true" aria-labelledby="cf-t">
+  <div class="cf-box">
+    <b id="cf-t"></b>
+    <p id="cf-m"></p>
+    <div class="row2"><button class="btn" id="cf-no" type="button">キャンセル</button><button class="btn cf-yes" id="cf-yes" type="button">退出する</button></div>
+  </div>
+</div>
 
 <script src="sound.js"></script>
 <script src="lib/qrcode.js"></script>
