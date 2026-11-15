@@ -620,6 +620,23 @@ document.querySelectorAll('#seg-game button').forEach(b => b.addEventListener('c
 document.querySelectorAll('#l-seg button').forEach(b => b.addEventListener('click', () => setWant(b.dataset.g)));
 setWant(wantGame);
 
+// ---------- ボタンの音(メニュー・参加・ロビー・結果・チャット・一覧) ----------
+// ゲーム中の操作ボタンは、それぞれのゲームが音を出すので、ここでは鳴らさない
+const UI_AREA = '#s-menu, #s-scan, #s-lobby, #s-result, #chat-sheet';
+function uiSE(kind){
+  audio.init();
+  if(kind === 'go'){ audio.beep(660, .07, .14); setTimeout(() => audio.beep(990, .1, .14), 60); }
+  else if(kind === 'back'){ audio.beep(660, .06, .12); setTimeout(() => audio.beep(440, .1, .12), 60); }
+  else audio.beep(880, .04, .1);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button, a.ib');
+  if(!b || b.disabled || !(b.closest(UI_AREA) || b.matches('#chat-btn, .cat-open, .cat-x'))) return;
+  const kind = b.closest('.gsel') || b.matches('.btn.main, #b-join, #b-solo') ? 'go' : b.matches('a.ib, #sc-back, #l-quit, #r-quit, #chat-x, .cat-x') ? 'back' : 'tap';
+  uiSE(kind);
+  // ホームへもどるリンク: 音が途切れないよう、少し待ってから移る
+  if(b.tagName === 'A' && b.href && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)){ e.preventDefault(); const to = b.href; setTimeout(() => { location.href = to; }, 170); }
+}, true);
 $('b-host').addEventListener('click', () => { saveName(); audio.init(); hostCreate(); });
 $('b-join').addEventListener('click', () => { saveName(); audio.init(); guestBegin(); });
 $('b-solo').addEventListener('click', () => { saveName(); audio.init(); soloCreate(); });
