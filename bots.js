@@ -142,7 +142,9 @@ function make(id, send, chat){
           if(Number.isInteger(m.hot) && m.hot >= 0 && m.hot <= 2 && (hp >= 40 || endSoon) && rnd() < .85){ send({ t: 'act', a: 'tr', i: m.hot, n: ++a.n }); return; }
           if(!endSoon && (hp < 35 || (hp < 60 && rnd() < .8))){ send({ t: 'act', a: 'rs', n: ++a.n }); return; }
           // 上げる: 一番低いもの(性格で、どれか1つを少しひいき)
-          const st = m.car.st.map((v, i) => v - (i === a.bias ? 3 : 0));
+          // 使う体力が少ない強化を少しひいきする(5少ないごとに1つ低いのと同じあつかい)
+          const hc = m.hc && Array.isArray(m.hc.c) && m.hc.c.length === 3 && m.hc.c.every(Number.isFinite) ? m.hc.c : [25, 25, 25];
+          const st = m.car.st.map((v, i) => v - (i === a.bias ? 3 : 0) + (hc[i] - 25) / 5);
           let i = st.indexOf(Math.min(...st)); if(rnd() < .2) i = ri(0, 2);
           send({ t: 'act', a: 'tr', i, n: ++a.n });
         }, ri(700, 3000));
