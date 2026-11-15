@@ -132,6 +132,8 @@ function make(id, send, chat){
         if(m.sk){
           // スキル: 候補からランダム
           // 雨の予報(60%以上)があれば、ハイグリップを選びやすい
+          // 車の種類: ランダム。選んだら、次の知らせでスキルを選ぶ
+          if(!m.car.ty){ const ks = ['bal', 'spd', 'acc', 'crn']; a.t = later(() => send({ t: 'ctp', k: ks[ri(0, 3)], n: ++a.n }), ri(1200, 4000)); return; }
           if(!m.car.sk && Array.isArray(m.skc) && m.skc.length){
             const wet = Array.isArray(m.wx) && m.wx.some(p => Number.isFinite(p) && p >= 60);
             const c = m.skc;
