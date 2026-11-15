@@ -11,9 +11,9 @@ if('serviceWorker' in navigator){
 // ---------- ゲームを選んだときの音 ----------
 let ac = null;
 function initAudio(){
+  if(window.NomiSound){ ac = window.NomiSound.open(); return; }
   if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC){ try{ ac = new AC(); }catch(e){} } }
-  if(!ac) return;
-  if(window.NomiSound) window.NomiSound.track(ac); else if(ac.state !== 'running') ac.resume();
+  if(ac && ac.state !== 'running') ac.resume();
 }
 function beep(freq, at, len, vol){
   const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
