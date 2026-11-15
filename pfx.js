@@ -16,6 +16,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Go
 const MAX_PARTS = 700;
 let P = null, app = null, state = 'idle', loading = null, visible = false;
 let L = {}, tex = {}, pool = [], parts = [], tweens = [], cutQ = [], cutBusy = false;
+let dirty = true, idle = 0, odd = false;
 let shakeAmp = 0, shakeX = 0, shakeY = 0, ambT = 0, ambCols = null, auras = [];
 const reduce = (() => { try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } })();
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -45,8 +46,11 @@ function load(){
       ['amb', 'back', 'fx', 'top', 'ui', 'flash'].forEach(k => { L[k] = new P.Container(); app.stage.addChild(L[k]); });
       makeTextures();
       L.flashG = new P.Graphics(); L.flash.addChild(L.flashG); L.flash.alpha = 0;
-      app.ticker.add(t => update(Math.min(50, t.deltaMS)));
+      // 描くのは必要なときだけ(何も動いていないのに毎回描くと、スマホが重くなる)
+      app.ticker.remove(app.render, app);
+      app.ticker.add(t => tick(Math.min(50, t.deltaMS)));
       app.ticker.stop();
+      window.addEventListener('resize', () => { dirty = true; });
       state = 'ready';
       if(visible) show(true);
     }catch(e){ state = 'fail'; try{ if(app) app.destroy(true); }catch(_){ } app = null; }
@@ -153,6 +157,20 @@ function update(dt){
     }
   });
 }
+// 1コマ分: 動かしてから、必要なら描く
+// - 演出が動いている → 毎回描く
+// - 火の粉だけ → 2回に1回(ゆっくりなので見た目は変わらない)
+// - 何もない → 消えた画面を2回描いたら、あとは描かずに隠しておく
+function tick(dt){
+  update(dt);
+  const amb = L.amb.children.length;
+  const busy = parts.length > amb || tweens.length || auras.length || shakeAmp > .3 || L.flash.alpha > 0;
+  const cs = app.canvas.style;
+  if(busy || dirty){ dirty = false; idle = 0; cs.visibility = ''; app.render(); return; }
+  if(amb){ idle = 0; cs.visibility = ''; odd = !odd; if(odd) app.render(); return; }
+  if(idle < 2){ idle++; app.render(); }
+  else cs.visibility = 'hidden';      // 何も出ていない間は、画面に重ねない
+}
 function shake(a){ if(!reduce) shakeAmp = Math.max(shakeAmp, a); }
 function flash(color, a, ms){
   const W = app.screen.width, H = app.screen.height;
@@ -193,7 +211,10 @@ function show(on, o){
   visible = !!on;
   if(o && 'amb' in o) ambCols = o.amb;
   if(!ok()) return;
+  // 火の粉なしの画面にしたら、残っている火の粉もすぐ片付ける
+  if(!ambCols) parts = parts.filter(p => { if(p.s.parent !== L.amb) return true; free(p.s); return false; });
   app.canvas.style.display = on ? 'block' : 'none';
+  dirty = true;
   if(on){ app.resize(); app.ticker.start(); }
   else{ app.ticker.stop(); clearAll(); }
 }
@@ -481,6 +502,9 @@ function _stat(){
   const tx = app.renderer.texture && app.renderer.texture.managedTextures ? app.renderer.texture.managedTextures.length : -1;
   return { parts: parts.length, tweens: tweens.length, pool: pool.length, layers: ['amb', 'back', 'fx', 'top', 'ui'].map(k => cnt(L[k])).join(','), managedTextures: tx };
 }
-window.NomiFX = { _stat, load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
+const api = { _stat, load, ok, show, intro, fight, attack, num, heal, miss, skill, ko, undying, win, fatigue, slam, pop, rowIn, doom, confetti, streak, hitEl, shatter, aura, fireball };
+// 演出を呼んだら、次のコマは必ず描く
+Object.keys(api).forEach(k => { const f = api[k]; api[k] = function(){ dirty = true; return f.apply(this, arguments); }; });
+window.NomiFX = api;
 window.NomiArenaFX = window.NomiFX;
 })();
