@@ -81,7 +81,7 @@ function make(id, send, chat){
   };
 
   // ---------------- ARENA ----------------
-  const score = c => c.a + c.d + c.h;
+  const score = c => c.a + c.d + c.h + (c.u ? 3 : 0);       // UR(固有能力つき)は少し高く見る
   const arena = {
     begin(){ S.ar = { n: 0, t: 0, mi: 0 }; },
     msg(m){
