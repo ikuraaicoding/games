@@ -113,15 +113,15 @@ const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防
 // c: 系統(一番高いステ) / un: 能力の名前 / d: くわしい説明 / s: 試合中のカードに出す短い説明
 const U_ = BAL.uq;
 const UQ = {
-  ken: { c: 'a', nm: '剣聖アルス',     av: 1103515245, un: '連斬',   d: () => '敵を倒すと、すぐに ' + mul(U_.ken) + '倍で追撃(1手番1回)', s: () => '倒すと追撃' },
-  rai: { c: 'a', nm: '雷帝ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
-  hao: { c: 'a', nm: '覇王ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
-  gol: { c: 'd', nm: '鉄巨人ゴルド',   av: 1013904242, un: '鋼の体', d: () => '受けるダメージがいつも −' + pct(U_.gol) + '%', s: () => '被ダメ−' + pct(U_.gol) + '%' },
-  leo: { c: 'd', nm: '聖騎士レオン',   av: 1597334677, un: '守りの誓い', d: () => 'となりの味方の被ダメ −' + pct(U_.leo) + '%', s: () => 'となりを守る' },
-  faf: { c: 'd', nm: '守護竜ファフ',   av: 1812433253, un: '竜の盾', d: n => 'HPが半分を切ると1度だけ、味方全員の次の被ダメ −' + pct(U_.faf * aoe('faf', n)) + '%', s: () => 'ピンチで味方を守る' },
-  cel: { c: 'h', nm: '聖女セレス',     av: 1225351234, un: '祈り',   d: n => '自分の手番ごとに、味方全員をHP' + pct(U_.cel * aoe('cel', n) * 10) / 10 + '%回復', s: () => '毎手番 全員回復' },
-  phx: { c: 'h', nm: '不死鳥フェニクス', av: 1348012345, un: '転生', d: () => '倒れても1度だけ、HP' + pct(U_.phx) + '%でよみがえる', s: () => '1度よみがえる' },
-  ygg: { c: 'h', nm: '大樹ユグド',     av: 1950203111, un: '大地の恵み', d: () => '最大HP +' + pct(U_.ygg) + '%', s: () => '最大HP+' + pct(U_.ygg) + '%' }
+  ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: () => '敵を倒すと、すぐに ' + mul(U_.ken) + '倍で追撃(1手番1回)', s: () => '倒すと追撃' },
+  rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
+  hao: { c: 'a', nm: 'ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
+  gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: () => '受けるダメージがいつも −' + pct(U_.gol) + '%', s: () => '被ダメ−' + pct(U_.gol) + '%' },
+  leo: { c: 'd', nm: 'レオン',   av: 1597334677, un: '守りの誓い', d: () => 'となりの味方の被ダメ −' + pct(U_.leo) + '%', s: () => 'となりを守る' },
+  faf: { c: 'd', nm: 'ファフ',   av: 1812433253, un: '竜の盾', d: n => 'HPが半分を切ると1度だけ、味方全員の次の被ダメ −' + pct(U_.faf * aoe('faf', n)) + '%', s: () => 'ピンチで味方を守る' },
+  cel: { c: 'h', nm: 'セレス',     av: 1225351234, un: '祈り',   d: n => '自分の手番ごとに、味方全員をHP' + pct(U_.cel * aoe('cel', n) * 10) / 10 + '%回復', s: () => '毎手番 全員回復' },
+  phx: { c: 'h', nm: 'フェニクス', av: 1348012345, un: '転生', d: () => '倒れても1度だけ、HP' + pct(U_.phx) + '%でよみがえる', s: () => '1度よみがえる' },
+  ygg: { c: 'h', nm: 'ユグド',     av: 1950203111, un: '大地の恵み', d: () => '最大HP +' + pct(U_.ygg) + '%', s: () => '最大HP+' + pct(U_.ygg) + '%' }
 };
 const UQ_OF = { a: [], d: [], h: [] }; Object.keys(UQ).forEach(k => UQ_OF[UQ[k].c].push(k));
 
@@ -949,7 +949,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       else if(u.phx){ u.phx = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.uq.phx)); u.armed = ''; L.push('◆ ' + u.nm + ' の転生! よみがえった'); F.push([idxOf(B, u), 0, 'u']); F.push([idxOf(B, u), u.hp, 'h']); }
       else{ u.hp = 0; u.armed = ''; u.taunt = 0; u.ctr = 0; L.push(u.nm + ' は倒れた'); if(src >= 0 && B.u[src]) B.u[src].kn++; }
     }
-    // 守護竜ファフ: HPが半分を切ったら1度だけ、味方全員に盾
+    // ファフ: HPが半分を切ったら1度だけ、味方全員に盾
     if(u.faf && u.hp > 0 && u.hp * 2 < u.mhp){
       u.faf = false; const v = BAL.uq.faf * aoe('faf', B.N);
       mates(B, u).forEach(x => { x.wall = Math.max(x.wall, v); });
@@ -988,7 +988,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       if(d.ctr && alive(d) && alive(a)){ const m = d.ctr; d.ctr = 0; hit(B, d, a, m, L, F, { noReact: true, lab: d.nm + ' の反撃' }); }
     }
     if(!alive(d)) d.ctr = 0;
-    // 雷帝ヴォルト: ほかの敵1体にも雷(雷からは雷は出ない)
+    // ヴォルト: ほかの敵1体にも雷(雷からは雷は出ない)
     if(a.uq === 'rai' && !opt.noChain && alive(a)){
       const os = foes(B, a).filter(x => x !== d);
       if(os.length) hit(B, a, os[Math.floor(B.rnd() * os.length)], BAL.uq.rai, L, F, { noReact: true, noChain: true, lab: a.nm + ' の雷' });
@@ -1019,7 +1019,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const k0 = u.kn;
     if(u.uq === 'cel') mates(B, u).forEach(x => heal(B, x, x.mhp * BAL.uq.cel * aoe('cel', B.N), L, F));
     act1(B, u, L, F);
-    // 剣聖アルス: 敵を倒したら、すぐもう1回
+    // アルス: 敵を倒したら、すぐもう1回
     if(u.uq === 'ken' && u.kn > k0 && alive(u)){
       const t = target(B, u, '');
       if(t){ L.push('◆ ' + u.nm + ' の連斬!'); F.push([idxOf(B, u), 0, 'u']); hit(B, u, t, BAL.uq.ken, L, F); }
@@ -1065,7 +1065,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     while(B.q.length){ activate(B, B.q.shift(), L, F); }
     if(!B.preDone){
       B.preDone = true;
-      // 覇王ガルム: 試合開始時、敵全員の防を下げる(何人いても1回ぶん)
+      // ガルム: 試合開始時、敵全員の防を下げる(何人いても1回ぶん)
       [0, 1].forEach(sd => {
         const g = B.u.find(u => alive(u) && u.side === sd && u.uq === 'hao'); if(!g) return;
         const v = BAL.uq.hao * aoe('hao', B.N);
