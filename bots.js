@@ -131,7 +131,13 @@ function make(id, send, chat){
         if(m.end) return;
         if(m.sk){
           // スキル: 候補からランダム
-          if(!m.car.sk && Array.isArray(m.skc) && m.skc.length) a.t = later(() => send({ t: 'skp', k: m.skc[ri(0, m.skc.length - 1)], n: ++a.n }), ri(1500, 6000));
+          // 雨の予報なら、レインマスターを選びやすい。晴ればかりなら選ばない
+          if(!m.car.sk && Array.isArray(m.skc) && m.skc.length){
+            const wet = Array.isArray(m.wx) && m.wx.some(w => w === 1);
+            let c = m.skc.filter(k => wet || k !== 'rain'); if(!c.length) c = m.skc;
+            const k = wet && c.includes('rain') && rnd() < .6 ? 'rain' : c[ri(0, c.length - 1)];
+            a.t = later(() => send({ t: 'skp', k, n: ++a.n }), ri(1500, 6000));
+          }
           return;
         }
         if(m.tk <= 0) return;
