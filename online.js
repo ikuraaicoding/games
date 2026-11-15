@@ -8,7 +8,7 @@ const R = window.NomiRoom;
 const clean = R.clean;
 // 制御文字は取り除くが、改行(\n)だけは残す(結果画面の複数行表示のため)
 const clean2 = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f<>]/g, '').slice(0, n || 80);
-function show(id){ const was = document.querySelector('.screen.active'); if(!was || was.id !== id){ const c = document.getElementById('a-cat'); if(c) c.classList.remove('on'); document.body.classList.remove('catopen'); } document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
+function show(id){ if(id === 's-menu'){ const f = document.getElementById('cf'); if(f) f.classList.remove('on'); } const was = document.querySelector('.screen.active'); if(!was || was.id !== id){ const c = document.getElementById('a-cat'); if(c) c.classList.remove('on'); document.body.classList.remove('catopen'); } document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); if(window.__chatVis) window.__chatVis(id); }
 function vis(id, on, disp){ const e = $(id); e.classList.remove('hide'); e.style.display = on ? (disp || 'block') : 'none'; }
 function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
@@ -637,7 +637,7 @@ document.addEventListener('click', e => {
   if(!b) return;
   const now = performance.now(), from = now - downAt < 1500 ? downAt : now - 50;
   if(sndAt >= from - 5) return;
-  const kind = b.closest('.gsel') || b.matches('.btn.main, #b-join, #b-solo') ? 'go' : b.matches('a.ib, #sc-back, #l-quit, #r-quit, #chat-x, .cat-x') ? 'back' : 'tap';
+  const kind = b.closest('.gsel') || b.matches('.btn.main, #b-join, #b-solo') ? 'go' : b.matches('a.ib, #sc-back, #l-quit, #r-quit, #chat-x, .cat-x, #cf-no, #cf-yes') ? 'back' : 'tap';
   uiSE(kind);
   // ホームへもどるリンク: 音が途切れないよう、少し待ってから移る
   if(b.tagName === 'A' && b.href && !e.defaultPrevented && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)){ e.preventDefault(); const to = b.href; setTimeout(() => { location.href = to; }, 170); }
@@ -648,8 +648,20 @@ $('b-solo').addEventListener('click', () => { saveName(); audio.init(); soloCrea
 $('l-addbot').addEventListener('click', () => { if(solo && room){ room.add(); pushRoster(); } });
 $('sc-back').addEventListener('click', () => { stopScan(); show('s-menu'); });
 $('sc-go').addEventListener('click', () => { const t = $('sc-paste').value.trim(); if(t) joinWith(t); });
-$('l-quit').addEventListener('click', quitAll);
-$('r-quit').addEventListener('click', quitAll);
+$('l-quit').addEventListener('click', askQuit);
+$('r-quit').addEventListener('click', askQuit);
+// ---------- 退出の確認 ----------
+function askQuit(){
+  const host = role === 'host';
+  $('cf-t').textContent = solo ? 'CPU戦をやめますか?' : host ? '部屋を閉じて退出しますか?' : '部屋から退出しますか?';
+  $('cf-m').textContent = solo ? 'メニューにもどります。' : host ? 'ホストが抜けると、部屋がなくなって、みんなのゲームも終わります。' : 'もう一度入るには、ホストのQRを読み直してください。';
+  $('cf-yes').textContent = solo ? 'やめる' : '退出する';
+  $('cf').classList.add('on');
+}
+const closeQuit = () => $('cf').classList.remove('on');
+$('cf-no').addEventListener('click', closeQuit);
+$('cf-yes').addEventListener('click', () => { closeQuit(); quitAll(); });
+$('cf').addEventListener('click', e => { if(e.target === $('cf')) closeQuit(); });
 $('a-catbtn').addEventListener('click', () => window.NomiGames.arena.showCatalog());
 $('l-start').addEventListener('click', () => startGame(wantGame));
 $('l-lock').addEventListener('click', () => { userLocked = !userLocked; if(room) room.setLocked(userLocked); renderLobby(); });
@@ -661,7 +673,7 @@ function quitAll(){
   if(role === 'host' && room){ room.close(); } else if(guest){ guest.close(); }
   room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx(); chatReset();
   document.body.classList.remove('solo');
-  $('picker').classList.remove('on'); hideBanner(); show('s-menu');
+  $('picker').classList.remove('on'); closeQuit(); hideBanner(); show('s-menu');
   if(newVer) location.reload();
 }
 // 新しい版が届いたら読み込み直す(部屋に入っている間は待って、抜けたときに)
