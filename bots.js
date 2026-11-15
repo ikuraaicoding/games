@@ -131,10 +131,10 @@ function make(id, send, chat){
         if(m.end) return;
         if(m.sk){
           // スキル: 候補からランダム
-          // 雨の予報(60%以上)があれば、レインマスターを選びやすい
+          // 雨の予報(60%以上)があれば、レインマスターを選びやすい。雨の予報がなければ選ばない
           if(!m.car.sk && Array.isArray(m.skc) && m.skc.length){
             const wet = Array.isArray(m.wx) && m.wx.some(p => Number.isFinite(p) && p >= 60);
-            const c = m.skc;
+            let c = m.skc.filter(k => wet || k !== 'rain'); if(!c.length) c = m.skc;
             const k = wet && c.includes('rain') && rnd() < .6 ? 'rain' : c[ri(0, c.length - 1)];
             a.t = later(() => send({ t: 'skp', k, n: ++a.n }), ri(1500, 6000));
           }
