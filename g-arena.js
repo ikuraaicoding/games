@@ -52,7 +52,7 @@ const BAL = {
   uq: { ken: 2.4, rai: .17, hao: .5, gol: .22, leo: .14, faf: .8, cel: .013, phx: .2, ygg: .27 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
-const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .8, cel: .65 };
+const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .8, cel: .65, phx: 1.25, hao: .8, ygg: 1.2 };
 const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
 // 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
 const CAT = { a: '攻撃', d: '防御', h: 'HP' };
@@ -120,8 +120,8 @@ const UQ = {
   leo: { c: 'd', nm: 'レオン',   av: 1597334677, un: '守りの誓い', d: () => 'となりの味方の被ダメ −' + pct(U_.leo) + '%', s: () => 'となりを守る' },
   faf: { c: 'd', nm: 'ファフ',   av: 1812433253, un: '竜の盾', d: n => 'HPが半分を切ると1度だけ、味方全員の次の被ダメ −' + pct(U_.faf * aoe('faf', n)) + '%', s: () => 'ピンチで味方を守る' },
   cel: { c: 'h', nm: 'セレス',     av: 1225351234, un: '祈り',   d: n => '自分の手番ごとに、味方全員をHP' + pct(U_.cel * aoe('cel', n) * 10) / 10 + '%回復', s: () => '毎手番 全員回復' },
-  phx: { c: 'h', nm: 'フェニクス', av: 1348012345, un: '転生', d: () => '倒れても1度だけ、HP' + pct(U_.phx) + '%でよみがえる', s: () => '1度よみがえる' },
-  ygg: { c: 'h', nm: 'ユグド',     av: 1950203111, un: '大地の恵み', d: () => '最大HP +' + pct(U_.ygg) + '%', s: () => '最大HP+' + pct(U_.ygg) + '%' }
+  phx: { c: 'h', nm: 'フェニクス', av: 1348012345, un: '転生', d: n => '倒れても1度だけ、HP' + pct(U_.phx * aoe('phx', n)) + '%でよみがえる', s: () => '1度よみがえる' },
+  ygg: { c: 'h', nm: 'ユグド',     av: 1950203111, un: '大地の恵み', d: n => '最大HP +' + pct(U_.ygg * aoe('ygg', n)) + '%', s: n => '最大HP+' + pct(U_.ygg * aoe('ygg', n)) + '%' }
 };
 const UQ_OF = { a: [], d: [], h: [] }; Object.keys(UQ).forEach(k => UQ_OF[UQ[k].c].push(k));
 
@@ -912,16 +912,16 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   // =====================================================================
   //  ホスト: 戦闘
   // =====================================================================
-  function mkUnit(c, side, i){
+  function mkUnit(c, side, i, N){
     const w = c.w || null, uq = c.u && UQ[c.u] ? c.u : '';
-    const mhp = Math.round(maxHp(c.h + (w && w.t === 'h' ? w.v : 0)) * (uq === 'ygg' ? 1 + BAL.uq.ygg : 1));
+    const mhp = Math.round(maxHp(c.h + (w && w.t === 'h' ? w.v : 0)) * (uq === 'ygg' ? 1 + BAL.uq.ygg * aoe('ygg', N) : 1));
     return { side, i, nm: c.nm, r: rarOf(c.a + c.d + c.h), uq, phx: uq === 'phx', faf: uq === 'faf', kn: 0, A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp, hp: mhp,
       sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, fort: 0, rg: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
   }
   const pubU = u => u ? { nm: u.nm, r: u.r, uq: u.uq, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h, a: u.a, d: u.d, av: u.av } : null;
   function newBattle(idA, idB, rnd, n){
     const N = n || H.N || 3;
-    const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return Array.from({ length: N }, (_, i) => party[i] ? mkUnit(party[i], side, i) : null); };
+    const mk = (id, side) => { const p = H.P.get(id); const party = p ? p.party : [starter()]; return Array.from({ length: N }, (_, i) => party[i] ? mkUnit(party[i], side, i, N) : null); };
     return { N, ids: [idA, idB], u: mk(idA, 0).concat(mk(idB, 1)), round: 0, order: [], oi: 0, s0: rnd() < .5 ? 0 : 1, q: [], k: 0, preDone: false, done: false, w: -1, lastSide: 0, rnd };
   }
   // 戦闘ロジック(ホストのみ。テストからも使えるように B に乱数を持たせる)
@@ -946,7 +946,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(u.fx === 'rage' && u.hp > 0 && u.rg < BAL.fx.rageMax) u.rg++;
     if(u.hp <= 0){
       if(u.und){ u.und = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.fx.undying)); L.push(u.nm + ' は不死の力で踏みとどまった!'); }
-      else if(u.phx){ u.phx = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.uq.phx)); u.armed = ''; L.push('◆ ' + u.nm + ' の転生! よみがえった'); F.push([idxOf(B, u), 0, 'u']); F.push([idxOf(B, u), u.hp, 'h']); }
+      else if(u.phx){ u.phx = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.uq.phx * aoe('phx', B.N))); u.armed = ''; L.push('◆ ' + u.nm + ' の転生! よみがえった'); F.push([idxOf(B, u), 0, 'u']); F.push([idxOf(B, u), u.hp, 'h']); }
       else{ u.hp = 0; u.armed = ''; u.taunt = 0; u.ctr = 0; L.push(u.nm + ' は倒れた'); if(src >= 0 && B.u[src]) B.u[src].kn++; }
     }
     // ファフ: HPが半分を切ったら1度だけ、味方全員に盾
