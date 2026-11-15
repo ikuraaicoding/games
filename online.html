@@ -239,7 +239,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 .abtn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; background:var(--surface); border:1px solid var(--line2); border-radius:16px; padding:14px 16px; color:var(--text); transition:transform .08s, background .15s, border-color .15s; }
 .abtn b{ font-size:1rem; font-weight:800; }
 .abtn.wf{ --rc:var(--dim); flex-direction:row; align-items:center; gap:12px; padding:10px 14px; }
-.abtn.r-R{ --rc:#64d2ff; } .abtn.r-SR{ --rc:#bf5af2; } .abtn.r-SSR{ --rc:#ffd60a; }
+.abtn.r-R{ --rc:#64d2ff; } .abtn.r-SR{ --rc:#bf5af2; } .abtn.r-SSR{ --rc:#ffd60a; } .abtn.r-UR{ --rc:#ff375f; }
 .abtn.wf svg.face{ border-radius:10px; }
 .abtn-t{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .abtn small{ font-size:.7rem; color:var(--sub); }
@@ -277,9 +277,12 @@ svg.gi{ display:inline-block; vertical-align:-3px; margin-right:5px; flex:none; 
 .abtn[disabled]{ opacity:.3; pointer-events:none; }
 #a-party{ display:grid; gap:8px; }
 .ac{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:12px 14px; text-align:left; }
-.ac.r-R{ --rc:#64d2ff; } .ac.r-SR{ --rc:#bf5af2; } .ac.r-SSR{ --rc:#ffd60a; }
-.ac.r-SR, .ac.r-SSR{ border-color:color-mix(in srgb, var(--rc) 45%, transparent); }
+.ac.r-R{ --rc:#64d2ff; } .ac.r-SR{ --rc:#bf5af2; } .ac.r-SSR{ --rc:#ffd60a; } .ac.r-UR{ --rc:#ff375f; }
+.ac.r-SR, .ac.r-SSR, .ac.r-UR{ border-color:color-mix(in srgb, var(--rc) 45%, transparent); }
 .ac.r-SSR{ box-shadow:0 0 30px color-mix(in srgb, var(--rc) 22%, transparent); }
+.ac.r-UR{ box-shadow:0 0 34px color-mix(in srgb, var(--rc) 30%, transparent), 0 0 60px rgba(255,214,10,.12); }
+/* UR のレア表示は虹色 */
+.r-UR .rar{ background:linear-gradient(90deg,#ff375f,#ff9f0a,#ffd60a,#30d158,#64d2ff,#bf5af2); color:#000; }
 .ac.empty{ border-style:dashed; color:var(--dim); font-size:.76rem; text-align:center; padding:18px; }
 .ac.flash{ animation:acflash .9s ease-out; }
 @keyframes acflash{ 0%{ background:color-mix(in srgb, var(--acc) 40%, transparent); transform:scale(1.02);} 100%{ background:var(--surface); transform:none; } }
@@ -289,7 +292,7 @@ svg.gi{ display:inline-block; vertical-align:-3px; margin-right:5px; flex:none; 
 .ac-nm{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
 .ac-nm b{ font-size:1.05rem; font-weight:800; }
 svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var(--rc,var(--dim)); }
-.r-SSR svg.face{ box-shadow:0 0 0 2px var(--rc), 0 0 14px color-mix(in srgb, var(--rc) 60%, transparent); }
+.r-SSR svg.face, .r-UR svg.face{ box-shadow:0 0 0 2px var(--rc), 0 0 14px color-mix(in srgb, var(--rc) 60%, transparent); }
 .bu svg.face{ border-radius:9px; box-shadow:0 0 0 1.5px var(--rc,var(--dim)); }
 .ac-h .tot{ font-size:.7rem; color:var(--sub); font-weight:700; font-variant-numeric:tabular-nums; }
 .rar{ font-size:.62rem; font-weight:900; letter-spacing:.06em; padding:3px 7px; border-radius:6px; color:#000; background:var(--rc,var(--dim)); }
@@ -304,7 +307,7 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .ac-k, .ac-w{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; color:var(--sub); line-height:1.5; }
 .ac-k b, .ac-w b{ font-size:.78rem; color:var(--text); }
 .ac-w b{ color:var(--acc); }
-/* SSR の固有能力(金) */
+/* UR の固有能力(金) */
 .ac-u{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; line-height:1.5; color:color-mix(in srgb, #ffd60a 60%, var(--sub)); border-left:3px solid #ffd60a; padding:4px 0 4px 9px; border-radius:2px; background:linear-gradient(90deg, rgba(255,214,10,.16), transparent 80%); }
 .ac-u b{ font-size:.78rem; color:#ffd60a; }
 .sl-u{ color:#ffd60a; font-weight:800; flex-shrink:0; }
@@ -364,7 +367,7 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .trow.n5 .bu-sk b{ font-size:.6rem; }
 .trow.n5 .bu-sk small{ font-size:.48rem; -webkit-line-clamp:1; }
 .bu{ --rc:var(--dim); position:relative; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:3px; min-width:0; transition:opacity .3s; }
-.bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; }
+.bu.r-R{ --rc:#64d2ff; } .bu.r-SR{ --rc:#bf5af2; } .bu.r-SSR{ --rc:#ffd60a; } .bu.r-UR{ --rc:#ff375f; }
 .bu-n{ display:flex; align-items:center; gap:6px; min-width:0; }
 .bu-nn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; }
 .bu-n .rar{ font-size:.5rem; padding:2px 4px; }
@@ -573,7 +576,7 @@ body:not(.solo) .solo-only{ display:none; }
 .rx-tag{ flex:none; font-size:.66rem; font-weight:700; color:var(--sub); white-space:nowrap; }
 .rx-faces{ flex:none; display:flex; gap:3px; }
 .rx-f{ --rc:var(--dim); display:inline-flex; }
-.rx-f.r-R{ --rc:#64d2ff; } .rx-f.r-SR{ --rc:#bf5af2; } .rx-f.r-SSR{ --rc:#ffd60a; }
+.rx-f.r-R{ --rc:#64d2ff; } .rx-f.r-SR{ --rc:#bf5af2; } .rx-f.r-SSR{ --rc:#ffd60a; } .rx-f.r-UR{ --rc:#ff375f; }
 .rx-f svg.face{ width:24px; height:24px; border-radius:7px; box-shadow:0 0 0 1.5px var(--rc); }
 .rx-chev{ flex:none; color:var(--dim); font-weight:800; transition:transform .15s; }
 .rx-p[open] .rx-chev{ transform:rotate(90deg); }

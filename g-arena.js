@@ -7,7 +7,7 @@
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。一番高いステの系統(攻撃/防御/HP)のスキルつき
  *       装備ガチャ : 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
- *     キャラガチャ: SSR は固有の名前と固有能力(いつも効く)を持つ。一番高いステの系統の9人から出る
+ *     キャラガチャ: UR(いちばん上のレア)は固有の名前と固有能力(いつも効く)を持つ。一番高いステの系統の9人から出る
  *     キャラガチャ: SR未満が続くと、SR以上の出やすさが少しずつ上がる(画面には出さない)。SR以上が出たら元にもどる
  *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
@@ -44,15 +44,15 @@ const BAL = {
         first: .8, firstN: 3, thorn: .27, evade: .22, cap: .13, aegis: .08,
         vamp: .55, regen: .04, undying: .25, bless: .03 },
   // ガチャ: キャラの合計値の出やすさ [確率, 下限, 上限] / 武器の強化値の出やすさ
-  rar: [[.45, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21]],
+  rar: [[.43, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21], [.02, 22, 24]],
   wv: [.55, .32, .13], wAdd: [1, 2, 3],
-  // SR未満が1回続くごとに、SR・SSR の出やすさを +5%(元の確率に対して)。最大 1.5倍
+  // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
-  // SSR の固有能力
-  uq: { ken: 2.4, rai: .17, hao: .5, gol: .22, leo: .14, faf: .8, cel: .013, phx: .2, ygg: .27 }
+  // UR の固有能力
+  uq: { ken: 2.7, rai: .2, hao: .7, gol: .26, leo: .18, faf: .9, fafH: .1, cel: .017, phx: .28, ygg: .35 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
-const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .8, cel: .65, phx: 1.25, hao: .8, ygg: 1.2 };
+const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.4, hao: 6 / 7, ygg: 1.45, gol: 1.25 };
 const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
 // 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
 const CAT = { a: '攻撃', d: '防御', h: 'HP' };
@@ -109,23 +109,23 @@ const FX_KEYS = Object.keys(FX);
 const FX_OF = { a: [], d: [], h: [] }; FX_KEYS.forEach(k => FX_OF[FX[k].t].push(k));
 const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防', h: 'HP' };
 
-// SSR の固有キャラ(名前・顔・固有能力が決まっている。ステはガチャのたびにちがう)
+// UR の固有キャラ(名前・顔・固有能力が決まっている。ステはガチャのたびにちがう)
 // c: 系統(一番高いステ) / un: 能力の名前 / d: くわしい説明 / s: 試合中のカードに出す短い説明
 const U_ = BAL.uq;
 const UQ = {
   ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: () => '敵を倒すと、すぐに ' + mul(U_.ken) + '倍で追撃(1手番1回)', s: () => '倒すと追撃' },
   rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
   hao: { c: 'a', nm: 'ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
-  gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: () => '受けるダメージがいつも −' + pct(U_.gol) + '%', s: () => '被ダメ−' + pct(U_.gol) + '%' },
-  leo: { c: 'd', nm: 'レオン',   av: 1597334677, un: '守りの誓い', d: () => 'となりの味方の被ダメ −' + pct(U_.leo) + '%', s: () => 'となりを守る' },
-  faf: { c: 'd', nm: 'ファフ',   av: 1812433253, un: '竜の盾', d: n => 'HPが半分を切ると1度だけ、味方全員の次の被ダメ −' + pct(U_.faf * aoe('faf', n)) + '%', s: () => 'ピンチで味方を守る' },
+  gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: n => '受けるダメージがいつも −' + pct(U_.gol * aoe('gol', n)) + '%', s: n => '被ダメ−' + pct(U_.gol * aoe('gol', n)) + '%' },
+  leo: { c: 'd', nm: 'レオン',   av: 1597334677, un: '守りの誓い', d: n => 'となりの味方の被ダメ −' + pct(U_.leo * aoe('leo', n)) + '%', s: () => 'となりを守る' },
+  faf: { c: 'd', nm: 'ファフ',   av: 1812433253, un: '竜の盾', d: n => 'HPが半分を切ると1度だけ、味方全員の次の被ダメ −' + pct(U_.faf * aoe('faf', n)) + '%、自分のHPを' + pct(U_.fafH) + '%回復', s: () => 'ピンチで味方を守る' },
   cel: { c: 'h', nm: 'セレス',     av: 1225351234, un: '祈り',   d: n => '自分の手番ごとに、味方全員をHP' + pct(U_.cel * aoe('cel', n) * 10) / 10 + '%回復', s: () => '毎手番 全員回復' },
   phx: { c: 'h', nm: 'フェニクス', av: 1348012345, un: '転生', d: n => '倒れても1度だけ、HP' + pct(U_.phx * aoe('phx', n)) + '%でよみがえる', s: () => '1度よみがえる' },
   ygg: { c: 'h', nm: 'ユグド',     av: 1950203111, un: '大地の恵み', d: n => '最大HP +' + pct(U_.ygg * aoe('ygg', n)) + '%', s: n => '最大HP+' + pct(U_.ygg * aoe('ygg', n)) + '%' }
 };
 const UQ_OF = { a: [], d: [], h: [] }; Object.keys(UQ).forEach(k => UQ_OF[UQ[k].c].push(k));
 
-const rarOf = tot => tot <= 10 ? 'N' : tot <= 14 ? 'R' : tot <= 18 ? 'SR' : 'SSR';
+const rarOf = tot => tot <= 10 ? 'N' : tot <= 14 ? 'R' : tot <= 18 ? 'SR' : tot <= 21 ? 'SSR' : 'UR';
 const wName = w => FX[w.fx].nm + 'の' + W_KIND[w.t];
 const wStat = w => W_STAT[w.t] + '+' + w.v;
 // キャラの系統: 一番高いステ(同点ならその中からランダム。全部の差が1以内なら万能)
@@ -135,14 +135,14 @@ const maxHp = h => Math.round(BAL.hp0 * Math.pow(BAL.base, h - 3));
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && FX[w.fx] && FX[w.fx].t === w.t); }
-function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h >= 19)); }
+function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h >= 22)); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
 // アイコン(icons.js)。読み込めなかったら何も出さない
 const icSk = (k, n) => window.NomiIcons ? window.NomiIcons.skill(k, n) : document.createElement('span');
 const icFx = (k, n) => window.NomiIcons ? window.NomiIcons.fx(k, n) : document.createElement('span');
 const withIc = (node, ic) => { node.insertBefore(ic, node.firstChild); return node; };
-// 固有能力の欄(SSRだけ)
+// 固有能力の欄(URだけ)
 function uqBox(k, n){
   const d = document.createElement('div'); d.className = 'ac-u';
   const b = document.createElement('b'); b.textContent = '◆ 固有能力「' + UQ[k].un + '」'; d.appendChild(b);
@@ -180,12 +180,12 @@ function showCatalog(){
   });
   // 武器
   body.appendChild(el('div', 'eyebrow', 'キャラガチャ'));
-  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '%'));
-  body.appendChild(el('div', 'eyebrow', 'SSRキャラ'));
-  body.appendChild(el('p', 'cat-note', 'SSR は固有の名前と固有能力を持つ(能力は試合中いつも効く)。一番高いステの系統の3人から出る(3つのステの差が1以内なら9人のだれか)。ステはガチャのたびにちがう'));
+  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '% / UR(22〜24)' + pct(BAL.rar[4][0]) + '%'));
+  body.appendChild(el('div', 'eyebrow', 'URキャラ'));
+  body.appendChild(el('p', 'cat-note', 'UR は固有の名前と固有能力を持つ(能力は試合中いつも効く)。一番高いステの系統の3人から出る(3つのステの差が1以内なら9人のだれか)。ステはガチャのたびにちがう'));
   ['a', 'd', 'h'].forEach(c => {
     const sec = el('div', 'cat-sec');
-    const t = el('div', 'cat-st'); t.appendChild(el('i', 'skc c-' + c, CAT[c] + 'のSSR')); sec.appendChild(t);
+    const t = el('div', 'cat-st'); t.appendChild(el('i', 'skc c-' + c, CAT[c] + 'のUR')); sec.appendChild(t);
     UQ_OF[c].forEach(k => {
       const r = el('div', 'cat-row');
       r.appendChild(el('b', 'cat-u', UQ[k].nm + ' 「' + UQ[k].un + '」'));
@@ -466,9 +466,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   }
   function fanfare(rar){
     E.audio.init();
-    const tones = rar === 'SSR' ? [660, 880, 1100, 1320] : rar === 'SR' ? [660, 880, 1100] : rar === 'R' ? [660, 880] : [600];
+    const tones = rar === 'UR' ? [660, 880, 1100, 1320, 1760, 1320, 1760] : rar === 'SSR' ? [660, 880, 1100, 1320] : rar === 'SR' ? [660, 880, 1100] : rar === 'R' ? [660, 880] : [600];
     tones.forEach((f, i) => later(() => E.audio.beep(f, .12, .2), i * 110));
-    E.vibrate(rar === 'SSR' ? [40, 40, 40, 40, 120] : rar === 'SR' ? [40, 40, 80] : 30);
+    E.vibrate(rar === 'UR' ? [40, 40, 40, 40, 40, 40, 200] : rar === 'SSR' ? [40, 40, 40, 40, 120] : rar === 'SR' ? [40, 40, 80] : 30);
   }
 
   // ---- トーナメント表 ----
@@ -506,7 +506,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
 
   // ---- 試合 ----
   const FL = { used: 1, armed: 2, wall: 4, taunt: 8, ctr: 16, first: 32, und: 64, fort: 128, phx: 256 };
-  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && FX[u.fx].t === u.wt && isInt(u.wv, 1, 3))) && typeof u.r === 'string' && (u.uq === '' || (UQ[u.uq] && u.r === 'SSR')); }
+  function okU(u){ return u && typeof u.nm === 'string' && isInt(u.A, 0, 20) && isInt(u.D, 0, 20) && isInt(u.mhp, 1, 999) && isInt(u.h, 1, 10) && isInt(u.a, 1, 10) && isInt(u.d, 1, 10) && isInt(u.av, 0, 2147483647) && SK[u.sk] && isInt(u.lv, 1, SK_MAX) && (u.fx === '' || (FX[u.fx] && FX[u.fx].t === u.wt && isInt(u.wv, 1, 3))) && typeof u.r === 'string' && (u.uq === '' || (UQ[u.uq] && u.r === 'UR')); }
   function onMs(m){
     if(!isInt(m.mi, 1, 1e6) || !m.a || !m.b || !Array.isArray(m.a.u) || !Array.isArray(m.b.u)) return;
     const N = m.a.u.length;
@@ -773,7 +773,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   // =====================================================================
   const H = { rev: false, phase: 'idle', P: new Map(), names: [], endAt: 0, nextTick: 0, tickT: 0, endT: 0, seq: 0, rvn: 0, rs: null, B: null, stepT: 0, mi: 0, outR: new Map() };
 
-  // miss: SR未満が続いた回数。その分だけ SR・SSR を出やすくする(SR と SSR の比はそのまま)
+  // miss: SR未満が続いた回数。その分だけ SR・SSR・UR を出やすくする(その3つの比はそのまま)
   function rollChar(miss){
     const up = 1 + Math.min(BAL.luckMax, BAL.luckUp * (miss || 0));
     const tbl = BAL.rar.map(([p, lo, hi]) => [lo >= 15 ? p * up : p, lo, hi]), sum = tbl.reduce((a, x) => a + x[0], 0);
@@ -788,8 +788,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     }
     const cat = catOf(s[0], s[1], s[2], rndF);
     const c = { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(cat ? SK_OF[cat] : SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
-    // SSR は固有キャラ(系統が合う3人から。万能なら9人から)
-    if(tot >= 19){ const k = pick(cat ? UQ_OF[cat] : Object.keys(UQ)); c.u = k; c.nm = UQ[k].nm; c.av = UQ[k].av; }
+    // UR は固有キャラ(系統が合う3人から。万能なら9人から)
+    if(tot >= 22){ const k = pick(cat ? UQ_OF[cat] : Object.keys(UQ)); c.u = k; c.nm = UQ[k].nm; c.av = UQ[k].av; }
     return c;
   }
   function rollWeapon(){
@@ -954,6 +954,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       u.faf = false; const v = BAL.uq.faf * aoe('faf', B.N);
       mates(B, u).forEach(x => { x.wall = Math.max(x.wall, v); });
       L.push('◆ ' + u.nm + ' の竜の盾! 味方全員を守る'); F.push([idxOf(B, u), 0, 'u']);
+      heal(B, u, u.mhp * BAL.uq.fafH, L, F);
     }
   }
   function hit(B, a, d, mult, L, F, opt){
@@ -973,8 +974,8 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(d.first > 0){ x *= 1 - f.first; d.first--; tags.push('守護'); }
     if(d.wall){ x *= 1 - d.wall; d.wall = 0; tags.push('鉄壁'); }
     if(d.taunt){ x *= 1 - d.taunt; if(--d.tauntN <= 0) d.taunt = 0; }
-    if(d.uq === 'gol') x *= 1 - BAL.uq.gol;
-    if(mates(B, d).some(m => m.uq === 'leo' && Math.abs(m.i - d.i) === 1)){ x *= 1 - BAL.uq.leo; tags.push('守りの誓い'); }
+    if(d.uq === 'gol') x *= 1 - BAL.uq.gol * aoe('gol', B.N);
+    if(mates(B, d).some(m => m.uq === 'leo' && Math.abs(m.i - d.i) === 1)){ x *= 1 - BAL.uq.leo * aoe('leo', B.N); tags.push('守りの誓い'); }
     let dmg = Math.max(1, Math.round(x));
     if(d.fx === 'cap'){ const c = Math.max(1, Math.round(d.mhp * f.cap)); if(dmg > c){ dmg = c; tags.push('堅牢'); } }
     L.push((opt.lab || a.nm) + ' → ' + d.nm + ' ' + dmg + (crit ? ' 会心!' : '') + (tags.length ? '(' + tags.join('・') + ')' : ''));
