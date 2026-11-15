@@ -304,6 +304,18 @@ svg.face{ flex:none; display:block; border-radius:12px; box-shadow:0 0 0 2px var
 .ac-k, .ac-w{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; color:var(--sub); line-height:1.5; }
 .ac-k b, .ac-w b{ font-size:.78rem; color:var(--text); }
 .ac-w b{ color:var(--acc); }
+/* SSR の固有能力(金) */
+.ac-u{ display:flex; flex-direction:column; gap:1px; margin-top:8px; font-size:.7rem; line-height:1.5; color:color-mix(in srgb, #ffd60a 60%, var(--sub)); border-left:3px solid #ffd60a; padding:4px 0 4px 9px; border-radius:2px; background:linear-gradient(90deg, rgba(255,214,10,.16), transparent 80%); }
+.ac-u b{ font-size:.78rem; color:#ffd60a; }
+.sl-u{ color:#ffd60a; font-weight:800; flex-shrink:0; }
+.cat-row b.cat-u{ color:#ffd60a; }
+.bu-u{ display:flex; flex-direction:column; min-width:0; border:1px solid rgba(255,214,10,.5); background:rgba(255,214,10,.12); border-radius:7px; padding:2px 5px; margin:1px 0; }
+.bu-u b, .bu-u span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bu-u b{ font-size:.6rem; font-weight:800; color:#ffd60a; }
+.bu-u span{ font-size:.56rem; color:color-mix(in srgb, #ffd60a 60%, var(--sub)); }
+.trow.n5 .bu-u{ align-items:center; padding:1px 3px; }
+.trow.n5 .bu-u b{ font-size:.5rem; max-width:100%; }
+.trow.n5 .bu-u span{ display:none; }
 /* 武器のレア度: ★1=青 / ★2=紫 / ★3=金(キャラのR/SR/SSRと同じ色) */
 .wr1{ --wc:#64d2ff; } .wr2{ --wc:#bf5af2; } .wr3{ --wc:#ffd60a; }
 .ac-w.wr{ border-left:3px solid var(--wc); padding:4px 0 4px 9px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb, var(--wc) 14%, transparent), transparent 80%); }
