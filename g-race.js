@@ -244,11 +244,27 @@ function stepRace(R, dt){
   const lead = live.filter(r => r.fin >= 0).reduce((m, r) => Math.min(m, r.fin), Infinity);
   if(!live.length || live.every(r => r.fin >= 0) || R.t > CFG.MAX_RACE_S || (lead < Infinity && R.t > lead + CFG.AFTER_MS / 1000)) R.done = true;
 }
+// スキルがいま効いているか(画面に「発動!」を出すため。速さの計算には使わない)
+const SK_ON = {
+  slip:   (R, r) => r.slip,
+  last:   (R, r) => r.d > R.L * (1 - PH.lastP),
+  hill:   (R, r, t) => t === 'h',
+  rocket: R => R.t < PH.rocketT,
+  chase:  (R, r) => r.lower,
+  rain:   (R, r, t) => R.rain && t === 'c',
+  drift:  (R, r, t) => t === 'c',
+  dirt:   (R, r, t) => t === 'd'
+};
+function skillOn(R, r){
+  if(r.out || r.fin >= 0) return false;
+  const i = segIdx(R, r.d), t = i >= 0 ? R.c.s[i][0] : '';
+  return Object.keys(r.tr).some(k => SK_ON[k] && SK_ON[k](R, r, t));
+}
 // 最終的な着順(ゴールした人 → 走った距離の順)。抜けた人は入れない
 function finalOrder(R){
   return R.r.filter(r => !r.out).sort((a, b) => (a.fin >= 0 && b.fin >= 0) ? a.fin - b.fin : a.fin >= 0 ? -1 : b.fin >= 0 ? 1 : b.d - a.d);
 }
-const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, train, rest, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, finalOrder, TR };
+const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, train, rest, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, skillOn, finalOrder, TR };
 
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
@@ -539,16 +555,16 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   }
   function onGo(m){
     if(!isInt(m.r, 0, 2) || !okCourse(m.c) || !Number.isFinite(m.at) || !Array.isArray(m.cars) || m.cars.length < 1 || m.cars.length > 8) return;
-    const cars = m.cars.filter(x => x && Number.isInteger(x.id) && okSt(x.st) && isInt(x.nl, 0, 2) && Number.isFinite(x.nd) && x.nd > 0 && x.nd < 20);
+    const cars = m.cars.filter(x => x && Number.isInteger(x.id) && okSt(x.st) && isInt(x.nl, 0, 2) && Number.isFinite(x.nd) && x.nd > 0 && x.nd < 20 && (x.sk === undefined || x.sk === '' || (typeof x.sk === 'string' && !!TR[x.sk])));
     if(cars.length !== m.cars.length) return;
     if(rc && rc.r === m.r) return;
     const R = newRace(m.c, []);
     const mine = cars.findIndex(x => x.id === E.myId);
-    rc = { amp: 40, r: m.r, R, L: R.L, go: E.toLocal(m.at), cars: cars.map((x, i) => ({ id: x.id, nm: E.nameOf(x.id), col: CAR_COL[i % 8], st: x.st, nl: x.nl, nd: x.nd, d0: 0, v0: 0, t0: 0, err: 0, eAt: 0, rd: 0, v: 0, fl: 0, fin: false })),
+    rc = { amp: 40, r: m.r, R, L: R.L, go: E.toLocal(m.at), cars: cars.map((x, i) => ({ id: x.id, nm: E.nameOf(x.id), col: CAR_COL[i % 8], st: x.st, nl: x.nl, nd: x.nd, sk: x.sk || '', skAt: -1e9, d0: 0, v0: 0, t0: 0, err: 0, eAt: 0, rd: 0, v: 0, fl: 0, fin: false })),
       mine, k: -1, cam: 0, camV: 0, cd: -1, done: false, myFin: false, order: [], nitUntil: 0, nitAt: 0, nl: mine >= 0 ? cars[mine].nl : 0, drops: [], lastT: performance.now(), shake: 0 };
     for(let i = 0; i < 70; i++) rc.drops.push({ x: Math.random(), y: Math.random(), s: .6 + Math.random() * .8 });
     ph = 'run'; view('rc-run'); fit();
-    $('rc-res').textContent = '';
+    $('rc-res').textContent = ''; $('rc-ev').textContent = '';
     renderProg(); updNit();
     cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     E.vibrate(30);
@@ -559,8 +575,12 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const now = performance.now(), tl = E.toLocal(m.at);
     m.c.forEach((x, i) => {
       if(!Array.isArray(x) || !Number.isFinite(x[0]) || !Number.isFinite(x[1]) || !Number.isInteger(x[2])) return;
-      const c = rc.cars[i], before = predD(c, now);
+      const c = rc.cars[i], before = predD(c, now), was = c.fl;
       c.d0 = x[0] / 10; c.v0 = x[1]; c.t0 = tl; c.fl = x[2];
+      if(!rc.done){
+        if((c.fl & 1) && !(was & 1) && !(i === rc.mine && now - rc.nitAt < 3000)) evNitro(c, i === rc.mine);
+        if((c.fl & 32) && !(was & 32) && c.sk && now - c.skAt > EV_GAP){ c.skAt = now; evSkill(c, i === rc.mine); }
+      }
       const after = predD(c, now);
       c.err = after - (c.eAt ? before - c.err * Math.exp(-(now - c.eAt) / 260) : before);
       if(Math.abs(c.err) > 80) c.err = 0;                         // 大きくずれたら、すぐ合わせる
@@ -570,6 +590,35 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(Array.isArray(m.f)) rc.order = m.f.filter(Number.isInteger).slice(0, 8);
     // ニトロの残り回数はホストに合わせる(押した直後は、自分の画面の表示を優先)
     if(rc.mine >= 0 && now - rc.nitAt > 1500){ rc.nl = (rc.cars[rc.mine].fl >> 3) & 3; updNit(); }
+  }
+  // ---- ニトロ・スキル発動のバナーと音 ----
+  // 自分のは大きく・はっきり。ほかの人のは小さく・音も控えめ。同じ人の同じスキルは EV_GAP に1回まで
+  const EV_GAP = 6000, EV_MAX = 3;
+  let sfxAt = 0;
+  function banner(c, txt, kind, mine){
+    const box = $('rc-ev');
+    while(box.children.length >= EV_MAX) box.firstElementChild.remove();
+    const d = el('div', 'rc-e ' + kind + (mine ? ' me' : ''));
+    const dot = el('i'); dot.style.background = c.col; d.appendChild(dot);
+    if(!mine) d.appendChild(el('span', 'nm', c.nm));
+    d.appendChild(el('b', '', txt));
+    box.appendChild(d);
+    later(() => d.remove(), mine ? 2200 : 1700);
+  }
+  function evNitro(c, mine, pressed){
+    if(!c) return;
+    const sk = c.sk === 'long' || c.sk === 'dbl' ? '  ★' + TR[c.sk].nm : '';
+    banner(c, 'ニトロ!' + (mine ? sk : ''), 'nit', mine);
+    if(pressed) return;                                   // 自分で押したときは、押した瞬間に音が鳴っている
+    const now = performance.now(); if(!mine && now - sfxAt < 120) return; sfxAt = now;
+    if(mine){ E.audio.boom(.18); E.audio.beep(180, .35, .18); }
+    else{ E.audio.beep(260, .1, .07); later(() => E.audio.beep(520, .12, .06), 60); }
+  }
+  function evSkill(c, mine){
+    banner(c, '★ ' + TR[c.sk].nm + (mine ? ' 発動!' : ''), 'sk', mine);
+    const now = performance.now(); if(!mine && now - sfxAt < 120) return; sfxAt = now;
+    if(mine){ E.audio.beep(1047, .08, .16); later(() => E.audio.beep(1568, .16, .16), 80); E.vibrate(25); }
+    else E.audio.beep(1319, .06, .06);
   }
   const predD = (c, now) => c.d0 + c.v0 / 3.6 * Math.min(.7, Math.max(0, (now - c.t0) / 1000));
   const rdOf = (c, now) => predD(c, now) - (c.eAt ? c.err * Math.exp(-(now - c.eAt) / 260) : 0);
@@ -590,6 +639,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     rc.nl--; rc.nitAt = now; rc.nitUntil = now + rc.cars[rc.mine].nd * 1000;
     E.audio.init(); E.vibrate(60); E.audio.boom(.18); E.audio.beep(180, .35, .18);
     E.send({ t: 'nit', r: rc.r, n: ++nonce }, true);
+    evNitro(rc.cars[rc.mine], true, true);
     PF.pop($('rc-nit'), { color: 0x4fa3ff, power: 2 });
     rc.shake = 1;
     updNit();
@@ -791,6 +841,29 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       if(mine && mine[1] === 1){ PF.confetti(90); }
     }, 1800);
   }
+  // ---- 結果画面: みんなの車 ----
+  function carsBox(rk, cars){
+    const okC = x => Array.isArray(x) && Number.isInteger(x[0]) && Array.isArray(x[1]) && x[1].length === 3 && x[1].every(v => isInt(v, 0, PH.stMax)) && (x[2] === '' || !!TR[x[2]]);
+    const by = new Map((Array.isArray(cars) ? cars : []).filter(okC).slice(0, 8).map(x => [x[0], x]));
+    const box = $('r-extra'); box.textContent = '';
+    if(!by.size) return;
+    box.appendChild(el('div', 'eyebrow rx-h', 'みんなの車'));
+    const list = el('div', 'rx-list');
+    rk.forEach((x, i) => {
+      const c = by.get(x[0]); if(!c) return;
+      const d = el('details', 'rx-p' + (x[0] === E.myId ? ' me' : '')); d.open = true;
+      const s = el('summary');
+      s.appendChild(el('span', 'rx-rk', (i + 1) + '位'));
+      const nm = el('span', 'rx-nm', E.nameOf(x[0])); if(x[0] === E.myId) nm.appendChild(el('small', '', 'あなた')); s.appendChild(nm);
+      s.appendChild(el('span', 'rx-tag', '合計 ' + (c[1][0] + c[1][1] + c[1][2])));
+      s.appendChild(el('span', 'rx-chev', '›'));
+      const b = el('div', 'rx-b');
+      b.appendChild(statBars(c[1]));
+      if(c[2]) b.appendChild(skillLine(c[2]));
+      d.appendChild(s); d.appendChild(b); list.appendChild(d);
+    });
+    box.appendChild(list);
+  }
   function onFin(m){
     if(!Array.isArray(m.rk)) return;
     ph = 'fin'; cancelAnimationFrame(raf);
@@ -798,14 +871,16 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const n = rk.length;
     const lines = rk.map((x, i) => ({ a: (i + 1) + '位  ' + E.nameOf(x[0]), b: x[1] + 'pt' + (s40(x[2]) ? '  ' + s40(x[2]) : ''), cls: m.rev ? (i === n - 1 ? 'lose' : '') : (i === 0 ? 'win' : '') }));
     const top = rk[0] ? rk[0][0] : -1, last = rk[n - 1] ? rk[n - 1][0] : -1;
-    const stats = typeof m.cp === 'string' ? m.cp.slice(0, 300) : '';
+    const stats = '';
     if(m.rev){
       E.showResult({ title: 'RACE', reason: 'グランプリ 全' + nR + '戦 — 最下位決定', pen: last === E.myId ? 'あなたが最下位…' : E.nameOf(last) + ' が最下位!', lines, stats });
+      carsBox(rk, m.cars);
       E.audio.scare(); E.vibrate(last === E.myId ? [0, 200, 80, 400] : [0, 120]);
       PF.show(true); later(() => PF.doom($('r-pen')), 200);
       return;
     }
     E.showResult({ title: 'RACE', reason: 'グランプリ 全' + nR + '戦', pen: top === E.myId ? 'あなたの優勝!' : E.nameOf(top) + ' の優勝!', lines, stats });
+    carsBox(rk, m.cars);
     if(top === E.myId) E.vibrate([80, 60, 80, 60, 300]);
     PF.show(true); later(() => { const r = $('r-lines').firstElementChild; PF.confetti(140); if(r) PF.rowIn(r, 'win'); PF.pop($('r-pen'), { color: 0xffd60a, power: 2.5, star: true }); }, 200);
   }
@@ -921,11 +996,11 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     H.RS = newRace(H.crs[H.ri], racers);
     H.phase = 'race';
     H.goAt = performance.now() + CFG.CD_MS;
-    E.hostBcast({ t: 'rgo', r: H.ri, at: H.goAt, c: H.crs[H.ri], cars: racers.map(x => ({ id: x.id, st: x.st.map(v => Math.round(v)), nl: x.nl, nd: Math.round(x.nd * 100) / 100 })) }, true);
+    E.hostBcast({ t: 'rgo', r: H.ri, at: H.goAt, c: H.crs[H.ri], cars: racers.map(x => ({ id: x.id, st: x.st.map(v => Math.round(v)), nl: x.nl, nd: Math.round(x.nd * 100) / 100, sk: H.P.get(x.id).car.sk || '' })) }, true);
     clearInterval(H.simT);
     H.simT = setInterval(simTick, 50);
   }
-  const flagsOf = r => (r.nt > 0 ? 1 : 0) | (r.fin >= 0 ? 2 : 0) | (r.out ? 4 : 0) | (Math.max(0, Math.min(3, r.nl)) << 3);
+  const flagsOf = r => (r.nt > 0 ? 1 : 0) | (r.fin >= 0 ? 2 : 0) | (r.out ? 4 : 0) | (Math.max(0, Math.min(3, r.nl)) << 3) | (skillOn(H.RS, r) ? 32 : 0);
   function snapR(){
     const RS = H.RS;
     E.hostBcast({ t: 'rs', r: H.ri, k: RS.k, at: H.goAt + RS.t * 1000, c: RS.r.map(x => [Math.round(x.d * 10), Math.round(x.v), flagsOf(x)]), f: RS.order.slice() }, false);
@@ -963,17 +1038,13 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       return 0;
     });
   }
-  function carText(id){
-    const p = H.P.get(id); if(!p) return '';
-    return ST.map((n, k) => n + p.car.st[k]).join(' ') + (p.car.sk ? '\nスキル: ' + TR[p.car.sk].nm : '');
-  }
   function finish(){
     if(H.phase !== 'res') return;
     H.phase = 'done';
     const st = standings();
     const rk = st.map(x => [x[0], x[1], x[2].filter(Boolean).map(v => v + '位').join('・')]);
-    const key = H.rev ? st[st.length - 1] : st[0];
-    E.hostBcast({ t: 'fin', rk, rev: H.rev ? 1 : 0, cp: key ? (H.rev ? '最下位のマシン\n' : '優勝マシン\n') + carText(key[0]) : '' }, true);
+    const cars = st.map(x => { const c = H.P.get(x[0]).car; return [x[0], c.st.slice(), c.sk || '']; });
+    E.hostBcast({ t: 'fin', rk, rev: H.rev ? 1 : 0, cars }, true);
   }
   function stopHost(){ clearTimeout(H.skT); clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.simT); clearTimeout(H.pitT); }
   function stop(){

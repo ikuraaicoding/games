@@ -497,6 +497,18 @@ body:not(.solo) .solo-only{ display:none; }
 #rc-spd small{ font-size:.7rem; color:var(--sub); margin-left:4px; }
 #rc-spd.nit{ color:#9ad0ff; text-shadow:0 0 18px #4fa3ff; }
 #rc-next{ font-size:.76rem; font-weight:700; color:var(--text); background:rgba(0,0,0,.5); border:1px solid var(--line); border-radius:10px; padding:6px 10px; align-self:flex-start; max-width:100%; }
+#rc-ev{ display:flex; flex-direction:column; align-items:flex-start; gap:5px; margin-top:2px; }
+.rc-e{ display:flex; align-items:center; gap:7px; max-width:100%; background:rgba(0,0,0,.62); border:1px solid var(--line); border-radius:99px; padding:4px 11px 4px 8px; font-size:.72rem; font-weight:700; white-space:nowrap; animation:rcein .22s cubic-bezier(.2,1.4,.4,1), rceout .3s ease-in 1.4s forwards; }
+.rc-e i{ flex:none; width:9px; height:9px; border-radius:50%; }
+.rc-e .nm{ color:var(--sub); overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.rc-e b{ font-weight:800; }
+.rc-e.nit b{ color:#9ad0ff; } .rc-e.sk b{ color:#ffd60a; }
+.rc-e.me{ font-size:.95rem; padding:7px 15px 7px 11px; animation:rcein .26s cubic-bezier(.2,1.4,.4,1), rceout .3s ease-in 1.9s forwards; }
+.rc-e.me i{ width:11px; height:11px; }
+.rc-e.me.nit{ border-color:#4fa3ff; background:rgba(31,111,216,.42); box-shadow:0 0 20px rgba(79,163,255,.45); }
+.rc-e.me.sk{ border-color:#ffd60a; background:rgba(120,95,0,.45); box-shadow:0 0 20px rgba(255,214,10,.35); }
+@keyframes rcein{ 0%{ opacity:0; transform:translateX(-14px) scale(.9); } 100%{ opacity:1; transform:none; } }
+@keyframes rceout{ to{ opacity:0; transform:translateY(-4px); } }
 #rc-cd{ position:absolute; left:0; right:0; top:36%; text-align:center; font-size:5rem; font-weight:900; display:none; pointer-events:none; text-shadow:0 6px 30px rgba(0,0,0,.7); }
 #rc-cd.on{ display:block; } #rc-cd.go{ color:var(--green); } #rc-cd.wait{ font-size:1.3rem; color:var(--sub); }
 #rc-nit{ position:absolute; right:14px; left:74px; bottom:max(14px,env(safe-area-inset-bottom)); height:86px; border-radius:22px; border:0; background:linear-gradient(180deg,#4fa3ff,#1f6fd8); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; box-shadow:0 10px 30px rgba(31,111,216,.5), inset 0 1px 0 rgba(255,255,255,.4); touch-action:none; transition:transform .08s; }
@@ -517,6 +529,29 @@ body:not(.solo) .solo-only{ display:none; }
 .lines div.win{ border-color:var(--acc); color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, transparent); }
 .lines div.lose{ border-color:rgba(255,69,58,.45); color:#ff8a80; }
 .stats{ font-size:.72rem; color:var(--dim); line-height:1.9; margin-bottom:10px; white-space:pre-line; }
+/* 結果画面: みんなの車 / みんなのチーム */
+#r-extra{ width:100%; max-width:420px; text-align:left; margin-bottom:12px; }
+#r-extra:empty{ display:none; }
+.rx-h{ margin:6px 2px 8px; }
+.rx-list{ display:grid; gap:8px; }
+.rx-p{ background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+.rx-p.me{ border-color:color-mix(in srgb, var(--acc) 60%, transparent); }
+.rx-p > summary{ list-style:none; display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; -webkit-user-select:none; user-select:none; }
+.rx-p > summary::-webkit-details-marker{ display:none; }
+.rx-rk{ flex:none; min-width:2.6em; font-size:.74rem; font-weight:800; color:var(--sub); font-variant-numeric:tabular-nums; }
+.rx-p:first-child .rx-rk{ color:var(--acc); }
+.rx-nm{ flex:1; min-width:0; font-size:.92rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rx-nm small{ font-size:.66rem; font-weight:700; color:var(--acc); margin-left:6px; }
+.rx-tag{ flex:none; font-size:.66rem; font-weight:700; color:var(--sub); white-space:nowrap; }
+.rx-faces{ flex:none; display:flex; gap:3px; }
+.rx-f{ --rc:var(--dim); display:inline-flex; }
+.rx-f.r-R{ --rc:#64d2ff; } .rx-f.r-SR{ --rc:#bf5af2; } .rx-f.r-SSR{ --rc:#ffd60a; }
+.rx-f svg.face{ width:24px; height:24px; border-radius:7px; box-shadow:0 0 0 1.5px var(--rc); }
+.rx-chev{ flex:none; color:var(--dim); font-weight:800; transition:transform .15s; }
+.rx-p[open] .rx-chev{ transform:rotate(90deg); }
+.rx-b{ display:grid; gap:6px; padding:0 10px 10px; }
+.rx-b > .rg-stats, .rx-b > .rg-sk{ padding:0 4px; }
+.rx-wait{ font-size:.72rem; color:var(--dim); padding:4px; }
 </style>
 </head>
 <body>
@@ -680,7 +715,6 @@ body:not(.solo) .solo-only{ display:none; }
     <div class="team" id="a-t1"></div>
     <div id="a-bhint"></div>
   </div>
-  <div id="a-info" class="ainfo"></div>
 </div>
 <!-- RACE -->
 <div class="screen" id="s-race">
@@ -705,6 +739,7 @@ body:not(.solo) .solo-only{ display:none; }
       <div id="rc-prog"></div>
       <div class="rh-row"><div id="rc-pos"></div><div id="rc-spd">0<small>km/h</small></div></div>
       <div id="rc-next"></div>
+      <div id="rc-ev"></div>
     </div>
     <div id="rc-cd"></div>
     <button id="rc-nit" type="button"><b>NITRO</b><small id="rc-nl"></small></button>
@@ -712,6 +747,7 @@ body:not(.solo) .solo-only{ display:none; }
   <div id="rc-res" class="av"></div>
 </div>
 <div id="a-cat" class="acat"></div>
+<div id="a-info" class="ainfo"></div>
 
 <!-- 結果 -->
 <div class="screen" id="s-result">
@@ -720,6 +756,7 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="pen" id="r-pen"></div>
   <div class="lines" id="r-lines"></div>
   <div class="stats" id="r-stats"></div>
+  <div id="r-extra"></div>
   <button class="btn main" id="r-again">もう一回</button>
   <button class="btn" id="r-lobby">ロビーにもどる(ゲームを選ぶ)</button>
   <button class="btn" id="r-quit">部屋から退出する</button>
