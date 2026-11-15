@@ -44,7 +44,7 @@ const BAL = {
         first: .8, firstN: 3, thorn: .27, evade: .22, cap: .13, aegis: .08,
         vamp: .55, regen: .04, undying: .25, bless: .03 },
   // ガチャ: キャラの合計値の出やすさ [確率, 下限, 上限] / 武器の強化値の出やすさ
-  rar: [[.43, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21], [.02, 17, 19]],      // 最後が UR(ステは SSR より少し低いが、固有能力を持つ)
+  rar: [[.43, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21], [.02, 20, 20]],      // 最後が UR(ステ合計20で固定。固有能力を持つ)
   wv: [.55, .32, .13], wAdd: [1, 2, 3],
   // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
@@ -137,7 +137,7 @@ const maxHp = h => Math.round(BAL.hp0 * Math.pow(BAL.base, h - 3));
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && FX[w.fx] && FX[w.fx].t === w.t); }
-function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h >= 17)); }
+function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h === 20)); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
 // アイコン(icons.js)。読み込めなかったら何も出さない
