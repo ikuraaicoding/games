@@ -182,21 +182,7 @@ function showCatalog(){
   });
   // 武器
   body.appendChild(el('div', 'eyebrow', 'キャラガチャ'));
-  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '% / UR(17〜19・固有能力つき)' + pct(BAL.rar[4][0]) + '%'));
-  body.appendChild(el('div', 'eyebrow', 'URキャラ'));
-  body.appendChild(el('p', 'cat-note', 'UR は固有の名前と固有能力を持つ(能力は試合中いつも効く)。一番高いステの系統の3人から出る(3つのステの差が1以内なら9人のだれか)。ステはガチャのたびにちがう'));
-  ['a', 'd', 'h'].forEach(c => {
-    const sec = el('div', 'cat-sec');
-    const t = el('div', 'cat-st'); t.appendChild(el('i', 'skc c-' + c, CAT[c] + 'のUR')); sec.appendChild(t);
-    UQ_OF[c].forEach(k => {
-      const r = el('div', 'cat-row');
-      r.appendChild(el('b', 'cat-u', UQ[k].nm + ' 「' + UQ[k].un + '」'));
-      r.appendChild(el('span', '', UQ[k].d(3)));
-      if(UQ[k].d(5) !== UQ[k].d(3)) r.appendChild(el('span', 'cat-5', '5体バトルでは: ' + UQ[k].d(5)));
-      sec.appendChild(r);
-    });
-    body.appendChild(sec);
-  });
+  body.appendChild(el('p', 'cat-note', 'ステ合計 N(6〜10)' + pct(BAL.rar[0][0]) + '% / R(11〜14)' + pct(BAL.rar[1][0]) + '% / SR(15〜18)' + pct(BAL.rar[2][0]) + '% / SSR(19〜21)' + pct(BAL.rar[3][0]) + '%'));
   body.appendChild(el('div', 'eyebrow', '武器'));
   body.appendChild(el('p', 'cat-note', '装備ガチャで出る。★1(+1)' + pct(BAL.wv[0]) + '% / ★2(+2)' + pct(BAL.wv[1]) + '% / ★3(+3)' + pct(BAL.wv[2]) + '%。剣・盾・護符は同じ確率。特殊効果は、上がるステと同じ系統のものがつく。だれにでも装備できる(1体1つ)'));
   ['a', 'd', 'h'].forEach(t => {
