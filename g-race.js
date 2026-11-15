@@ -4,8 +4,9 @@
  *  1. スキル選び: ランダムな4つから1つ選ぶ(レース中に自動で発動)
  *  2. ガレージタイム(1/3/5分・ロビーで選ぶ)。全員同じ車・体力100からスタート
  *     10秒ごと(ハードモードは5秒ごと)に「行動」が1回たまる(ためておけるのは1回だけ。使わないまま次がたまると、あふれて無駄になる)
- *       エンジン強化 / ターボ強化 / タイヤ強化: 成功で 最高速 / 加速 / コーナー +2、失敗で −1。体力を使う
- *       休む: 体力を回復
+ *       エンジン強化 / ターボ強化 / タイヤ強化: 成功で 最高速 / 加速 / コーナー +2、失敗で −1。体力を20〜30使う
+ *       休む: 体力を30〜50回復
+ *     使う体力・回復する体力は、行動のたびに変わる(ボタンに先に出る。強化3つはそれぞれ別)
  *     体力が60を切ると失敗することがある(低いほど失敗しやすい)
  *     ときどき強化のどれか1つが「好調」になる(成功で +4)
  *  3. グランプリ(1戦 または 3戦)。各レースの前にコースが公開される(コースは運)
@@ -57,9 +58,11 @@ const PH = {
   dblN: .68,                                 // ダブルニトロ: 2回使える(1回の時間は ×0.68)
   // ガレージ: ステータスの最初の値 / 成功で+gain、失敗で−loss
   start: 3, gain: 2, loss: 1, stMax: 40,
-  // 体力: 最大100。強化で −cost、休むで +rest。safe 未満で失敗することがある(1足りないごとに失敗率 +failK%)
-  // rest は、最適な遊び方を計算して決めた(+50: 体力50から1回で満タン。休むのは行動の3割ほどで、体力が少し足りないときに賭けるかどうかで差がつく)
-  hpMax: 100, cost: 25, rest: 50, safe: 60, failK: 1.4, failMax: .9,
+  // 体力: 最大100。強化で −costs のどれか、休むで +rests のどれか(行動のたびに選び直して、ボタンに先に見せる)
+  // safe 未満で失敗することがある(1足りないごとに失敗率 +failK%)
+  // 量を変動にしたのは、固定だと「100→75→50→休んで100」のような決まった回し方ができて、迷う場面がなくなるから。
+  // 幅はシミュレーションで決めた(最適な遊び方で、迷う場面が約2割・休むのが約3割・安全策より上手な人が得をする)
+  hpMax: 100, costs: [20, 25, 30], rests: [30, 35, 40, 45, 50], safe: 60, failK: 1.4, failMax: .9,
   // 好調: 行動のたびに 30% の確率で、強化のどれか1つが「好調」になる(成功で +4)
   hotP: .3, hotGain: 4,
   nit: 6                                     // ニトロの強さ(全員同じ)
@@ -138,15 +141,19 @@ function starterCar(){ return { st: [PH.start, PH.start, PH.start], hp: PH.hpMax
 // 失敗する確率(体力が safe 以上なら 0)
 const failP = hp => hp >= PH.safe ? 0 : Math.min(PH.failMax, (PH.safe - hp) * PH.failK / 100);
 // 強化(k: どのステータス)。成功なら true
-function train(car, k, rnd, hot){
+function train(car, k, rnd, hot, cost){
   const ok = rnd() >= failP(car.hp);
-  car.hp = Math.max(0, car.hp - PH.cost);
+  car.hp = Math.max(0, car.hp - cost);
   car.st[k] = Math.max(1, Math.min(PH.stMax, car.st[k] + (ok ? (hot ? PH.hotGain : PH.gain) : -PH.loss)));
   return ok;
 }
 // 次の好調(-1: なし / 0〜2: どれが好調か)
 const rollHot = rnd => rnd() < PH.hotP ? Math.floor(rnd() * 3) : -1;
-function rest(car){ car.hp = Math.min(PH.hpMax, car.hp + PH.rest); }
+function rest(car, amt){ car.hp = Math.min(PH.hpMax, car.hp + amt); }
+// 次の行動で使う体力 [強化3つ] と、休んだときの回復
+const pick = (a, rnd) => a[Math.floor(rnd() * a.length)];
+const rollHp = rnd => ({ c: [0, 1, 2].map(() => pick(PH.costs, rnd)), r: pick(PH.rests, rnd) });
+const rng = a => a[0] + '〜' + a[a.length - 1];
 // スキルの候補(重ならない SK_N 個)
 function skillChoices(rnd){
   const a = TR_KEYS.slice();
@@ -265,7 +272,7 @@ function skillOn(R, r){
 function finalOrder(R){
   return R.r.filter(r => !r.out).sort((a, b) => (a.fin >= 0 && b.fin >= 0) ? a.fin - b.fin : a.fin >= 0 ? -1 : b.fin >= 0 ? 1 : b.d - a.d);
 }
-const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, train, rest, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, skillOn, finalOrder, TR };
+const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, train, rest, rollHp, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, skillOn, finalOrder, TR };
 
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
@@ -276,6 +283,7 @@ function okCourse(c){
     c.s.every(s => Array.isArray(s) && SEG_NM[s[0]] && isInt(s[1], 20, 2000) && isInt(s[2], -3, 3) && (s[0] === 'c' ? s[2] !== 0 : s[2] === 0));
 }
 const okSt = st => Array.isArray(st) && st.length === 4 && st.every(x => isInt(x, 1, 40));
+const okHc = h => !!h && Array.isArray(h.c) && h.c.length === 3 && h.c.every(x => PH.costs.includes(x)) && PH.rests.includes(h.r);
 
 // ---------------- 見た目の部品 ----------------
 const elx = (tag, cls, txt) => { const d = document.createElement(tag); if(cls) d.className = cls; if(txt !== undefined) d.textContent = txt; return d; };
@@ -312,7 +320,8 @@ function showCatalog(){
   sec('ステータス', '最初は全部' + PH.start + '。' + PH.soft + 'を超えると伸びがゆるやかになる。コースは運なので、どれかに寄せるか、まんべんなく上げるかは作戦しだい');
   rows([['最高速', '直線・坂・ダートでの速さの上限'], ['加速', 'コーナーのあとやスタートの立ち上がり'], ['コーナー', 'コーナーでの速さの上限(きついコーナーほど大事)']]);
   sec('ガレージでできること', CFG.TICK_MS / 1000 + '秒ごと(ハードモードは' + CFG.HARD_MS / 1000 + '秒ごと)に行動が1回たまる。ためておけるのは' + CFG.CAP + '回だけ');
-  rows(TRN.map((nm, i) => [nm, '成功で ' + ST[i] + ' +' + PH.gain + '、失敗で −' + PH.loss + '。体力 −' + PH.cost]).concat([['休む', '体力 +' + PH.rest + '(最大' + PH.hpMax + ')']]));
+  rows(TRN.map((nm, i) => [nm, '成功で ' + ST[i] + ' +' + PH.gain + '、失敗で −' + PH.loss + '。体力 −' + rng(PH.costs)]).concat([['休む', '体力 +' + rng(PH.rests) + '(最大' + PH.hpMax + ')']]));
+  body.appendChild(elx('p', 'cat-note', '使う体力・回復する体力は、行動のたびに変わる(ボタンに出る)。強化の3つは、それぞれ別に決まる'));
   sec('体力と失敗', '体力が' + PH.safe + '以上なら必ず成功。' + PH.safe + 'を切ると失敗することがある(体力が1下がるごとに失敗率 +' + PH.failK + '%)');
   rows([PH.safe - 10, PH.safe - 20, PH.safe - 30, PH.safe - 40].map(h => ['体力' + h, '失敗率 ' + pc(failP(h)) + '%']));
   sec('好調', '行動のたびに ' + pc(PH.hotP) + '% の確率で、強化のどれか1つが「好調」になる。好調の強化は成功で +' + PH.hotGain + '(失敗は同じく −' + PH.loss + ')。体力が少し足りなくても賭ける価値があるかも');
@@ -469,12 +478,12 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const f = failP(me.car.hp), g = el('div', 'agrid two');
     TRN.forEach((nm, i) => {
       const hot = me.hot === i;
-      const b = bigBtn(nm, ST[i] + ' +' + (hot ? PH.hotGain : PH.gain) + (f > 0 ? ' / 失敗率 ' + pc(f) + '%' : ''), can, () => act('tr', i));
+      const b = bigBtn(nm, ST[i] + ' +' + (hot ? PH.hotGain : PH.gain) + ' / 体力 −' + me.hc.c[i] + (f > 0 ? ' / 失敗率 ' + pc(f) + '%' : ''), can, () => act('tr', i));
       if(f > 0) b.classList.add(f >= .3 ? 'risk2' : 'risk');
       if(hot){ b.classList.add('hot'); b.insertBefore(el('i', 'rg-hot', '好調!'), b.firstChild); }
       g.appendChild(b);
     });
-    g.appendChild(bigBtn('休む', '体力 +' + PH.rest + (me.car.hp >= PH.hpMax ? '(満タン)' : ''), can, () => act('rs')));
+    g.appendChild(bigBtn('休む', '体力 +' + me.hc.r + (me.car.hp >= PH.hpMax ? '(満タン)' : ''), can, () => act('rs')));
     box.appendChild(g);
   }
   function onMe(m){
@@ -486,7 +495,8 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(m.rev && !rev){ rev = true; }
     const skc = Array.isArray(m.skc) ? m.skc.filter(k => typeof k === 'string' && TR[k]).slice(0, SK_N) : [];
     const last = me ? me.last : null;
-    me = { car: m.car, tk: m.tk, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, skc, last, hot: isInt(m.hot, -1, 2) ? m.hot : -1 };
+    const hc = okHc(m.hc) ? m.hc : { c: [PH.costs[1], PH.costs[1], PH.costs[1]], r: PH.rests[2] };
+    me = { car: m.car, tk: m.tk, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, skc, last, hot: isInt(m.hot, -1, 2) ? m.hot : -1, hc };
     if(m.of === 1 && !m.end) overflow();
     if(Number.isFinite(m.rem)) localEnd = performance.now() + m.rem;
     nextAt = Number.isFinite(m.nx) && m.nx >= 0 ? performance.now() + m.nx : 0;
@@ -507,7 +517,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
         me.flash = rv.i; me.last = { k: 'ng', txt: '失敗… ' + ST[rv.i] + ' −' + PH.loss };
         E.audio.beep(220, .18, .22); later(() => E.audio.beep(150, .24, .22), 150); E.vibrate([80, 50, 120]);
       }else if(rv.k === 'rs'){
-        me.last = { k: 'rs', txt: 'ひと休み。体力 +' + PH.rest };
+        me.last = { k: 'rs', txt: 'ひと休み。体力 +' + (PH.rests.includes(rv.v) ? rv.v : '') };
         E.audio.beep(520, .12, .16); later(() => E.audio.beep(660, .16, .16), 140);
       }
     }
@@ -911,7 +921,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now(), sk = H.phase === 'sk';
-    const o = { t: 'me', s: ++H.seq, R: H.R, ti: H.TICK, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const o = { t: 'me', s: ++H.seq, R: H.R, ti: H.TICK, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, hc: p.hc, rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(sk){ o.sk = 1; o.skc = p.skc; }
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
@@ -928,7 +938,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     H.names = E.players().map(p => [p.id, p.name]);
     H.crs = Array.from({ length: H.R }, () => genCourse(rndF));
     H.skEnd = performance.now() + CFG.SK_MS; H.endAt = 0; H.nextTick = 0;
-    E.players().forEach(p => H.P.set(p.id, { car: starterCar(), skc: skillChoices(rndF), tk: 0, lost: 0, hot: -1, n: 0, nn: 0, rv: null, pts: 0, res: [] }));
+    E.players().forEach(p => H.P.set(p.id, { car: starterCar(), skc: skillChoices(rndF), tk: 0, lost: 0, hot: -1, hc: rollHp(rndF), n: 0, nn: 0, rv: null, pts: 0, res: [] }));
     H.P.forEach((_, id) => sendMe(id));
     H.skT = setTimeout(startGarage, CFG.SK_MS);
   }
@@ -966,12 +976,12 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(p.tk <= 0){ sendMe(id); return; }
     if(m.a === 'tr' && isInt(m.i, 0, 2)){
       p.tk--;
-      const hot = p.hot === m.i, ok = train(p.car, m.i, rndF, hot);
+      const hot = p.hot === m.i, ok = train(p.car, m.i, rndF, hot, p.hc.c[m.i]);
       p.rv = { n: ++H.rvn, k: ok ? 'ok' : 'ng', i: m.i, h: hot ? 1 : 0 };
-      p.hot = rollHot(rndF);
+      p.hot = rollHot(rndF); p.hc = rollHp(rndF);
     }else if(m.a === 'rs'){
-      p.tk--; rest(p.car); p.rv = { n: ++H.rvn, k: 'rs' };
-      p.hot = rollHot(rndF);
+      p.tk--; rest(p.car, p.hc.r); p.rv = { n: ++H.rvn, k: 'rs', v: p.hc.r };
+      p.hot = rollHot(rndF); p.hc = rollHp(rndF);
     }
     sendMe(id);
   }
