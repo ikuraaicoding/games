@@ -190,13 +190,14 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   let ph = 'wait', me = null, meSeq = -1, lastRv = 0, lastPendKey = '', nonce = 0, localEnd = 0, nextAt = 0, tickMs = CFG.TICK_MS, pSize = 3;
   let uiMode = '', clockT = 0, rev = false;
   let br = null, bt = null;           // トーナメント表 / いまの試合
+  let teams = new Map(), rxSlots = null;   // 最後に見せる、みんなのチーム
 
   function view(v){ ['a-build', 'a-br', 'a-bt'].forEach(id => { $(id).style.display = id === v ? 'flex' : 'none'; }); VFX.show(v === 'a-bt' && !stopped, { amb: [0xff9f0a, 0xffd60a, 0xff6b3a] }); }
   // 戦闘の演出(arena-fx.js / PixiJS)。使えないスマホでは今までの演出だけになる
   const VFX = E.fx;
   const SIDEC = [0x64d2ff, 0xff9f0a];          // 上のチーム / 下のチーム
   function onBegin(){
-    stopped = false; rev = false; ph = 'wait'; me = null; tickMs = CFG.TICK_MS; pSize = 3; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null;
+    stopped = false; rev = false; ph = 'wait'; me = null; tickMs = CFG.TICK_MS; pSize = 3; meSeq = -1; lastRv = 0; lastPendKey = ''; uiMode = ''; br = null; bt = null; teams = new Map(); rxSlots = null;
     $('a-top').textContent = 'ARENA — 育成バトル';
     view('a-build'); $('a-party').textContent = ''; $('a-info').classList.remove('on'); $('a-panel').textContent = '';
     $('a-time').textContent = '--:--'; $('a-tk').textContent = '0';
@@ -652,17 +653,51 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(won){ E.vibrate([60, 40, 60, 40, 160]); [660, 880, 1100, 1320].forEach((f, i) => later(() => E.audio.beep(f, .14, .22), i * 120)); }
     else if(lost){ E.vibrate([0, 300]); E.audio.beep(200, .4, .25); }
   }
+  // ---- 結果画面: みんなのチーム(各チームは 'pty' で1つずつ届く) ----
+  function onPty(m){
+    const ps = m.ps === 5 ? 5 : 3;
+    if(!Number.isInteger(m.id) || !Array.isArray(m.p) || m.p.length < 1 || m.p.length > ps || !m.p.every(okC)) return;
+    teams.set(m.id, m.p);
+    fillTeam(m.id);
+  }
+  function teamsBox(rk){
+    const box = $('r-extra'); box.textContent = '';
+    box.appendChild(el('div', 'eyebrow rx-h', 'みんなのチーム'));
+    const list = el('div', 'rx-list');
+    rxSlots = new Map();
+    rk.forEach((x, i) => {
+      const id = x[0], d = el('details', 'rx-p' + (id === E.myId ? ' me' : ''));
+      if(i === 0 || id === E.myId) d.open = true;
+      const s = el('summary');
+      s.appendChild(el('span', 'rx-rk', s60(String(x[1]))));
+      const nm = el('span', 'rx-nm', nmOf(id)); if(id === E.myId) nm.appendChild(el('small', '', 'あなた')); s.appendChild(nm);
+      const f = el('span', 'rx-faces'); s.appendChild(f);
+      s.appendChild(el('span', 'rx-chev', '›'));
+      const b = el('div', 'rx-b'); b.appendChild(el('div', 'rx-wait', '読み込み中…'));
+      d.appendChild(s); d.appendChild(b); list.appendChild(d);
+      rxSlots.set(id, { f, b });
+      fillTeam(id);
+    });
+    box.appendChild(list);
+  }
+  function fillTeam(id){
+    const sl = rxSlots && rxSlots.get(id), p = teams.get(id); if(!sl || !p) return;
+    sl.f.textContent = ''; sl.b.textContent = '';
+    p.forEach(c => { const w = el('span', 'rx-f r-' + rarOf(c.a + c.d + c.h)); w.appendChild(avOf(c, 24)); sl.f.appendChild(w); sl.b.appendChild(slimCard(c)); });
+  }
   function onFin(m){
     if(!Array.isArray(m.rk)) return;
     ph = 'fin';
-    const lines = m.rk.slice(0, 8).filter(x => Array.isArray(x) && Number.isInteger(x[0])).map((x, i) => ({ a: s60(String(x[1])) + '  ' + nmOf(x[0]), b: s60(String(x[2] || '')), cls: i === 0 ? (m.rev ? 'lose' : 'win') : '' }));
+    const rkOk = m.rk.slice(0, 8).filter(x => Array.isArray(x) && Number.isInteger(x[0]));
+    const lines = rkOk.map((x, i) => ({ a: s60(String(x[1])) + '  ' + nmOf(x[0]), b: s60(String(x[2] || '')), cls: i === 0 ? (m.rev ? 'lose' : 'win') : '' }));
     const champ = m.rk[0] && m.rk[0][0];
     if(m.rev){
       E.showResult({
         title: 'ARENA', reason: '負け残りトーナメント',
         pen: champ === E.myId ? 'あなたが最下位…' : nmOf(champ) + ' が最下位!',
-        lines, stats: s60(m.cp) ? '最下位のパーティ\n' + String(m.cp).slice(0, 300) : ''
+        lines, stats: ''
       });
+      teamsBox(rkOk);
       E.audio.scare(); E.vibrate(champ === E.myId ? [0, 200, 80, 400] : [0, 120]);
       VFX.show(true); later(() => VFX.doom($('r-pen')), 200);
       return;
@@ -670,8 +705,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     E.showResult({
       title: 'ARENA', reason: '育成バトル トーナメント',
       pen: champ === E.myId ? 'あなたの優勝!' : nmOf(champ) + ' の優勝!',
-      lines, stats: s60(m.cp) ? '優勝パーティ\n' + String(m.cp).slice(0, 300) : ''
+      lines, stats: ''
     });
+    teamsBox(rkOk);
     if(champ === E.myId){ E.vibrate([80, 60, 80, 60, 300]); }
     VFX.show(true); later(() => { const r = $('r-lines').firstElementChild; VFX.confetti(140); if(r) VFX.rowIn(r, 'win'); VFX.pop($('r-pen'), { color: 0xffd60a, power: 2.5, star: true }); }, 200);
   }
@@ -684,6 +720,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     else if(m.t === 'st') onSt(m);
     else if(m.t === 'mend') onMend(m);
     else if(m.t === 'fin') onFin(m);
+    else if(m.t === 'pty') onPty(m);
   }
 
   // =====================================================================
@@ -1008,9 +1045,9 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     const u = B.u[m.u]; if(!alive(u) || u.used) return;
     u.used = true; B.q.push(m.u);
   }
-  function partyText(id){
-    const p = H.P.get(id); if(!p) return '';
-    return p.party.map(c => c.nm + ' 攻' + c.a + (c.w && c.w.t === 'a' ? '+' + c.w.v : '') + ' 防' + c.d + (c.w && c.w.t === 'd' ? '+' + c.w.v : '') + ' HP' + c.h + ' / ' + SK[c.sk.t].nm + 'Lv' + c.sk.lv + (c.w ? ' / ' + wName(c.w) : '')).join('\n');
+  // 最後に、みんなのチームを1チームずつ配る(1つのメッセージに全部入れると大きすぎることがある)
+  function sendTeams(rk){
+    rk.forEach(x => { const p = H.P.get(x[0]); if(p) E.hostBcast({ t: 'pty', id: x[0], ps: H.N, p: p.party }, true); });
   }
   function finish(){
     if(H.phase !== 'tour') return;
@@ -1021,13 +1058,15 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
       const n = H.outR.size + 1, rk = [[champ, n + '位', '最下位']];
       const outs = Array.from(H.outR.entries()).sort((a, b) => b[1] - a[1]);
       outs.forEach(([id, r]) => { const better = outs.filter(x => x[1] < r).length; rk.push([id, (better + 1) + '位', r === R - 1 ? '最下位決定戦で勝ち抜け' : (r + 1) + '回戦で勝ち抜け']); });
-      E.hostBcast({ t: 'fin', rev: 1, rk, cp: partyText(champ) }, true);
+      E.hostBcast({ t: 'fin', rev: 1, rk }, true);
+      sendTeams(rk);
       return;
     }
     const rk = [[champ, '1位', '優勝']];
     const others = Array.from(H.outR.entries()).sort((a, b) => b[1] - a[1]);
     others.forEach(([id, r]) => { rk.push([id, (H.rs[r].length + 1) + '位', r === R - 1 ? '決勝で敗退' : (r === R - 2 ? '準決勝' : (r + 1) + '回戦') + 'で敗退']); });
-    E.hostBcast({ t: 'fin', rk, cp: partyText(champ) }, true);
+    E.hostBcast({ t: 'fin', rk }, true);
+    sendTeams(rk);
   }
 
   function stopHost(){ clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.stepT); }

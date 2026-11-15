@@ -165,6 +165,7 @@ const E = {
       d.appendChild(a); d.appendChild(b); box.appendChild(d);
     });
     $('r-stats').textContent = clean2(o.stats, 400);
+    $('r-extra').textContent = '';
     const host = role === 'host';
     vis('r-again', host); vis('r-lobby', host);
     show('s-result');

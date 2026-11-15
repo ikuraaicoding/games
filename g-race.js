@@ -791,6 +791,29 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       if(mine && mine[1] === 1){ PF.confetti(90); }
     }, 1800);
   }
+  // ---- 結果画面: みんなの車 ----
+  function carsBox(rk, cars){
+    const okC = x => Array.isArray(x) && Number.isInteger(x[0]) && Array.isArray(x[1]) && x[1].length === 3 && x[1].every(v => isInt(v, 0, PH.stMax)) && (x[2] === '' || !!TR[x[2]]);
+    const by = new Map((Array.isArray(cars) ? cars : []).filter(okC).slice(0, 8).map(x => [x[0], x]));
+    const box = $('r-extra'); box.textContent = '';
+    if(!by.size) return;
+    box.appendChild(el('div', 'eyebrow rx-h', 'みんなの車'));
+    const list = el('div', 'rx-list');
+    rk.forEach((x, i) => {
+      const c = by.get(x[0]); if(!c) return;
+      const d = el('details', 'rx-p' + (x[0] === E.myId ? ' me' : '')); d.open = true;
+      const s = el('summary');
+      s.appendChild(el('span', 'rx-rk', (i + 1) + '位'));
+      const nm = el('span', 'rx-nm', E.nameOf(x[0])); if(x[0] === E.myId) nm.appendChild(el('small', '', 'あなた')); s.appendChild(nm);
+      s.appendChild(el('span', 'rx-tag', '合計 ' + (c[1][0] + c[1][1] + c[1][2])));
+      s.appendChild(el('span', 'rx-chev', '›'));
+      const b = el('div', 'rx-b');
+      b.appendChild(statBars(c[1]));
+      if(c[2]) b.appendChild(skillLine(c[2]));
+      d.appendChild(s); d.appendChild(b); list.appendChild(d);
+    });
+    box.appendChild(list);
+  }
   function onFin(m){
     if(!Array.isArray(m.rk)) return;
     ph = 'fin'; cancelAnimationFrame(raf);
@@ -798,14 +821,16 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const n = rk.length;
     const lines = rk.map((x, i) => ({ a: (i + 1) + '位  ' + E.nameOf(x[0]), b: x[1] + 'pt' + (s40(x[2]) ? '  ' + s40(x[2]) : ''), cls: m.rev ? (i === n - 1 ? 'lose' : '') : (i === 0 ? 'win' : '') }));
     const top = rk[0] ? rk[0][0] : -1, last = rk[n - 1] ? rk[n - 1][0] : -1;
-    const stats = typeof m.cp === 'string' ? m.cp.slice(0, 300) : '';
+    const stats = '';
     if(m.rev){
       E.showResult({ title: 'RACE', reason: 'グランプリ 全' + nR + '戦 — 最下位決定', pen: last === E.myId ? 'あなたが最下位…' : E.nameOf(last) + ' が最下位!', lines, stats });
+      carsBox(rk, m.cars);
       E.audio.scare(); E.vibrate(last === E.myId ? [0, 200, 80, 400] : [0, 120]);
       PF.show(true); later(() => PF.doom($('r-pen')), 200);
       return;
     }
     E.showResult({ title: 'RACE', reason: 'グランプリ 全' + nR + '戦', pen: top === E.myId ? 'あなたの優勝!' : E.nameOf(top) + ' の優勝!', lines, stats });
+    carsBox(rk, m.cars);
     if(top === E.myId) E.vibrate([80, 60, 80, 60, 300]);
     PF.show(true); later(() => { const r = $('r-lines').firstElementChild; PF.confetti(140); if(r) PF.rowIn(r, 'win'); PF.pop($('r-pen'), { color: 0xffd60a, power: 2.5, star: true }); }, 200);
   }
@@ -963,17 +988,13 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
       return 0;
     });
   }
-  function carText(id){
-    const p = H.P.get(id); if(!p) return '';
-    return ST.map((n, k) => n + p.car.st[k]).join(' ') + (p.car.sk ? '\nスキル: ' + TR[p.car.sk].nm : '');
-  }
   function finish(){
     if(H.phase !== 'res') return;
     H.phase = 'done';
     const st = standings();
     const rk = st.map(x => [x[0], x[1], x[2].filter(Boolean).map(v => v + '位').join('・')]);
-    const key = H.rev ? st[st.length - 1] : st[0];
-    E.hostBcast({ t: 'fin', rk, rev: H.rev ? 1 : 0, cp: key ? (H.rev ? '最下位のマシン\n' : '優勝マシン\n') + carText(key[0]) : '' }, true);
+    const cars = st.map(x => { const c = H.P.get(x[0]).car; return [x[0], c.st.slice(), c.sk || '']; });
+    E.hostBcast({ t: 'fin', rk, rev: H.rev ? 1 : 0, cars }, true);
   }
   function stopHost(){ clearTimeout(H.skT); clearInterval(H.tickT); clearTimeout(H.endT); clearInterval(H.simT); clearTimeout(H.pitT); }
   function stop(){
