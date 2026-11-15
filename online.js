@@ -20,11 +20,13 @@ $('name').value = myName;
 let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena', '#race': 'race' })[location.hash] || 'core';
 
 // ---------- 音 ----------
+// 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
 let ac = null;
+const live = () => { if(window.NomiSound) ac = window.NomiSound.get(); return ac; };
 const audio = {
-  init(){ if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(!ac) return; if(window.NomiSound) window.NomiSound.track(ac); else if(ac.state !== 'running') ac.resume(); },
+  init(){ if(window.NomiSound){ ac = window.NomiSound.open(); return; } if(!ac){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) ac = new AC(); } if(ac && ac.state !== 'running') ac.resume(); },
   heartbeat(vol){
-    if(!ac) return; const t = ac.currentTime;
+    if(!live()) return; const t = ac.currentTime;
     [[58, 0, .22, .6], [46, .16, .2, .4]].forEach(([f, d, len, g]) => {
       const o = ac.createOscillator(), gn = ac.createGain();
       o.type = 'sine'; o.frequency.setValueAtTime(f, t + d);
@@ -34,17 +36,18 @@ const audio = {
   },
   drone: null,
   startDrone(){
-    if(!ac || this.drone) return; const t = ac.currentTime;
+    if(this.drone && this.drone.ac !== live()) this.drone = null;      // 作り直されていたら、前のは閉じて鳴っていない
+    if(!live() || this.drone) return; const t = ac.currentTime;
     const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
     o.type = 'sawtooth'; o.frequency.setValueAtTime(38, t); f.type = 'lowpass'; f.frequency.setValueAtTime(140, t);
     g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .4);
-    o.connect(f); f.connect(g); g.connect(ac.destination); o.start(t); this.drone = { o, f, g };
+    o.connect(f); f.connect(g); g.connect(ac.destination); o.start(t); this.drone = { ac, o, f, g };
   },
-  updateDrone(sec){ if(!this.drone) return; const t = ac.currentTime, s = Math.min(sec, 12); this.drone.o.frequency.setTargetAtTime(38 + s * 3.5, t, .1); this.drone.f.frequency.setTargetAtTime(140 + s * 40, t, .1); },
-  stopDrone(){ if(!this.drone) return; const t = ac.currentTime, d = this.drone; this.drone = null; d.g.gain.cancelScheduledValues(t); d.g.gain.setTargetAtTime(.0001, t, .05); d.o.stop(t + .3); },
+  updateDrone(sec){ if(!this.drone || this.drone.ac.state === 'closed') return; const t = this.drone.ac.currentTime, s = Math.min(sec, 12); this.drone.o.frequency.setTargetAtTime(38 + s * 3.5, t, .1); this.drone.f.frequency.setTargetAtTime(140 + s * 40, t, .1); },
+  stopDrone(){ if(!this.drone) return; const d = this.drone; this.drone = null; if(d.ac.state === 'closed') return; const t = d.ac.currentTime; d.g.gain.cancelScheduledValues(t); d.g.gain.setTargetAtTime(.0001, t, .05); d.o.stop(t + .3); },
   boom(v){
     const k = v === undefined ? 1 : v;
-    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
+    if(!live() || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 1.2);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.5);
     const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
@@ -58,7 +61,7 @@ const audio = {
   },
   scare(v){
     const k = v === undefined ? 1 : v;
-    if(!ac || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
+    if(!live() || k <= 0) return; const t = ac.currentTime, len = Math.floor(ac.sampleRate * 0.5);
     const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
     for(let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
     const n = ac.createBufferSource(), ng = ac.createGain(); n.buffer = buf;
@@ -68,7 +71,7 @@ const audio = {
     og.gain.setValueAtTime(.5 * k, t); og.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + .35);
   },
   beep(freq, len, vol){
-    if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    if(!live()) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
     o.type = 'square'; o.frequency.setValueAtTime(freq, t); g.gain.setValueAtTime(vol || .2, t); g.gain.exponentialRampToValueAtTime(.0001, t + len);
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + len + .02);
   }
