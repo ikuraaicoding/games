@@ -49,10 +49,10 @@ const BAL = {
   // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
   // UR の固有能力
-  uq: { ken: 2.7, rai: .2, hao: .7, gol: .26, leo: .18, faf: .9, fafH: .1, cel: .017, phx: .28, ygg: .35 }
+  uq: { ken: 3.3, rai: .24, hao: .8, gol: .25, leo: .17, faf: .8, fafH: .05, cel: .015, phx: .24, ygg: .32 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
-const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.4, hao: 6 / 7, ygg: 1.45, gol: 1.25 };
+const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.4, hao: .75, ygg: 1.45, gol: 1.25 };
 const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
 // 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
 const CAT = { a: '攻撃', d: '防御', h: 'HP' };
