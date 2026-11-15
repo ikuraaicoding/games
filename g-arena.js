@@ -49,7 +49,7 @@ const BAL = {
   // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
   // UR の固有能力
-  uq: { ken: 3.3, rai: .24, hao: .8, gol: .25, leo: .17, faf: .8, fafH: .05, cel: .015, phx: .24, ygg: .32 }
+  uq: { ken: .25, rai: .24, hao: .8, gol: .25, leo: .17, faf: .8, fafH: .05, cel: .015, phx: .24, ygg: .32 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
 const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.4, hao: .75, ygg: 1.45, gol: 1.25 };
@@ -113,7 +113,7 @@ const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防
 // c: 系統(一番高いステ) / un: 能力の名前 / d: くわしい説明 / s: 試合中のカードに出す短い説明
 const U_ = BAL.uq;
 const UQ = {
-  ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: () => '敵を倒すと、すぐに ' + mul(U_.ken) + '倍で追撃(1手番1回)', s: () => '倒すと追撃' },
+  ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: () => '自分の手番ごとに、' + pct(U_.ken) + '%の確率でもう1回攻撃', s: () => pct(U_.ken) + '%で連続攻撃' },
   rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
   hao: { c: 'a', nm: 'ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
   gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: n => '受けるダメージがいつも −' + pct(U_.gol * aoe('gol', n)) + '%', s: n => '被ダメ−' + pct(U_.gol * aoe('gol', n)) + '%' },
@@ -917,7 +917,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
   function mkUnit(c, side, i, N){
     const w = c.w || null, uq = c.u && UQ[c.u] ? c.u : '';
     const mhp = Math.round(maxHp(c.h + (w && w.t === 'h' ? w.v : 0)) * (uq === 'ygg' ? 1 + BAL.uq.ygg * aoe('ygg', N) : 1));
-    return { side, i, nm: c.nm, r: rarC(c), uq, phx: uq === 'phx', faf: uq === 'faf', kn: 0, A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp, hp: mhp,
+    return { side, i, nm: c.nm, r: rarC(c), uq, phx: uq === 'phx', faf: uq === 'faf', A: c.a + (w && w.t === 'a' ? w.v : 0), D: c.d + (w && w.t === 'd' ? w.v : 0), mhp, hp: mhp,
       sk: c.sk.t, lv: c.sk.lv, fx: w ? w.fx : '', wt: w ? w.t : '', wv: w ? w.v : 0, h: c.h, a: c.a, d: c.d, av: c.av || 0, used: false, armed: '', wall: 0, taunt: 0, tauntN: 0, ctr: 0, fort: 0, rg: 0, first: w && w.fx === 'first' ? BAL.fx.firstN : 0, und: !!(w && w.fx === 'undying') };
   }
   const pubU = u => u ? { nm: u.nm, r: u.r, uq: u.uq, A: u.A, D: u.D, mhp: u.mhp, sk: u.sk, lv: u.lv, fx: u.fx, wt: u.wt, wv: u.wv, h: u.h, a: u.a, d: u.d, av: u.av } : null;
@@ -949,7 +949,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     if(u.hp <= 0){
       if(u.und){ u.und = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.fx.undying)); L.push(u.nm + ' は不死の力で踏みとどまった!'); }
       else if(u.phx){ u.phx = false; u.hp = Math.max(1, Math.round(u.mhp * BAL.uq.phx * aoe('phx', B.N))); u.armed = ''; L.push('◆ ' + u.nm + ' の転生! よみがえった'); F.push([idxOf(B, u), 0, 'u']); F.push([idxOf(B, u), u.hp, 'h']); }
-      else{ u.hp = 0; u.armed = ''; u.taunt = 0; u.ctr = 0; L.push(u.nm + ' は倒れた'); if(src >= 0 && B.u[src]) B.u[src].kn++; }
+      else{ u.hp = 0; u.armed = ''; u.taunt = 0; u.ctr = 0; L.push(u.nm + ' は倒れた'); }
     }
     // ファフ: HPが半分を切ったら1度だけ、味方全員に盾
     if(u.faf && u.hp > 0 && u.hp * 2 < u.mhp){
@@ -1019,13 +1019,12 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     }
   }
   function unitAct(B, u, L, F){
-    const k0 = u.kn;
     if(u.uq === 'cel') mates(B, u).forEach(x => heal(B, x, x.mhp * BAL.uq.cel * aoe('cel', B.N), L, F));
     act1(B, u, L, F);
-    // アルス: 敵を倒したら、すぐもう1回
-    if(u.uq === 'ken' && u.kn > k0 && alive(u)){
+    // アルス: ときどき、もう1回攻撃
+    if(u.uq === 'ken' && alive(u) && B.rnd() < BAL.uq.ken){
       const t = target(B, u, '');
-      if(t){ L.push('◆ ' + u.nm + ' の連斬!'); F.push([idxOf(B, u), 0, 'u']); hit(B, u, t, BAL.uq.ken, L, F); }
+      if(t){ L.push('◆ ' + u.nm + ' の連斬!'); F.push([idxOf(B, u), 0, 'u']); hit(B, u, t, 1, L, F); }
     }
   }
   function act1(B, u, L, F){
