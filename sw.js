@@ -1,5 +1,5 @@
 // キャッシュバージョン: 更新を配るときはこの数字を上げる(version.js の更新日時も一緒に)
-const CACHE_VERSION = 'party-v63';
+const CACHE_VERSION = 'party-v64';
 const FILES = [
   './',
   './index.html',

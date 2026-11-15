@@ -9,7 +9,7 @@
  *     使う体力・回復する体力は、行動のたびに変わる(ボタンに先に出る。強化3つはそれぞれ別)
  *     体力が60を切ると失敗することがある(低いほど失敗しやすい)
  *     ときどき強化のどれか1つが「好調」になる(成功で +4)
- *     スキル選びのときに、全レースの天気予報が出る(天気はゲーム開始のときに決まっている)
+ *     スキル選びのときに、全レースの天気予報(雨の確率)が出る。実際の天気はその確率どおりに決まるので、はずれることもある
  *  3. グランプリ(1戦 または 3戦)。各レースの前にコースが公開される(コースは運)
  *     レースは全員同時。操作はニトロを使うタイミングだけ(1レース1回。ダブルニトロなら2回)
  *     ゴール順にポイント。全レースの合計で順位
@@ -35,7 +35,7 @@ const PH = {
   v0: 166, vk: 5.6,                          // 最高速(km/h) = v0 + vk × 最高速
   c0: 110, ck: 2.9, cs: [1.22, 1.0, .83],    // コーナーの上限 = (c0 + ck × コーナー) × きつさ(ゆるい/ふつう/きつい)
   rainC: .8,                                 // 雨: コーナーの上限 ×0.8
-  rainT: .85,                                // レインマスター: 雨のときのコーナーの上限 ×0.85(天気予報で雨と分かって選べるので、雨のレースで勝率が平均の1.6倍くらいになるように)
+  rainT: .85,                                // レインマスター: 雨のときのコーナーの上限 ×0.85(雨のレースで勝率27%・晴れで12%。雨80%の予報で選ぶと、期待値は約24%)
   a0: 16, ak: 4, aFall: .8,                 // 加速(km/h/秒) = (a0 + ak × 加速) × (1 − aFall × 速度/最高速)
   aMin: 2,
   hillV: .82, hillA: .55,                    // 上り坂: 上限 ×0.82、加速 ×0.55
@@ -98,7 +98,9 @@ const THEMES = [
 ];
 const PLACE_A = ['サンセット', 'ミッドナイト', 'レッド', 'ブルー', 'グリーン', 'ゴールド', 'シルバー', 'スカイ'];
 const PLACE_B = ['湾岸', '峠', 'サーキット', '市街地', 'キャニオン', '高原', 'ベイ', 'フォレスト'];
-const RAIN_P = .3, LEN_MIN = 2000, LEN_MAX = 2500;
+// 天気予報: 雨の確率(%)をこの中から選び、実際の天気はその確率どおりに決める(平均すると約3割が雨)
+const FC_P = [10, 10, 10, 20, 20, 30, 40, 60, 80], LEN_MIN = 2000, LEN_MAX = 2500;
+const fcNm = p => p <= 20 ? '晴れ' : p < 60 ? 'くもり' : '雨';
 
 function genCourse(rnd){
   const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
@@ -120,8 +122,8 @@ function genCourse(rnd){
   const tot = segs.reduce((a, s) => a + s[1], 0);
   const goal = ri(LEN_MIN, LEN_MAX), k = goal / tot;
   segs.forEach(s => { s[1] = Math.max(60, Math.round(s[1] * k / 10) * 10); });
-  const w = rnd() < RAIN_P ? 1 : 0;
-  return { nm: pick(PLACE_A) + pick(PLACE_B), th, w: CFG.RAIN === 0 || CFG.RAIN === 1 ? CFG.RAIN : w, s: segs };
+  const fc = pick(FC_P), w = rnd() < fc / 100 ? 1 : 0;
+  return { nm: pick(PLACE_A) + pick(PLACE_B), th, fc, w: CFG.RAIN === 0 || CFG.RAIN === 1 ? CFG.RAIN : w, s: segs };
 }
 const courseLen = c => c.s.reduce((a, s) => a + s[1], 0);
 // コースの特徴(偵察・ピットで見せる)
@@ -330,7 +332,7 @@ function showCatalog(){
   sec('スキル', '最初に、ランダムな' + SK_N + 'つから1つ選ぶ。レース中に自動で発動する');
   rows(TR_KEYS.map(k => [TR[k].nm, TR[k].d()]));
   sec('ニトロ', 'レース中にボタンで使う(1レース1回)。直線でよく効き、コーナーではほとんど効かない。強さは全員同じ');
-  sec('コース', '区間を8〜12個つないだもの。どんなコースかはレースの直前に発表。天気は晴れか雨(雨: コーナーの上限 ×' + PH.rainC + ')。天気だけは、スキル選びのときに天気予報で分かる');
+  sec('コース', '区間を8〜12個つないだもの。どんなコースかはレースの直前に発表。天気は晴れか雨(雨: コーナーの上限 ×' + PH.rainC + ')。スキル選びのときに天気予報(雨の確率)が出る。予報ははずれることもある');
   rows([['直線', '最高速が出る。ニトロの使いどころ'], ['コーナー', 'コーナーの値で上限が決まる。手前で自動で減速する'], ['上り坂', '上限 ×' + PH.hillV + '・加速 ×' + PH.hillA], ['ダート', '上限 ×' + PH.dirtV + '・加速 ×' + PH.dirtA]]);
   box.appendChild(body);
   box.classList.add('on'); document.body.classList.add('catopen');
@@ -466,7 +468,11 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(!me.wx.length) return el('span');
     const d = el('div', 'rg-fc');
     d.appendChild(el('span', 'k', '天気予報'));
-    me.wx.forEach((w, i) => { const it = el('span', 'it'); if(me.wx.length > 1) it.appendChild(el('small', '', '第' + (i + 1) + '戦')); it.appendChild(el('span', 'rg-w' + (w ? ' rain' : ''), w ? '雨' : '晴れ')); d.appendChild(it); });
+    me.wx.forEach((p, i) => {
+      const it = el('span', 'it'); if(me.wx.length > 1) it.appendChild(el('small', '', '第' + (i + 1) + '戦'));
+      it.appendChild(el('span', 'rg-w' + (p >= 60 ? ' rain' : p > 20 ? ' cloud' : ''), fcNm(p)));
+      it.appendChild(el('em', '', '雨' + p + '%')); d.appendChild(it);
+    });
     return d;
   }
   function renderPanel(){
@@ -508,7 +514,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const skc = Array.isArray(m.skc) ? m.skc.filter(k => typeof k === 'string' && TR[k]).slice(0, SK_N) : [];
     const last = me ? me.last : null;
     const hc = okHc(m.hc) ? m.hc : { c: [PH.costs[1], PH.costs[1], PH.costs[1]], r: PH.rests[2] };
-    const wx = Array.isArray(m.wx) && m.wx.length >= 1 && m.wx.length <= 3 && m.wx.every(w => w === 0 || w === 1) ? m.wx : [];
+    const wx = Array.isArray(m.wx) && m.wx.length >= 1 && m.wx.length <= 3 && m.wx.every(p => FC_P.includes(p)) ? m.wx : [];
     me = { car: m.car, tk: m.tk, flash: -1, lost: isInt(m.lost, 0, 9999) ? m.lost : 0, skc, last, hot: isInt(m.hot, -1, 2) ? m.hot : -1, hc, wx };
     if(m.of === 1 && !m.end) overflow();
     if(Number.isFinite(m.rem)) localEnd = performance.now() + m.rem;
@@ -560,6 +566,11 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const box = $('rc-pbody'); box.textContent = '';
     box.appendChild(el('div', 'ilab', 'コース'));
     box.appendChild(courseCard(pit.c));
+    const p = me && me.wx[pit.r];
+    if(p){
+      const miss = (p >= 60 && !pit.c.w) || (p <= 20 && pit.c.w);
+      box.appendChild(el('div', 'rg-fcr' + (miss ? ' miss' : ''), '天気予報は ' + fcNm(p) + '(雨' + p + '%)→ ' + (pit.c.w ? '雨' : '晴れ') + (miss ? '  予報はずれ!' : '')));
+    }
     if(me){ box.appendChild(el('div', 'ilab', 'マイカー')); const d = el('div', 'rg-car'); d.appendChild(statBars(me.car.st)); if(me.car.sk) d.appendChild(skillLine(me.car.sk)); box.appendChild(d); }
     if(lastPts){ box.appendChild(el('div', 'ilab', 'いまのポイント')); box.appendChild(standEl(lastPts)); }
   }
@@ -934,7 +945,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
   function sendMe(id, extra){
     const p = H.P.get(id); if(!p) return;
     const now = performance.now(), sk = H.phase === 'sk';
-    const o = { t: 'me', s: ++H.seq, R: H.R, ti: H.TICK, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, hc: p.hc, wx: H.crs.map(c => c.w ? 1 : 0), rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
+    const o = { t: 'me', s: ++H.seq, R: H.R, ti: H.TICK, car: p.car, tk: p.tk, lost: p.lost, hot: sk ? -1 : p.hot, hc: p.hc, wx: H.crs.map(c => c.fc), rem: Math.max(0, Math.round((sk ? H.skEnd : H.endAt) - now)), nx: !sk && H.nextTick && H.nextTick < H.endAt ? Math.max(0, Math.round(H.nextTick - now)) : -1 };
     if(sk){ o.sk = 1; o.skc = p.skc; }
     if(p.rv) o.rv = p.rv;
     if(H.rev) o.rev = 1;
