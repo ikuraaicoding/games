@@ -48,11 +48,12 @@ const BAL = {
   wv: [.55, .32, .13], wAdd: [1, 2, 3],
   // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
+  urA2: 8, ur2: 9,                               // UR の2番目に高いステ(攻撃タイプはHP、ほかは HP か攻か防)
   // UR の固有能力
-  uq: { ken: .25, rai: .24, hao: .8, gol: .25, leo: .17, faf: .8, fafH: .05, cel: .015, phx: .24, ygg: .32 }
+  uq: { ken: .13, rai: .14, hao: .4, gol: .36, leo: .22, faf: .9, fafH: .3, cel: .021, phx: .4, ygg: .45 }
 };
 // 5体バトルでは、全体にかかる効果は人数が多いぶん効きすぎるので弱める
-const AOE5 = { swp: .6, rain: .7, aegis: .7, faf: .9, cel: .6, phx: 1.6, ken: 1.2, hao: .75, ygg: 1.45, gol: 1.25 };
+const AOE5 = { swp: .6, rain: .7, aegis: .7, cel: .6, phx: 1.6, rai: .85, hao: .75, ygg: 1.45, gol: 1.25 };
 const aoe = (k, n) => n === 5 && AOE5[k] ? AOE5[k] : 1;
 // 系統: a=攻撃 / d=防御 / h=HP(回復・粘り)
 const CAT = { a: '攻撃', d: '防御', h: 'HP' };
@@ -114,7 +115,7 @@ const W_KIND = { a: '剣', d: '盾', h: '護符' }, W_STAT = { a: '攻', d: '防
 const U_ = BAL.uq;
 const UQ = {
   ken: { c: 'a', nm: 'アルス',     av: 1103515245, un: '連斬',   d: n => '自分の手番ごとに、' + pct(U_.ken * aoe('ken', n)) + '%の確率でもう1回攻撃', s: n => pct(U_.ken * aoe('ken', n)) + '%で連続攻撃' },
-  rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: () => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai) + '%の雷', s: () => 'ほかの敵にも雷' },
+  rai: { c: 'a', nm: 'ヴォルト',   av: 1664525013, un: '雷鳴',   d: n => '攻撃が当たると、ほかの敵1体にも' + pct(U_.rai * aoe('rai', n)) + '%の雷', s: () => 'ほかの敵にも雷' },
   hao: { c: 'a', nm: 'ガルム',     av: 2013904223, un: '覇気',   d: n => '試合開始時、敵全員の防−' + mul(U_.hao * aoe('hao', n)), s: n => '敵全員の防−' + mul(U_.hao * aoe('hao', n)) },
   gol: { c: 'd', nm: 'ゴルド',   av: 1013904242, un: '鋼の体', d: n => '受けるダメージがいつも −' + pct(U_.gol * aoe('gol', n)) + '%', s: n => '被ダメ−' + pct(U_.gol * aoe('gol', n)) + '%' },
   leo: { c: 'd', nm: 'レオン',   av: 1597334677, un: '守りの誓い', d: n => 'となりの味方の被ダメ −' + pct(U_.leo * aoe('leo', n)) + '%', s: () => 'となりを守る' },
@@ -776,18 +777,18 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     }
     const cat = catOf(s[0], s[1], s[2], rndF);
     const c = { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(cat ? SK_OF[cat] : SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
-    if(ti === BAL.rar.length - 1) return rollUR(tot);
+    if(ti === BAL.rar.length - 1) return rollUR();
     return c;
   }
-  // UR: 9人から1人。ステは系統で形が決まる(得意ステ10、2番目は8〜9、のこりがもう1つ)
-  //   攻撃タイプ: 攻10・HP8〜9 / 防御タイプ: 防10・HP8〜9
-  //   HPタイプ : HP10。スキルが吸収なら攻、それ以外なら防が8〜9
-  function rollUR(tot){
-    const k = pick(Object.keys(UQ)), cat = UQ[k].c, sk = pick(SK_OF[cat]);
+  // UR: 9人から1人。ステは系統で形が決まる(得意ステ10、2番目、のこりがもう1つ)
+  //   攻撃タイプ: 合計22。攻10・HP8(最大HP100以上) / 防御タイプ: 合計23。防10・HP9
+  //   HPタイプ : 合計23。HP10。スキルが吸収なら攻、それ以外なら防が9
+  function rollUR(){
+    const k = pick(Object.keys(UQ)), cat = UQ[k].c, sk = pick(SK_OF[cat]), tot = cat === 'a' ? 22 : 23;
     const s = { a: 0, d: 0, h: 0 };
     const second = cat === 'h' ? (sk === 'drain' ? 'a' : 'd') : 'h';
     const rest = ['a', 'd', 'h'].find(x => x !== cat && x !== second);
-    s[cat] = 10; s[second] = ri(8, 9); s[rest] = tot - 10 - s[second];
+    s[cat] = 10; s[second] = cat === 'a' ? BAL.urA2 : BAL.ur2; s[rest] = tot - 10 - s[second];
     return { nm: UQ[k].nm, u: k, a: s.a, d: s.d, h: s.h, sk: { t: sk, lv: 1 }, w: null, av: UQ[k].av };
   }
   function rollWeapon(){
@@ -990,7 +991,7 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     // ヴォルト: ほかの敵1体にも雷(雷からは雷は出ない)
     if(a.uq === 'rai' && !opt.noChain && alive(a)){
       const os = foes(B, a).filter(x => x !== d);
-      if(os.length) hit(B, a, os[Math.floor(B.rnd() * os.length)], BAL.uq.rai, L, F, { noReact: true, noChain: true, lab: a.nm + ' の雷' });
+      if(os.length) hit(B, a, os[Math.floor(B.rnd() * os.length)], BAL.uq.rai * aoe('rai', B.N), L, F, { noReact: true, noChain: true, lab: a.nm + ' の雷' });
     }
     return dmg;
   }
