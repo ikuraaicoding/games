@@ -7,7 +7,7 @@
  *       キャラガチャ: ステータス合計6〜21のランダムなキャラ。一番高いステの系統(攻撃/防御/HP)のスキルつき
  *       装備ガチャ : 剣(攻+)・盾(防+)・護符(HP+)。上がるステと同じ系統の特殊効果を1つ持つ
  *       スキル強化 : 選んだキャラのスキルLv+1(最大Lv5)
- *     キャラガチャ: UR(いちばん上のレア)は固有の名前と固有能力(いつも効く)を持つ。一番高いステの系統の9人から出る
+ *     キャラガチャ: UR(いちばん上のレア)は9人の固有キャラ。固有の名前と固有能力(いつも効く)を持ち、ステの形は系統で決まる
  *     キャラガチャ: SR未満が続くと、SR以上の出やすさが少しずつ上がる(画面には出さない)。SR以上が出たら元にもどる
  *     パーティは最大3体(5体バトルは5体。育成5分以上、ハードなら3分以上で選べる)。いっぱいのときは入れ替えるか捨てる(入れ替えても装備とスキルLvは引き継ぐ)
  *  3. 時間切れでランダムなトーナメント表を作り、1試合ずつ全員で観戦
@@ -44,7 +44,7 @@ const BAL = {
         first: .8, firstN: 3, thorn: .27, evade: .22, cap: .13, aegis: .08,
         vamp: .55, regen: .04, undying: .25, bless: .03 },
   // ガチャ: キャラの合計値の出やすさ [確率, 下限, 上限] / 武器の強化値の出やすさ
-  rar: [[.43, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21], [.02, 20, 20]],      // 最後が UR(ステ合計20で固定。固有能力を持つ)
+  rar: [[.43, 6, 10], [.30, 11, 14], [.18, 15, 18], [.07, 19, 21], [.02, 22, 23]],      // 最後が UR(ステ合計22〜23。形は rollUR で決まる。固有能力を持つ)
   wv: [.55, .32, .13], wAdd: [1, 2, 3],
   // SR未満が1回続くごとに、SR・SSR・UR の出やすさを +5%(元の確率に対して)。最大 1.5倍
   luckUp: .05, luckMax: .5,
@@ -137,7 +137,7 @@ const maxHp = h => Math.round(BAL.hp0 * Math.pow(BAL.base, h - 3));
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 function okW(w){ return w === null || (w && W_KIND[w.t] && isInt(w.v, 1, 3) && FX[w.fx] && FX[w.fx].t === w.t); }
-function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h === 20)); }
+function okC(c){ return c && typeof c.nm === 'string' && c.nm.length <= 12 && isInt(c.a, 1, 10) && isInt(c.d, 1, 10) && isInt(c.h, 1, 10) && c.sk && SK[c.sk.t] && isInt(c.sk.lv, 1, SK_MAX) && (c.av === undefined || isInt(c.av, 0, 2147483647)) && okW(c.w === undefined ? null : c.w) && (c.u === undefined || (UQ[c.u] && c.nm === UQ[c.u].nm && c.a + c.d + c.h >= 22 && c.a + c.d + c.h <= 23)); }
 const s60 = s => typeof s === 'string' ? s.slice(0, 60) : '';
 
 // アイコン(icons.js)。読み込めなかったら何も出さない
@@ -776,9 +776,19 @@ window.NomiGames.arena = { id: 'arena', name: 'ARENA', _cfg: CFG, _bal: BAL, sho
     }
     const cat = catOf(s[0], s[1], s[2], rndF);
     const c = { nm: pick(NAMES), a: s[0], d: s[1], h: s[2], sk: { t: pick(cat ? SK_OF[cat] : SK_KEYS), lv: 1 }, w: null, av: Math.floor(rndF() * 2147483647) };
-    // UR は固有キャラ(系統が合う3人から。万能なら9人から)
-    if(ti === BAL.rar.length - 1){ const k = pick(cat ? UQ_OF[cat] : Object.keys(UQ)); c.u = k; c.nm = UQ[k].nm; c.av = UQ[k].av; }
+    if(ti === BAL.rar.length - 1) return rollUR(tot);
     return c;
+  }
+  // UR: 9人から1人。ステは系統で形が決まる(得意ステ10、2番目は8〜9、のこりがもう1つ)
+  //   攻撃タイプ: 攻10・HP8〜9 / 防御タイプ: 防10・HP8〜9
+  //   HPタイプ : HP10。スキルが吸収なら攻、それ以外なら防が8〜9
+  function rollUR(tot){
+    const k = pick(Object.keys(UQ)), cat = UQ[k].c, sk = pick(SK_OF[cat]);
+    const s = { a: 0, d: 0, h: 0 };
+    const second = cat === 'h' ? (sk === 'drain' ? 'a' : 'd') : 'h';
+    const rest = ['a', 'd', 'h'].find(x => x !== cat && x !== second);
+    s[cat] = 10; s[second] = ri(8, 9); s[rest] = tot - 10 - s[second];
+    return { nm: UQ[k].nm, u: k, a: s.a, d: s.d, h: s.h, sk: { t: sk, lv: 1 }, w: null, av: UQ[k].av };
   }
   function rollWeapon(){
     const r = rndF(), i = r < BAL.wv[0] ? 0 : r < BAL.wv[0] + BAL.wv[1] ? 1 : 2;
