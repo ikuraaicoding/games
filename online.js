@@ -548,7 +548,7 @@ function guestMsg(o){
     roster = o.players.filter(p => p && Number.isInteger(p.id)).slice(0, 8).map(p => ({ id: p.id, name: clean(p.name) || '?', rtt: Number.isFinite(p.rtt) ? p.rtt : 0, aw: p.aw === 1 ? 1 : 0 }));
     if(RULES.some(x => x.g === o.want)) hostWant = o.want;
     if($('s-lobby').classList.contains('active')) renderLobby();
-  }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
+  }else if(o.t === 'begin' && typeof o.g === 'string' && Object.prototype.hasOwnProperty.call(window.NomiGames, o.g)){
     if(game && game.stop) game.stop();
     curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
   }else if(o.t === 'chat'){
