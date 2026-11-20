@@ -80,6 +80,21 @@ function make(id, send, chat){
     }
   };
 
+  // ---------------- UNIQUE ----------------
+  // 大きい数字ほど出しやすいが、みんなが大きいのを出しそうなときは、わざと少し下げる(ランダム)
+  const uniq = {
+    begin(){},
+    msg(m){
+      if(m.t !== 'trn' || !Number.isInteger(m.r) || !Array.isArray(m.alive) || !m.alive.includes(id) || !Array.isArray(m.hs)) return;
+      const me = m.hs.find(x => x && x.id === id); if(!me || !Array.isArray(me.h) || !me.h.length) return;
+      const h = me.h.slice().sort((a, b) => b - a);
+      let i = 0; while(i < h.length - 1 && rnd() < .45) i++;
+      const v = h[i], r = m.r;
+      if(rnd() < .03) return;                                   // たまに時間ぎれ(いちばん小さいカードが出る)
+      later(() => send({ t: 'pk', r, v }), ri(1200, 7500));
+    }
+  };
+
   // ---------------- FLIP ----------------
   // 人間らしく: 小さい数字ほどよく覚えている(大きい数字はうろ覚え)。ほかの人のまちがいも少し覚える
   const flipMem = v => .97 * Math.pow(.9, v - 1);
@@ -204,7 +219,7 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, flip, arena, race };
+  const G = { tap, stop, ise, core, flip, uniq, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;

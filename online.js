@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
@@ -212,6 +212,14 @@ const RULES = [
     'コアには、だれにも分からない限界(みんなが長押しした時間の合計)がある。限界を超えたときに持っていた人の負け',
     '自分に渡してきた人には、すぐには返せない',
     '長押し中にドッキリが起きることがある。驚いて離さないように!'] },
+  { g: 'uniq', nm: 'UNIQUE', sub: '数字かぶり', ic: 'i-uniq', r: [
+    '全員が 1〜人数 の数字カードを1枚ずつ持つ(4人なら 1・2・3・4)',
+    '毎ターン、10秒以内にカードを1枚えらんで、全員いっせいに出す',
+    'ほかの人とかぶっていない数字のうち、いちばん大きい数字を出した人が勝ち抜け',
+    '出したカードは、このゲームではもう使えない',
+    '全員かぶって、だれも抜けられなかったら、カードを手札にもどしてやり直し',
+    '10秒以内にえらばなかった人は、手札でいちばん小さいカードが自動で出る',
+    '抜けた順に順位がつく。最後に残った人がビリ'] },
   { g: 'arena', nm: 'ARENA', sub: '育成バトル', ic: 'i-arena', r: [
     '育成タイム(1〜10分)の間にパーティを強くする。最初は全員「攻3 防3 HP3」のキャラ1体',
     '10秒ごとに行動が1回たまる(ハードモードは5秒ごと。最大3回。満タンのままだと、あふれて無駄になる)',
@@ -253,7 +261,7 @@ const RULES = [
     '同じ順位の人は同じ点。合計ポイントで最終順位が決まる(同点は同じ順位)'] }
 ];
 // ミニゲーム(MIX の抽選に入る)。ミニゲームを足すときは、ここと RULES に入れて、ホスト側で結果が出たときに E.rank() を呼ぶ
-const MINI = ['tap', 'stop', 'ise', 'core', 'flip'];
+const MINI = ['tap', 'stop', 'ise', 'core', 'flip', 'uniq'];
 let hostWant = '';                 // 参加者側: ホストがいま選んでいるゲーム
 let rulesTouched = false;          // 参加者が自分でルールを開いたか(開いたら、勝手に開き直さない)
 function buildRules(){
