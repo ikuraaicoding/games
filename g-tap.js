@@ -264,6 +264,8 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       }
     }
     E.hostBcast({ t: 'res', rows, losers, tie: false, reason, rounds: H.rounds }, true);
+    // MIX 用の順位: 負けた人が最下位、ほかの人は同じ順位
+    if(E.rank && losers.length) E.rank([players().map(p => p.id).filter(id => !losers.includes(id)), losers]);
   }
   function stop(){
     stopped = true; cancelAnimationFrame(raf); clearTimeout(H.rdy); clearTimeout(H.fin); PF.show(false); if(E.quiet) E.quiet(false);
