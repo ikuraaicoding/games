@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena', '#race': 'race' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
@@ -172,8 +172,12 @@ const E = {
     $('r-extra').textContent = '';
     const host = role === 'host';
     vis('r-again', host); vis('r-lobby', host);
+    $('r-again').textContent = !mix ? 'もう一回' : mix.n === 1 ? 'もう一回抽選' : mix.k >= mix.n ? '最終結果へ' : '途中経過へ';
+    $('r-lobby').textContent = mix && mix.n > 1 ? 'ロビーにもどる(連戦をやめる)' : 'ロビーにもどる(ゲームを選ぶ)';
     show('s-result');
-  }
+  },
+  // ホスト: ゲームの順位を知らせる(MIX の点数に使う)。groups = 上の順位から [[id, ...], [id], ...](同じ組は同じ順位)
+  rank(groups){ mixRank(groups); }
 };
 
 // =====================================================================
@@ -229,16 +233,25 @@ const RULES = [
     'ときどき強化のどれか1つが「好調」になる。好調の強化は成功で+4',
     'コースはレースの直前に発表(運)。スキル選びのときに天気予報(雨の確率)が出る。予報ははずれることもある。レースは全員同時。操作はニトロを押すタイミングだけ(1レース1回)',
     'ゴール順にポイント(10・7・5・4・3・2・1・0)。1戦か3戦の合計で順位が決まる',
-    'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] }
+    'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] },
+  { g: 'mix', nm: 'MIX', sub: 'ミニゲーム連戦', ic: 'i-mix', r: [
+    'ミニゲームの中から、遊ぶゲームをランダムに抽選する',
+    '1戦(抽選だけ)/ 3戦 / 5戦 / 7戦 から選べる',
+    '同じゲームは続けて出ない(全部のゲームが1回ずつ出たら、また最初から抽選)',
+    '毎回の順位でポイント。N人なら 1位はN−1点、1つ下がるごとに1点へって、最下位は0点',
+    'DRAW・CORE のように負けた人だけが決まるゲームは、負けた人が0点、ほかの人は全員1位あつかい',
+    '同じ順位の人は同じ点。合計ポイントで最終順位が決まる(同点は同じ順位)'] }
 ];
+// ミニゲーム(MIX の抽選に入る)。ミニゲームを足すときは、ここと RULES に入れて、ホスト側で結果が出たときに E.rank() を呼ぶ
+const MINI = ['tap', 'stop', 'ise', 'core'];
 let hostWant = '';                 // 参加者側: ホストがいま選んでいるゲーム
 let rulesTouched = false;          // 参加者が自分でルールを開いたか(開いたら、勝手に開き直さない)
 function buildRules(){
   const box = $('l-rlist'); box.textContent = '';
   const NS = 'http://www.w3.org/2000/svg';
   const icon = (id, cls) => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'ic' + (cls ? ' ' + cls : '')); const u = document.createElementNS(NS, 'use'); u.setAttribute('href', '#' + id); s.appendChild(u); return s; };
-  const MINI = ['tap', 'stop', 'ise', 'core'];
-  const list = RULES.filter(x => !MINI.includes(x.g)).concat(RULES.filter(x => MINI.includes(x.g)));
+  const isMini = g => MINI.includes(g) || g === 'mix';
+  const list = RULES.filter(x => !isMini(x.g)).concat(RULES.filter(x => isMini(x.g)));
   list.forEach(x => {
     if(x.g === MINI[0]){ const h = document.createElement('div'); h.className = 'rl-h'; h.textContent = 'MINI GAMES'; const sm = document.createElement('small'); sm.textContent = 'ミニゲーム'; h.appendChild(sm); box.appendChild(h); }
     const d = document.createElement('details'); d.className = 'rcard g-' + x.g; d.dataset.g = x.g;
@@ -419,7 +432,7 @@ function hostLeave(p, why){
   if(game && game.hostOnLeave) game.hostOnLeave(p.id);
   pushRoster();
   if(why !== 'kicked') flashBanner(p.name + ' が抜けたよ', 3000);
-  if(curId && roster.length < 2) toLobby('人数が足りなくなったので、ロビーにもどるよ');
+  if((curId || mix) && roster.length < 2) toLobby('人数が足りなくなったので、ロビーにもどるよ');
 }
 // ---------- ひとりで試す(CPU戦): 通信の代わりに、スマホの中のCPUとやり取りする ----------
 function soloRoom(){
@@ -489,6 +502,7 @@ function pushRoster(){
   if($('s-lobby').classList.contains('active')) renderLobby();
 }
 function startGame(gid){
+  if(gid === 'mix'){ mixStart(); return; }
   if(role !== 'host' || roster.length < 2 || !window.NomiGames[gid]) return;
   if(game && game.stop) game.stop();
   room.setLocked(true); bench.clear();
@@ -499,11 +513,149 @@ function startGame(gid){
 }
 function toLobby(why){
   if(game && game.stop) game.stop();
-  game = null; curId = null; resetFx();
+  game = null; curId = null; mixEnd(); resetFx();
   if(role === 'host'){ room.setLocked(userLocked); room.bcast({ t: 'lobby', why: why || '' }, true); if(bench.size){ bench.clear(); pushRoster(); } }
   $('picker').classList.remove('on');
   renderLobby(); show('s-lobby');
   if(why) flashBanner(why, 4000);
+}
+// =====================================================================
+//  MIX: ミニゲームを抽選して連戦する(合計ポイントで勝負)
+//   - ホストが抽選と点数の計算をして、結果だけを全員に配る
+// =====================================================================
+let mix = null;                     // ホスト: { n, k, bag, last, gid, add, pts, names, hist } / 参加者: { n, k }
+let mixT = null, drawSeq = 0;
+const DRAW_MS = 2600, DRAW_HOLD = 1400;   // ルーレットの長さ / 止まってからゲームが始まるまで
+const ruleOf = g => RULES.find(x => x.g === g) || { nm: '?', sub: '', ic: 'i-mix' };
+function mixN(){ const b = document.querySelector('#l-mix button.on'); const n = b ? +b.dataset.k : 3; return [1, 3, 5, 7].includes(n) ? n : 3; }
+function mixEnd(){ mix = null; clearTimeout(mixT); drawSeq++; FXN.show(false); }
+function mixStart(){
+  if(role !== 'host' || roster.length < 2) return;
+  mixEnd();
+  mix = { n: mixN(), k: 0, bag: [], last: '', gid: '', add: null, pts: new Map(), names: new Map(), hist: [] };
+  room.setLocked(true);
+  mixDraw();
+}
+// 抽選: 全部のゲームが1回ずつ出るまでは、同じゲームは出ない。続けて同じゲームにもならない
+function mixPick(){
+  if(!mix.bag.length){
+    const b = MINI.slice();
+    for(let i = b.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = b[i]; b[i] = b[j]; b[j] = t; }
+    if(b.length > 1 && b[0] === mix.last){ const j = 1 + Math.floor(Math.random() * (b.length - 1)); const t = b[0]; b[0] = b[j]; b[j] = t; }
+    mix.bag = b;
+  }
+  return mix.bag.shift();
+}
+function mixDraw(){
+  if(role !== 'host' || !mix || roster.length < 2) return;
+  if(game && game.stop) game.stop();
+  game = null; curId = null; FXN.show(false);
+  const g = mixPick(); mix.last = g; mix.gid = g; mix.k++; mix.add = null;
+  roster.forEach(r => { mix.names.set(r.id, r.name); if(!mix.pts.has(r.id)) mix.pts.set(r.id, 0); });
+  room.bcast({ t: 'mix', st: 'draw', k: mix.k, n: mix.n, g }, true);
+  showDraw(mix.k, mix.n, g);
+  const k = mix.k;
+  clearTimeout(mixT); mixT = setTimeout(() => { if(role === 'host' && mix && mix.k === k && !curId) startGame(g); }, DRAW_MS + DRAW_HOLD);
+}
+// ゲームから届いた順位を点数にする(N人なら 1位 N−1点 … 最下位 0点。同じ組は同じ点。組が1つだけなら決着なしで全員0点)
+function mixRank(groups){
+  if(role !== 'host' || !mix || curId !== mix.gid || !Array.isArray(groups)) return;
+  const seen = new Set();
+  const gs = groups.map(g => (Array.isArray(g) ? g : []).filter(id => Number.isInteger(id) && !seen.has(id) && !!seen.add(id))).filter(g => g.length);
+  const n = seen.size, add = new Map();
+  let ahead = 0;
+  gs.forEach((g, i) => { const p = gs.length < 2 || i === gs.length - 1 ? 0 : n - 1 - ahead; g.forEach(id => add.set(id, p)); ahead += g.length; });
+  mix.add = add;
+}
+// 合計の一覧(同点は同じ順位)
+function mixRows(){
+  const rows = Array.from(mix.pts.keys()).map(id => ({ id, nm: mix.names.get(id) || nameOf(id), add: mix.add && mix.add.has(id) ? mix.add.get(id) : 0, tot: mix.pts.get(id) || 0 }));
+  rows.sort((a, b) => b.tot - a.tot || a.id - b.id);
+  rows.forEach((r, i) => { r.pl = i > 0 && rows[i - 1].tot === r.tot ? rows[i - 1].pl : i + 1; });
+  return rows;
+}
+function mixBoard(){
+  if(role !== 'host' || !mix || !mix.gid) return;
+  if(game && game.stop) game.stop();
+  game = null; curId = null;
+  if(mix.add) mix.add.forEach((p, id) => { mix.pts.set(id, (mix.pts.get(id) || 0) + p); });
+  mix.hist.push(mix.gid); mix.gid = '';
+  const fin = mix.k >= mix.n, rows = mixRows().slice(0, 16);
+  const o = { t: 'mix', st: 'board', k: mix.k, n: mix.n, fin, hist: mix.hist.slice(), rows };
+  room.bcast(o, true);
+  showBoard(o);
+}
+function mixScreen(){ document.body.dataset.game = 'mix'; $('picker').classList.remove('on'); resetFx(); show('s-mix'); }
+function mixButtons(mode){
+  const host = role === 'host';
+  vis('m-next', host && mode !== 'draw'); vis('m-lobby', host && mode !== 'draw'); vis('m-quit', mode !== 'draw');
+}
+function showDraw(k, n, g){
+  const my = ++drawSeq;
+  mixScreen(); mixButtons('draw');
+  $('m-eye').textContent = 'MIX';
+  $('m-title').textContent = n === 1 ? '抽選' : '第' + k + '戦 / ' + n + '戦';
+  $('m-sub').textContent = 'ゲームを抽選中…';
+  ['m-lines', 'm-pen', 'm-hist', 'm-wait'].forEach(id => { $(id).textContent = ''; });
+  const box = $('m-draw'); box.style.display = '';
+  const put = (x, cls) => {
+    const r = ruleOf(x); box.className = 'mdraw g-' + x + (cls ? ' ' + cls : '');
+    $('m-use').setAttribute('href', '#' + r.ic);
+    $('m-nm').textContent = r.nm; $('m-ds').textContent = cls === 'land' ? r.sub : '';
+  };
+  // だんだん遅くなるルーレット。最後に g で止まる
+  const steps = []; let t = 0, d = 60;
+  while(t + d < DRAW_MS){ t += d; steps.push(t); d *= 1.14; }
+  const gi = MINI.indexOf(g), start = ((gi - steps.length) % MINI.length + MINI.length) % MINI.length;
+  put(MINI[start], '');
+  steps.forEach((at, i) => setTimeout(() => {
+    if(my !== drawSeq) return;
+    if(i === steps.length - 1){
+      put(g, 'land'); $('m-sub').textContent = ruleOf(g).nm + ' に決定!';
+      document.body.dataset.game = g; uiSE('go'); vibrate(40);
+    }else{ put(MINI[(start + i + 1) % MINI.length], i % 2 ? 'tick' : ''); audio.beep(520 + i * 18, .03, .08); }
+  }, at));
+}
+function showBoard(o){
+  drawSeq++;
+  mixScreen(); mixButtons(o.fin ? 'fin' : 'board');
+  $('m-draw').style.display = 'none';
+  $('m-eye').textContent = 'MIX  第' + o.k + '戦 / ' + o.n + '戦';
+  $('m-title').textContent = o.fin ? '最終結果' : '途中経過';
+  const last = o.hist.length ? ruleOf(o.hist[o.hist.length - 1]) : null;
+  $('m-sub').textContent = (last ? last.nm + ' のポイントを足したよ' : '') + (o.fin ? '' : '(あと ' + (o.n - o.k) + '戦)');
+  const lines = $('m-lines'); lines.textContent = '';
+  const maxPl = o.rows.reduce((m, r) => Math.max(m, r.pl), 0);
+  o.rows.forEach((r, i) => {
+    const d = document.createElement('div');
+    if(r.pl === 1) d.className = 'win'; else if(o.fin && r.pl === maxPl) d.className = 'lose';
+    const a = document.createElement('span'); a.textContent = r.pl + '位  ' + r.nm + (r.id === myId ? '(あなた)' : '');
+    const b = document.createElement('span'); b.textContent = '+' + r.add + '  →  ' + r.tot + '点';
+    d.appendChild(a); d.appendChild(b); d.classList.add('pop'); d.style.animationDelay = (i * 70) + 'ms'; lines.appendChild(d);
+  });
+  const top = o.rows.filter(r => r.pl === 1).map(r => r.nm);
+  $('m-pen').textContent = o.fin && top.length ? (top.length > 1 ? '同率1位: ' + top.join('・') : top[0] + ' の優勝!') : '';
+  $('m-hist').textContent = o.hist.map((g, i) => (i + 1) + '. ' + ruleOf(g).nm).join('   ');
+  $('m-next').textContent = o.fin ? 'もう一度連戦' : '次のゲームを抽選';
+  $('m-wait').textContent = role === 'host' ? '' : 'ホストが次へ進むのを待っているよ…';
+  if(o.fin){ uiSE('go'); FXN.load(); FXN.show(true, { amb: [0xff6fb5, 0xffa8d4, 0xffffff] }); setTimeout(() => { if(mix) FXN.confetti(140); }, 250); vibrate([0, 80, 60, 160]); }
+  else audio.beep(880, .06, .12);
+}
+// 参加者: ホストから届いた MIX の知らせを確かめてから表示する
+function guestMix(o){
+  if(!Number.isInteger(o.k) || ![1, 3, 5, 7].includes(o.n) || o.k < 1 || o.k > o.n) return;
+  if(o.st === 'draw' && MINI.includes(o.g)){
+    if(game && game.stop) game.stop();
+    game = null; curId = null; mix = { n: o.n, k: o.k }; FXN.show(false);
+    showDraw(o.k, o.n, o.g);
+  }else if(o.st === 'board' && Array.isArray(o.rows) && Array.isArray(o.hist)){
+    const hist = o.hist.filter(g => MINI.includes(g)).slice(0, 7);
+    const rows = o.rows.filter(r => r && Number.isInteger(r.id) && Number.isInteger(r.add) && r.add >= 0 && r.add <= 15 && Number.isInteger(r.tot) && r.tot >= 0 && r.tot <= 200 && Number.isInteger(r.pl) && r.pl >= 1 && r.pl <= 16)
+      .slice(0, 16).map(r => ({ id: r.id, nm: clean(r.nm) || '?', add: r.add, tot: r.tot, pl: r.pl }));
+    if(game && game.stop) game.stop();
+    game = null; curId = null; mix = { n: o.n, k: o.k };
+    showBoard({ k: o.k, n: o.n, fin: o.fin === true, hist, rows });
+  }
 }
 function resetFx(){
   ['flash', 'strobe', 'blackout'].forEach(id => $(id).classList.remove('on', 'flashing'));
@@ -540,7 +692,7 @@ async function joinWith(text){
 }
 function guestCleanup(){
   if(game && game.stop) game.stop();
-  game = null; curId = null; guest = null; role = null; resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset();
+  game = null; curId = null; guest = null; role = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset();
 }
 function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
@@ -551,13 +703,15 @@ function guestMsg(o){
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
     if(game && game.stop) game.stop();
     curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
+  }else if(o.t === 'mix'){
+    guestMix(o);
   }else if(o.t === 'chat'){
     onChat(o);
   }else if(o.t === 'want'){
     if(RULES.some(x => x.g === o.want)){ hostWant = o.want; if($('s-lobby').classList.contains('active')) renderRules(); }
   }else if(o.t === 'lobby'){
     if(game && game.stop) game.stop();
-    game = null; curId = null; resetFx(); $('picker').classList.remove('on'); renderLobby(); show('s-lobby');
+    game = null; curId = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); renderLobby(); show('s-lobby');
     if(o.why) flashBanner(clean2(o.why, 60), 4000);
   }else if(o.g && o.g === curId && game && game.onMsg){
     game.onMsg(o);
@@ -568,7 +722,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-core').classList.toggle('hide', g !== 'core'); bcastWant(); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-core').classList.toggle('hide', g !== 'core'); $('l-mix').classList.toggle('hide', g !== 'mix'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
   const get = (k, d) => { try{ return localStorage.getItem(k) || d; }catch(e){ return d; } };
@@ -612,6 +766,13 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   one('r', 'race-n', ['1', '3'], '3');
   one('h', 'race-hard', ['0', '1'], '0');
   one('v', 'race-mode', ['top', 'last'], 'top');
+})();
+// MIX: 戦数
+(function(){
+  let v = '3'; try{ v = localStorage.getItem('mix-n') || '3'; }catch(e){}
+  const bs = document.querySelectorAll('#l-mix button[data-k]');
+  const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset.k === x)); try{ localStorage.setItem('mix-n', x); }catch(e){} };
+  set(['1', '3', '5', '7'].includes(v) ? v : '3'); bs.forEach(b => b.addEventListener('click', () => set(b.dataset.k)));
 })();
 // CORE: 見ている人(コアを持っていない人)の音
 (function(){
@@ -668,13 +829,20 @@ $('cf').addEventListener('click', e => { if(e.target === $('cf')) closeQuit(); }
 $('a-catbtn').addEventListener('click', () => window.NomiGames.arena.showCatalog());
 $('l-start').addEventListener('click', () => startGame(wantGame));
 $('l-lock').addEventListener('click', () => { userLocked = !userLocked; if(room) room.setLocked(userLocked); renderLobby(); });
-$('r-again').addEventListener('click', () => { if(role === 'host') startGame(lastGame || wantGame); });
+$('r-again').addEventListener('click', () => {
+  if(role !== 'host') return;
+  if(mix){ if(mix.n === 1) mixStart(); else mixBoard(); }
+  else startGame(lastGame || wantGame);
+});
+$('m-next').addEventListener('click', () => { if(role !== 'host' || !mix) return; if(mix.k >= mix.n) mixStart(); else mixDraw(); });
+$('m-lobby').addEventListener('click', () => { if(role === 'host') toLobby(''); });
+$('m-quit').addEventListener('click', askQuit);
 $('r-lobby').addEventListener('click', () => { if(role === 'host') toLobby(''); });
 function quitAll(){
   stopScan();
   if(game && game.stop) game.stop();
   if(role === 'host' && room){ room.close(); } else if(guest){ guest.close(); }
-  room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; resetFx(); chatReset();
+  room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; mixEnd(); resetFx(); chatReset();
   document.body.classList.remove('solo');
   $('picker').classList.remove('on'); closeQuit(); hideBanner(); show('s-menu');
   if(newVer) location.reload();

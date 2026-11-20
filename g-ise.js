@@ -288,7 +288,15 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     const res = { t: 'res', r: H.round, rows, tot, ex: H.ex, dead, over, wait };
     if(over) res.rank = ranking();
     E.hostBcast(res, true);
+    if(over) report();
     if(!over){ clearTimeout(H.nxt); H.nxt = setTimeout(startRound, wait + 600); } else H.phase = 'done';
+  }
+  // MIX 用の順位: ranking() の順。生き残り同士・同じラウンドの脱落同士で、ライフも同じなら同じ順位
+  function report(){
+    if(!E.rank) return;
+    const key = x => (x.out === 0 ? 'a' : 'd' + x.out) + ':' + x.life, gs = [];
+    ranking().forEach((x, i, a) => { if(i > 0 && key(x) === key(a[i - 1])) gs[gs.length - 1].push(x.id); else gs.push([x.id]); });
+    E.rank(gs);
   }
   function ranking(){
     const all = Array.from(H.life.keys()).map(id => ({ id, life: H.life.get(id), out: H.out.has(id) ? H.out.get(id) : 0 }));
@@ -299,6 +307,7 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     // 途中で人が抜けて、決着したとき
     H.phase = 'done'; clearTimeout(H.fin); clearTimeout(H.nxt);
     E.hostBcast({ t: 'res', r: H.round, rows: [], tot: 0, ex: H.ex, dead: [], over: true, wait: 0, rank: ranking(), early: true }, true);
+    report();
   }
   function stop(){
     stopped = true; clearInterval(barT); clearTimeout(H.fin); clearTimeout(H.nxt); PF.show(false);

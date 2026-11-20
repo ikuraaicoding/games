@@ -185,6 +185,13 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     H.phase = 'done'; clearTimeout(H.fin);
     const rows = players().map(p => { const r = H.reports.get(p.id); return r ? { id: p.id, st: 'ok', ms: r.ms } : { id: p.id, st: 'none' }; });
     E.hostBcast({ t: 'res', T: H.T, rows }, true);
+    // MIX 用の順位: ズレが小さい順(同じズレは同じ順位)。押さなかった人は最下位
+    if(E.rank){
+      const ok = rows.filter(x => x.st === 'ok').map(x => ({ id: x.id, gap: Math.abs(x.ms - H.T * 1000) })).sort((a, b) => a.gap - b.gap), gs = [];
+      ok.forEach((x, i) => { if(i > 0 && x.gap === ok[i - 1].gap) gs[gs.length - 1].push(x.id); else gs.push([x.id]); });
+      const none = rows.filter(x => x.st !== 'ok').map(x => x.id); if(none.length) gs.push(none);
+      E.rank(gs);
+    }
   }
   function stop(){
     stopped = true; cancelAnimationFrame(raf); clearTimeout(H.fin); PF.show(false);
