@@ -6,7 +6,7 @@
  *  3. ほかの人とかぶっていない数字のうち、いちばん大きい数字を出した人が勝ち抜け
  *  4. 出したカードは、このゲームではもう使えない
  *  5. 全員かぶって、だれも抜けられなかったら、カードを手札にもどしてやり直し
- *  6. 10秒以内にえらばなかった人は、そのターンは出さない(カードも減らない)
+ *  6. 10秒以内にえらばなかった人は、手札でいちばん小さいカードを自動で出す
  *  7. 抜けた順に順位がつく。最後に残った人がビリ
  *
  * シミュレーション(ランダムに出す人どうし): 2人=約2ターン、4人=約4〜5ターン、8人=約7〜8ターン
@@ -18,7 +18,7 @@
 'use strict';
 window.NomiGames = window.NomiGames || {};
 const PICK_MS = 10000;      // 1ターンの考える時間
-const MAX_TURNS = 40;       // 念のための上限(全員がずっと出さないとき)。これを過ぎたら、残りの人は同じ順位
+const MAX_TURNS = 40;       // 念のための上限(時間ぎれの人どうしで、ずっとかぶり続けるとき)。これを過ぎたら、残りの人は同じ順位
 const SHOW_MS = 4200;       // 公開の演出の長さ(ホストも参加者も同じ)
 
 window.NomiGames.uniq = { id: 'uniq', name: '数字かぶり', make(E){
@@ -78,7 +78,7 @@ window.NomiGames.uniq = { id: 'uniq', name: '数字かぶり', make(E){
   function refresh(){
     document.querySelectorAll('#u-hand .ucard').forEach(b => b.classList.toggle('sel', Number(b.dataset.v) === sel));
     $('u-ok').disabled = sent || sel === null;
-    if(!sent) $('u-hint').textContent = sel === null ? 'カードをタップしてえらぶ' : sel + ' を出す?(10秒たつと、えらんでいるカードが出るよ)';
+    if(!sent) $('u-hint').textContent = sel === null ? 'カードをタップしてえらぶ(えらばないと、いちばん小さいカードが出るよ)' : sel + ' を出す?(10秒たつと、えらんでいるカードが出るよ)';
   }
   function submit(){
     if(sent || sel === null || ph !== 'pick') return;
@@ -131,18 +131,18 @@ window.NomiGames.uniq = { id: 'uniq', name: '数字かぶり', make(E){
     if(m.early){ ph = 'end'; clearInterval(barT); showFinal(m); return; }       // 途中で人が抜けて決着
     if(!Array.isArray(m.rows) || !Number.isInteger(m.win)) return;
     ph = 'reveal'; clearInterval(barT); chips();
-    const rows = m.rows.filter(x => x && Number.isInteger(x.id) && Number.isInteger(x.v) && x.v >= 0 && x.v <= 8).slice(0, 8);
+    const rows = m.rows.filter(x => x && Number.isInteger(x.id) && Number.isInteger(x.v) && x.v >= 1 && x.v <= 8).slice(0, 8);
     const cnt = new Map(); rows.forEach(x => { if(x.v > 0) cnt.set(x.v, (cnt.get(x.v) || 0) + 1); });
     $('u-pick').style.display = 'none'; $('u-bar').style.visibility = 'hidden';
     const box = $('u-rows'); box.textContent = '';
     const els = new Map();
     const at = (ms, fn) => later(() => { if(!stopped) fn(); }, ms);
     say('せーの…', ''); E.audio.beep(392, .12, .22); E.vibrate(20);
-    // 大きい数字の順にならべる(出さなかった人は最後)
+    // 大きい数字の順にならべる
     rows.slice().sort((a, b) => b.v - a.v).forEach(x => {
       const d = document.createElement('div'); if(x.id === E.myId) d.classList.add('me');
       const a = document.createElement('span'), b = document.createElement('span');
-      a.textContent = E.nameOf(x.id); b.className = 'cv'; b.textContent = '?';
+      a.textContent = E.nameOf(x.id) + (x.au === 1 ? '(時間ぎれ)' : ''); b.className = 'cv'; b.textContent = '?';
       d.appendChild(a); d.appendChild(b); box.appendChild(d); els.set(x.id, { d, b });
     });
     at(900, () => {
@@ -150,10 +150,9 @@ window.NomiGames.uniq = { id: 'uniq', name: '数字かぶり', make(E){
       PF.slam('OPEN!', { color: 0xc6f432, size: 64 });
       rows.forEach((x, i) => {
         const e = els.get(x.id); if(!e) return;
-        e.b.textContent = x.v > 0 ? String(x.v) : '出さなかった';
+        e.b.textContent = String(x.v);
         e.d.classList.add('pop');
-        if(x.v === 0) e.d.classList.add('none');
-        else if(cnt.get(x.v) > 1) e.d.classList.add('dup');
+        if(cnt.get(x.v) > 1) e.d.classList.add('dup');
         later(() => PF.pop(e.d, { color: 0xc6f432, power: .7 }), 60 + i * 50);
       });
     });
@@ -233,7 +232,10 @@ window.NomiGames.uniq = { id: 'uniq', name: '数字かぶり', make(E){
   function resolve(){
     if(H.phase !== 'pick') return;
     H.phase = 'reveal'; clearTimeout(H.fin);
-    const rows = H.alive.map(id => ({ id, v: H.picks.has(id) ? H.picks.get(id) : 0 }));
+    // 時間ぎれの人は、手札でいちばん小さいカードを出す
+    const auto = H.alive.filter(id => !H.picks.has(id));
+    auto.forEach(id => H.picks.set(id, Math.min(...H.hands.get(id))));
+    const rows = H.alive.map(id => auto.includes(id) ? { id, v: H.picks.get(id), au: 1 } : { id, v: H.picks.get(id) });
     const win = winnerOf(H.picks);
     let pl = 0;
     if(win >= 0){

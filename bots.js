@@ -90,7 +90,7 @@ function make(id, send, chat){
       const h = me.h.slice().sort((a, b) => b - a);
       let i = 0; while(i < h.length - 1 && rnd() < .45) i++;
       const v = h[i], r = m.r;
-      if(rnd() < .03) return;                                   // たまに時間ぎれ
+      if(rnd() < .03) return;                                   // たまに時間ぎれ(いちばん小さいカードが出る)
       later(() => send({ t: 'pk', r, v }), ri(1200, 7500));
     }
   };
