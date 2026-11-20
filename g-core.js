@@ -315,7 +315,7 @@ window.NomiGames.core = { id: 'core', name: 'CORE', make(E){
     H.phase = 'result'; stopTick(); clearTimeout(H.choose);
     E.hostBcast({ t: 'boom', loser, name: E.nameOf(loser), reason, turns: H.turn, sec: Math.round(H.total * 100) / 100, last: Math.round((lastSec || 0) * 100) / 100, wv: H.wv }, true);
     // MIX 用の順位: 爆発させた人が最下位、ほかの人は同じ順位
-    if(E.rank) E.rank([ids().filter(id => id !== loser), [loser]]);
+    if(E.rank) E.rank([ids().filter(id => id !== loser), [loser]], 'lose');
   }
   function hostOnMsg(id, m){
     if(!m || typeof m.t !== 'string' || H.phase !== 'play' || H.holder !== id) return;
