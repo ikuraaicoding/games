@@ -80,6 +80,38 @@ function make(id, send, chat){
     }
   };
 
+  // ---------------- FLIP ----------------
+  // 人間らしく: 小さい数字ほどよく覚えている(大きい数字はうろ覚え)。ほかの人のまちがいも少し覚える
+  const flipMem = v => .97 * Math.pow(.9, v - 1);
+  const flip = {
+    begin(){ S.fl = { pos: new Map(), sk: .8 + rnd() * .4 }; },     // pos: 数字 → 覚えた場所
+    msg(m){
+      const a = S.fl;
+      if(m.t === 'show' && Array.isArray(m.cards)){
+        m.cards.forEach((v, i) => {
+          if(rnd() >= Math.min(.98, flipMem(v) * a.sk)) return;
+          // たまに、となりの場所と覚えちがえる
+          const j = rnd() < .12 ? Math.max(0, Math.min(m.cards.length - 1, i + (rnd() < .5 ? -1 : 1))) : i;
+          a.pos.set(v, j);
+        });
+      }else if(m.t === 'flip' && m.ok === false && Number.isInteger(m.i) && m.i >= 0 && Number.isInteger(m.v)){
+        if(rnd() < .85) a.pos.set(m.v, m.i);
+      }else if(m.t === 'turn' && m.id === id && Number.isInteger(m.k) && Array.isArray(m.up)){
+        const up = new Set(m.up), down = [];
+        for(let i = 0; i < 30; i++) if(!up.has(i)) down.push(i);
+        let i = a.pos.get(m.need);
+        const sure = Number.isInteger(i) && !up.has(i);
+        if(!sure){
+          // 知らないときは、ほかの数字だと分かっている場所をさけて当てずっぽう
+          const known = new Set(); a.pos.forEach((p, v) => { if(v !== m.need) known.add(p); });
+          const c = down.filter(x => !known.has(x));
+          i = (c.length ? c : down)[ri(0, (c.length ? c : down).length - 1)];
+        }
+        later(() => send({ t: 'pick', k: m.k, i }), sure ? ri(900, 2600) : ri(2500, 6500));
+      }
+    }
+  };
+
   // ---------------- ARENA ----------------
   const score = c => c.a + c.d + c.h + (c.u ? 3 : 0);       // UR(固有能力つき)は少し高く見る
   const arena = {
@@ -172,7 +204,7 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, arena, race };
+  const G = { tap, stop, ise, core, flip, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;
