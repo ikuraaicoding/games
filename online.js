@@ -177,8 +177,8 @@ const E = {
     show('s-result');
   },
   // ホスト: ゲームの順位を知らせる(MIX の点数に使う)。groups = 上の順位から [[id, ...], [id], ...](同じ組は同じ順位)
-  // 負けた人だけが決まるゲームは kind = 'lose' で [[ほかの人…], [負けた人…]]
-  rank(groups, kind){ mixRank(groups, kind); }
+  // 負けた人だけが決まるゲームは [[ほかの人…], [負けた人…]](2つめの 'lose' は目印。点数は同じ計算)
+  rank(groups){ mixRank(groups); }
 };
 
 // =====================================================================
@@ -257,8 +257,9 @@ const RULES = [
     '1戦(抽選だけ)/ 3戦 / 5戦 / 7戦 から選べる',
     '同じゲームは続けて出ない(全部のゲームが1回ずつ出たら、また最初から抽選)',
     '毎回の順位でポイント。N人なら 1位はN−1点、1つ下がるごとに1点へって、最下位は0点',
-    'DRAW・CORE のように負けた人だけが決まるゲームは、負けた人が0点、ほかの人は全員「人数÷2(切り捨て)」点(4人なら2点、6人なら3点)',
-    '同じ順位の人は同じ点。合計ポイントで最終順位が決まる(同点は同じ順位)'] }
+    '同じ順位の人が何人かいたら、その人たちがしめる順位の点の平均(切り捨て)。ただし最下位の人たちは0点',
+    '例: DRAW・CORE は負けた人が0点、ほかの人は全員「人数÷2(切り捨て)」点(4人なら2点、6人なら3点)',
+    '合計ポイントで最終順位が決まる(同点は同じ順位)'] }
 ];
 // ミニゲーム(MIX の抽選に入る)。ミニゲームを足すときは、ここと RULES に入れて、ホスト側で結果が出たときに E.rank() を呼ぶ
 const MINI = ['tap', 'stop', 'ise', 'core', 'flip', 'uniq'];
@@ -575,16 +576,19 @@ function mixDraw(){
   const k = mix.k;
   clearTimeout(mixT); mixT = setTimeout(() => { if(role === 'host' && mix && mix.k === k && !curId) startGame(g); }, DRAW_MS + DRAW_HOLD);
 }
-// ゲームから届いた順位を点数にする(N人なら 1位 N−1点 … 最下位 0点。同じ組は同じ点。組が1つだけなら決着なしで全員0点)
-// 負けた人だけが決まるゲーム(kind = 'lose')は、負けた人 0点・ほかの人は N÷2(切り捨て)点
-function mixRank(groups, kind){
+// ゲームから届いた順位を点数にする(N人なら 1位 N−1点 … 最下位 0点)
+// 同じ組の人は、その組がしめる順位の点の平均(切り捨て)。最下位の組は0点。組が1つだけなら決着なしで全員0点
+//  → 負けた人だけ決まるゲームは、ほかの人が N÷2(切り捨て)点になる
+function mixRank(groups){
   if(role !== 'host' || !mix || curId !== mix.gid || !Array.isArray(groups)) return;
   const seen = new Set();
   const gs = groups.map(g => (Array.isArray(g) ? g : []).filter(id => Number.isInteger(id) && !seen.has(id) && !!seen.add(id))).filter(g => g.length);
   const n = seen.size, add = new Map();
   let ahead = 0;
-  const lose = kind === 'lose' && gs.length === 2;
-  gs.forEach((g, i) => { const p = gs.length < 2 || i === gs.length - 1 ? 0 : lose ? Math.max(1, Math.floor(n / 2)) : n - 1 - ahead; g.forEach(id => add.set(id, p)); ahead += g.length; });
+  gs.forEach((g, i) => {
+    const p = gs.length < 2 || i === gs.length - 1 ? 0 : Math.floor(n - 1 - ahead - (g.length - 1) / 2);
+    g.forEach(id => add.set(id, p)); ahead += g.length;
+  });
   mix.add = add;
 }
 // 合計の一覧(同点は同じ順位)
