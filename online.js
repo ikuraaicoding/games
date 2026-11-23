@@ -133,6 +133,10 @@ let role = null, room = null, guest = null, myId = -1;
 let roster = [];                    // [{id,name,rtt,aw}]  aw = しばらく通信が届いていない
 const bench = new Set();            // ゲームの途中で通信がもどってきた人(そのゲームには参加せず、次のゲームから)
 let curId = null, game = null, lastGame = null, userLocked = false, solo = false;
+// ゲームの番号(ホストがゲームを始めるたびに1つ増える)。参加者は、始まりの合図より先に届いたゲームの知らせを、合図が来るまでとっておく
+//  (一人ずつに送る知らせは、全員あての合図より先に着くことがある。捨てると、相手の画面が「準備中」のまま止まる)
+let gameNo = 0, curGn = 0;
+const early = [];                   // [{ o, at }] 始まりの合図より先に届いた知らせ
 const nameOf = id => { const p = roster.find(r => r.id === id); return p ? p.name : '?'; };
 
 function showBanner(t){ const b = $('banner'); b.textContent = t; b.classList.add('on'); }
@@ -154,8 +158,8 @@ const E = {
   get myId(){ return myId; },
   players: () => roster.filter(p => !bench.has(p.id)),
   send(obj, rel){ obj.g = curId; if(role === 'host'){ if(game && game.hostOnMsg) game.hostOnMsg(0, obj); } else if(guest) guest.send(obj, !!rel); },
-  hostSend(id, obj, rel){ obj.g = curId; if(id === 0){ if(game && game.onMsg) game.onMsg(obj); } else if(room) room.sendTo(id, obj, !!rel); },
-  hostBcast(obj, rel){ obj.g = curId; if(room) room.bcast(obj, !!rel); if(game && game.onMsg) game.onMsg(obj); },
+  hostSend(id, obj, rel){ obj.g = curId; obj.gn = gameNo; if(id === 0){ if(game && game.onMsg) game.onMsg(obj); } else if(room) room.sendTo(id, obj, !!rel); },
+  hostBcast(obj, rel){ obj.g = curId; obj.gn = gameNo; if(room) room.bcast(obj, !!rel); if(game && game.onMsg) game.onMsg(obj); },
   toLocal: t => role === 'host' ? t : (guest ? guest.hostToLocal(t) : t),
   clockReady: () => role === 'host' || !!(guest && guest.clock.n >= 4 && isFinite(guest.clock.rtt)),
   showResult(o){
@@ -543,8 +547,8 @@ function startGame(gid){
   if(role !== 'host' || roster.length < 2 || !window.NomiGames[gid]) return;
   if(game && game.stop) game.stop();
   room.setLocked(true); bench.clear();
-  curId = gid; lastGame = gid; document.body.dataset.game = gid; game = window.NomiGames[gid].make(E);
-  room.bcast({ t: 'begin', g: gid }, true);
+  curId = gid; lastGame = gid; document.body.dataset.game = gid; gameNo++; game = window.NomiGames[gid].make(E);
+  room.bcast({ t: 'begin', g: gid, gn: gameNo }, true);
   audio.init(); keepAwake();
   game.onBegin(); game.hostStart();
 }
@@ -735,9 +739,11 @@ async function joinWith(text){
 }
 function guestCleanup(){
   if(game && game.stop) game.stop();
-  game = null; curId = null; guest = null; role = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset(); closeQuit();
+  game = null; curId = null; guest = null; role = null; curGn = 0; early.length = 0; mixEnd(); resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset(); closeQuit();
   disarmBack();
 }
+const EARLY_MS = 20000, EARLY_MAX = 40;
+const isGn = v => Number.isInteger(v) && v >= 1 && v <= 1e9;
 function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
   if(o.t === 'roster' && Array.isArray(o.players)){
@@ -745,8 +751,14 @@ function guestMsg(o){
     if(RULES.some(x => x.g === o.want)) hostWant = o.want;
     if($('s-lobby').classList.contains('active')) renderLobby();
   }else if(o.t === 'begin' && typeof o.g === 'string' && window.NomiGames[o.g]){
+    const gn = isGn(o.gn) ? o.gn : 0;
+    if(gn && gn < curGn) return;                                   // 古い合図
     if(game && game.stop) game.stop();
+    if(gn) curGn = gn;
     curId = o.g; document.body.dataset.game = o.g; game = window.NomiGames[o.g].make(E); audio.init(); keepAwake(); hideBanner(); game.onBegin();
+    // 合図より先に届いていた、このゲームの知らせを順に渡す
+    const now = Date.now(), keep = early.splice(0).filter(x => now - x.at < EARLY_MS && x.o.gn >= curGn);
+    keep.forEach(x => { if(x.o.gn > curGn) early.push(x); else if(x.o.g === curId && game && game.onMsg) game.onMsg(x.o); });
   }else if(o.t === 'mix'){
     guestMix(o);
   }else if(o.t === 'chat'){
@@ -757,8 +769,16 @@ function guestMsg(o){
     if(game && game.stop) game.stop();
     game = null; curId = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); renderLobby(); show('s-lobby');
     if(o.why) flashBanner(clean2(o.why, 60), 4000);
-  }else if(o.g && o.g === curId && game && game.onMsg){
-    game.onMsg(o);
+  }else if(typeof o.g === 'string'){
+    if(isGn(o.gn)){
+      if(o.gn < curGn) return;                                     // 前のゲームの知らせ
+      if(o.gn > curGn){                                            // まだ始まりの合図が届いていないゲームの知らせ → とっておく
+        early.push({ o, at: Date.now() });
+        if(early.length > EARLY_MAX) early.shift();
+        return;
+      }
+    }
+    if(o.g === curId && game && game.onMsg) game.onMsg(o);
   }
 }
 
