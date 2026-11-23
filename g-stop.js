@@ -107,10 +107,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     const none = rows.filter(x => x.st !== 'ok' || !Number.isFinite(x.ms)).map(x => ({ id: x.id, none: true }));
     const rank = ok.concat(none), n = rank.length;
     if(!n) return;
-    const wrap = () => { const b = $('r-again'), c = $('r-lobby'); return [b, c]; };
-
-    E.showResult({ title: 'BLIND', reason: '目標 ' + m.T + '.00 秒 に どれだけ近いか', pen: '', lines: [], stats: '' });
-    wrap().forEach(b => { b.style.display = 'none'; });          // 発表がおわるまで、ボタンは隠す
+    E.showResult({ title: 'BLIND', reason: '目標 ' + m.T + '.00 秒 に どれだけ近いか', pen: '', lines: [], stats: '', hold: true });   // 発表がおわるまで、ボタンは隠す
     const box = $('r-lines'), pen = $('r-pen');
     const lastId = rank[n - 1].id;
 
@@ -129,7 +126,7 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     function finish(){
       pen.textContent = lastId === E.myId ? 'あなたが最下位' : E.nameOf(lastId) + ' が最下位';
       E.audio.scare(); E.vibrate(lastId === E.myId ? [0, 200, 80, 400] : [0, 120]);
-      later(() => { if(E.isHost){ wrap().forEach(b => { b.style.display = 'block'; }); } }, 900);
+      E.resultBtns(1200);
     }
     // ため: 下2位の発表の前に、ドラムロールのようにじらす
     function drumroll(ms, cb){
@@ -197,7 +194,6 @@ window.NomiGames.stop = { id: 'stop', name: 'ピッタリ止めろ', make(E){
     stopped = true; cancelAnimationFrame(raf); clearTimeout(H.fin); PF.show(false);
     timers.forEach(t => clearTimeout(t));
     pad.removeEventListener('pointerdown', onDown); pad.removeEventListener('pointerup', onUp); pad.removeEventListener('pointercancel', onUp);
-    ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop };
 } };

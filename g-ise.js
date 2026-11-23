@@ -313,7 +313,6 @@ window.NomiGames.ise = { id: 'ise', name: 'いっせーのーせ', make(E){
     stopped = true; clearInterval(barT); clearTimeout(H.fin); clearTimeout(H.nxt); PF.show(false);
     timers.forEach(t => { clearTimeout(t); clearInterval(t); });
     $('i-ok').onclick = null;
-    ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop };
 } };

@@ -147,6 +147,10 @@ summary{ font-size:.76rem; color:var(--sub); }
 .cf-box b{ display:block; font-size:1.1rem; font-weight:800; }
 .cf-box p{ margin:8px 0 6px; font-size:.82rem; color:var(--sub); line-height:1.7; }
 .cf .btn.cf-yes{ background:var(--red); border-color:var(--red); color:#fff; }
+/* 結果画面のボタン: 結果を出してから少し待って出す */
+.btn.late{ visibility:hidden; pointer-events:none; }
+.btn.appear{ pointer-events:none; animation:btnin .4s ease-out; }
+@keyframes btnin{ 0%{ opacity:0; transform:translateY(8px); } 100%{ opacity:1; transform:none; } }
 @keyframes cfin{ 0%{ opacity:0; transform:scale(.92); } 100%{ opacity:1; transform:none; } }
 #picker{ position:fixed; inset:0; z-index:30; background:rgba(9,9,11,.86); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
 #picker.on{ display:flex; }

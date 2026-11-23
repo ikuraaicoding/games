@@ -150,9 +150,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
       fxOn();
       if(lines.length < 2){ E.showResult({ title: 'DRAW', reason, pen, lines, stats }); return; }
       // 順位発表: 1位から順に。最後の2人(最下位とその1つ上)は、ためてから同時に出す
-      E.showResult({ title: 'DRAW', reason, pen: '', lines: [], stats: '' });
-      const btns = ['r-again', 'r-lobby'].map(id => $(id));
-      btns.forEach(b => { b.style.display = 'none'; });
+      E.showResult({ title: 'DRAW', reason, pen: '', lines: [], stats: '', hold: true });    // 発表がおわるまで、ボタンは隠す
       const box = $('r-lines'), penEl = $('r-pen'), n = lines.length;
       const addRow = l => {
         const d = document.createElement('div'); if(l.cls) d.className = l.cls;
@@ -174,7 +172,7 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
           addRow(lines[n - 2]); addRow(lines[n - 1]);
           penEl.textContent = pen; $('r-stats').textContent = stats;
           E.audio.scare(); E.vibrate(me ? [0, 200, 80, 400] : [0, 120]);
-          later(() => { if(E.isHost) btns.forEach(b => { b.style.display = 'block'; }); }, 900);
+          E.resultBtns(1200);
         }, DR);
       };
       later(next, 700);
@@ -271,7 +269,6 @@ window.NomiGames.tap = { id: 'tap', name: 'タップ対決', make(E){
     stopped = true; cancelAnimationFrame(raf); clearTimeout(H.rdy); clearTimeout(H.fin); PF.show(false); if(E.quiet) E.quiet(false);
     timers.forEach(t => { clearTimeout(t); clearInterval(t); });
     pad.removeEventListener('pointerdown', onDown); pad.removeEventListener('pointerup', onUp); pad.removeEventListener('pointercancel', onUp);
-    ['r-again', 'r-lobby'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
   }
   return { onBegin, onMsg, hostStart, hostOnMsg, hostOnLeave, stop };
 } };
