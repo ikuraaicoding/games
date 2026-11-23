@@ -174,12 +174,30 @@ const E = {
     vis('r-again', host); vis('r-lobby', host);
     $('r-again').textContent = !mix ? 'もう一回' : mix.n === 1 ? 'もう一回抽選' : mix.k >= mix.n ? '最終結果へ' : '途中経過へ';
     $('r-lobby').textContent = mix && mix.n > 1 ? 'ロビーにもどる(連戦をやめる)' : 'ロビーにもどる(ゲームを選ぶ)';
+    // ボタンは結果を出してから少し待って出す。hold のときは、ゲームが発表を終えてから resultBtns() で出す
+    lateBtns(R_BTNS, o.hold ? -1 : LATE_MS);
     show('s-result');
   },
+  resultBtns(ms){ lateBtns(R_BTNS, Number.isFinite(ms) ? ms : LATE_MS); },
   // ホスト: ゲームの順位を知らせる(MIX の点数に使う)。groups = 上の順位から [[id, ...], [id], ...](同じ組は同じ順位)
   // 負けた人だけが決まるゲームは [[ほかの人…], [負けた人…]](2つめの 'lose' は目印。点数は同じ計算)
   rank(groups){ mixRank(groups); }
 };
+
+// ---------- 結果画面のボタンは、少し待ってから出す ----------
+// ゲームの終わりに画面を連打していて、出てきたボタンをまちがえて押さないように
+const R_BTNS = ['r-again', 'r-lobby', 'r-quit'], M_BTNS = ['m-next', 'm-lobby', 'm-quit'], LATE_MS = 1200;
+let lateSeq = 0;
+function lateBtns(ids, ms){
+  const my = ++lateSeq;
+  ids.forEach(id => { const b = $(id); b.classList.remove('appear'); b.classList.add('late'); });
+  if(ms < 0) return;
+  setTimeout(() => {
+    if(my !== lateSeq) return;
+    ids.forEach(id => { const b = $(id); b.classList.remove('late'); b.classList.add('appear'); });
+    setTimeout(() => { if(my === lateSeq) ids.forEach(id => $(id).classList.remove('appear')); }, 450);
+  }, ms);
+}
 
 // =====================================================================
 //  ロビー表示
@@ -643,6 +661,7 @@ function showDraw(k, n, g){
 function showBoard(o){
   drawSeq++;
   mixScreen(); mixButtons(o.fin ? 'fin' : 'board');
+  lateBtns(M_BTNS, LATE_MS + Math.min(o.rows.length, 16) * 70);
   $('m-draw').style.display = 'none';
   $('m-eye').textContent = 'MIX  第' + o.k + '戦 / ' + o.n + '戦';
   $('m-title').textContent = o.fin ? '最終結果' : '途中経過';
@@ -716,7 +735,8 @@ async function joinWith(text){
 }
 function guestCleanup(){
   if(game && game.stop) game.stop();
-  game = null; curId = null; guest = null; role = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset();
+  game = null; curId = null; guest = null; role = null; mixEnd(); resetFx(); $('picker').classList.remove('on'); hideBanner(); chatReset(); closeQuit();
+  disarmBack();
 }
 function guestMsg(o){
   if(!o || typeof o.t !== 'string') return;
@@ -838,17 +858,30 @@ $('sc-back').addEventListener('click', () => { stopScan(); show('s-menu'); });
 $('sc-go').addEventListener('click', () => { const t = $('sc-paste').value.trim(); if(t) joinWith(t); });
 $('l-quit').addEventListener('click', askQuit);
 $('r-quit').addEventListener('click', askQuit);
-// ---------- 退出の確認 ----------
+// ---------- 確認のポップアップ(退出・連戦をやめる など) ----------
+let cfDo = null, cfT = 0;
+function askConfirm(t, m, yes, fn){
+  $('cf-t').textContent = t; $('cf-m').textContent = m; $('cf-yes').textContent = yes;
+  cfDo = fn; $('cf').classList.add('on');
+  // 連打で、そのまま「はい」まで押してしまわないように、少しのあいだ押せなくする
+  const y = $('cf-yes'), my = ++cfT; y.disabled = true;
+  setTimeout(() => { if(my === cfT) y.disabled = false; }, 600);
+}
 function askQuit(){
   const host = role === 'host';
-  $('cf-t').textContent = solo ? 'CPU戦をやめますか?' : host ? '部屋を閉じて退出しますか?' : '部屋から退出しますか?';
-  $('cf-m').textContent = solo ? 'メニューにもどります。' : host ? 'ホストが抜けると、部屋がなくなって、みんなのゲームも終わります。' : 'もう一度入るには、ホストのQRを読み直してください。';
-  $('cf-yes').textContent = solo ? 'やめる' : '退出する';
-  $('cf').classList.add('on');
+  askConfirm(solo ? 'CPU戦をやめますか?' : host ? '部屋を閉じて退出しますか?' : '部屋から退出しますか?',
+    solo ? 'メニューにもどります。' : host ? 'ホストが抜けると、部屋がなくなって、みんなのゲームも終わります。' : 'もう一度入るには、ホストのQRを読み直してください。',
+    solo ? 'やめる' : '退出する', quitAll);
 }
-const closeQuit = () => $('cf').classList.remove('on');
+// ホスト: MIX の連戦の途中でロビーにもどるときは確認する
+function askLobby(){
+  if(role !== 'host') return;
+  if(!mix || mix.n <= 1 || (mix.k >= mix.n && !mix.gid)){ toLobby(''); return; }
+  askConfirm('連戦をやめますか?', 'ロビーにもどると、ここまでのポイントは消えて、みんなの連戦も終わります。', 'やめる', () => { if(role === 'host') toLobby(''); });
+}
+const closeQuit = () => { cfDo = null; $('cf').classList.remove('on'); };
 $('cf-no').addEventListener('click', closeQuit);
-$('cf-yes').addEventListener('click', () => { closeQuit(); quitAll(); });
+$('cf-yes').addEventListener('click', () => { const f = cfDo; closeQuit(); if(f) f(); });
 $('cf').addEventListener('click', e => { if(e.target === $('cf')) closeQuit(); });
 $('a-catbtn').addEventListener('click', () => window.NomiGames.arena.showCatalog());
 $('l-start').addEventListener('click', () => startGame(wantGame));
@@ -859,9 +892,9 @@ $('r-again').addEventListener('click', () => {
   else startGame(lastGame || wantGame);
 });
 $('m-next').addEventListener('click', () => { if(role !== 'host' || !mix) return; if(mix.k >= mix.n) mixStart(); else mixDraw(); });
-$('m-lobby').addEventListener('click', () => { if(role === 'host') toLobby(''); });
+$('m-lobby').addEventListener('click', askLobby);
 $('m-quit').addEventListener('click', askQuit);
-$('r-lobby').addEventListener('click', () => { if(role === 'host') toLobby(''); });
+$('r-lobby').addEventListener('click', askLobby);
 function quitAll(){
   stopScan();
   if(game && game.stop) game.stop();
@@ -869,8 +902,24 @@ function quitAll(){
   room = null; guest = null; game = null; curId = null; role = null; roster = []; solo = false; mixEnd(); resetFx(); chatReset();
   document.body.classList.remove('solo');
   $('picker').classList.remove('on'); closeQuit(); hideBanner(); show('s-menu');
-  if(newVer) location.reload();
+  if(newVer){ location.reload(); return; }
+  disarmBack();
 }
+// ---------- スマホの「戻る」で、いきなり部屋から抜けないようにする ----------
+// 部屋にいる間は、履歴を1つ足しておく。「戻る」が押されたら、抜けずに確認を出す
+let backArmed = false;
+function armBack(){ if(backArmed || !(room || guest)) return; try{ history.pushState({ nr: 1 }, ''); backArmed = true; }catch(e){} }
+function disarmBack(){ if(!backArmed) return; backArmed = false; try{ history.back(); }catch(e){} }
+document.addEventListener('pointerdown', armBack, true);
+window.addEventListener('popstate', () => {
+  if(!backArmed) return;
+  backArmed = false;
+  if(!(room || guest)) return;
+  armBack();
+  if($('cf').classList.contains('on')) closeQuit(); else askQuit();
+});
+// 部屋にいる間に、ページを閉じる・読み込み直すときも確認する(ブラウザの確認が出る)
+window.addEventListener('beforeunload', e => { if(room || guest){ e.preventDefault(); e.returnValue = ''; } });
 // 新しい版が届いたら読み込み直す(部屋に入っている間は待って、抜けたときに)
 let newVer = false;
 if('serviceWorker' in navigator){
