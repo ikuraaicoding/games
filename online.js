@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#hide': 'hide', '#twist': 'twist', '#trace': 'trace', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#hide': 'hide', '#twist': 'twist', '#trace': 'trace', '#kingdom': 'kingdom', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
@@ -264,6 +264,17 @@ const RULES = [
     'ときどき強化のどれか1つが「好調」になる。好調の強化は成功で+4',
     'コースはレースの直前に発表(運)。スキル選びのときに天気予報(雨の確率)が出る。予報ははずれることもある。レースは全員同時。操作はニトロを押すタイミングだけ(1レース1回)',
     'ゴール順にポイント(10・7・5・4・3・2・1・0)。1戦か3戦の合計で順位が決まる',
+    'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] },
+  { g: 'kingdom', nm: 'KINGDOM', sub: '国とり', ic: 'i-kingdom', r: [
+    '円い地図で、領地を取り合う。まん中は王都、外側は各自の城と、あいだの村',
+    '全員、城1つと部隊2つ(兵4ずつ)からスタート',
+    '毎ターン、部隊ごとに「となりへ動く」か「とどまる」をこっそり決める(30秒。ハードは20秒)。全員同時に動く',
+    '同じ場所に入るか、道ですれちがうと戦い。兵の多い方が勝ち、負けた側の兵の半分を捕虜として自分の部隊に入れる',
+    '部隊だけがいる場所は自分の領地になる(去ったあとも、だれかが来るまで自分のもの)',
+    '城には守備兵7と守り+2があって、部隊がいなくても戦う。王都には、はじめ守備兵5',
+    '毎ターン、領地の数だけ兵が増えて部隊に入る(城・王都は2、ほかは1)。部隊がなくなっても、城があれば城に新しい部隊ができる',
+    '毎ターン、持っている領地で点が入る(王都3・城2・ほか1)。決めたターン数で終わり、点の合計で順位',
+    '命令は公開されるまで、だれにも見えない。約束・同盟・うらぎりは自由(口で)',
     'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] },
   { g: 'flip', nm: 'FLIP', sub: '数字めくり', ic: 'i-flip', r: [
     '1〜30の数字が書かれたカードが30枚、ばらばらに並ぶ',
@@ -816,7 +827,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-core').classList.toggle('hide', g !== 'core'); $('l-mix').classList.toggle('hide', g !== 'mix'); bcastWant(); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-kingdom').classList.toggle('hide', g !== 'kingdom'); $('l-core').classList.toggle('hide', g !== 'core'); $('l-mix').classList.toggle('hide', g !== 'mix'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
   const get = (k, d) => { try{ return localStorage.getItem(k) || d; }catch(e){ return d; } };
@@ -860,6 +871,19 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   one('r', 'race-n', ['1', '3'], '3');
   one('h', 'race-hard', ['0', '1'], '0');
   one('v', 'race-mode', ['top', 'last'], 'top');
+})();
+// KINGDOM: ターン数 / 考える時間 / 決めるのは
+(function(){
+  const one = (key, store, ok, d) => {
+    const bs = document.querySelectorAll('#l-kingdom button[data-' + key + ']');
+    let v = d; try{ v = localStorage.getItem(store) || d; }catch(e){}
+    if(!ok.includes(v)) v = d;
+    const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset[key] === x)); try{ localStorage.setItem(store, x); }catch(e){} };
+    set(v); bs.forEach(b => b.addEventListener('click', () => set(b.dataset[key])));
+  };
+  one('t', 'kingdom-turns', ['6', '8', '10'], '8');
+  one('h', 'kingdom-hard', ['0', '1'], '0');
+  one('v', 'kingdom-mode', ['top', 'last'], 'top');
 })();
 // MIX: 戦数
 (function(){

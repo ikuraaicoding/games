@@ -293,7 +293,45 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, arena, race };
+  // ---------------- KINGDOM ----------------
+  // シミュレーションと同じ4つの作戦(広げる・攻める・こもる・王都ねらい)から1つ。部隊ごとに、となりの場所を点数で選ぶ
+  const KPOL = [
+    { raid: 2, cap: 4, brave: .9, hunt: 0, guard: 1, toward: .3, noise: 3 },
+    { raid: 8, cap: 4, brave: .7, hunt: 4, guard: 0, toward: .5, noise: 3 },
+    { raid: 0, cap: 0, brave: 1.3, hunt: -2, guard: 1, toward: 0, noise: 2 },
+    { raid: 0, cap: 14, brave: 1, hunt: 0, guard: 1, toward: 2, noise: 3 }
+  ];
+  const kingdom = {
+    begin(){ S.kg = { pol: KPOL[ri(0, KPOL.length - 1)], n: 0 }; },
+    msg(m){
+      const KG = window.NomiGames && window.NomiGames.kingdom;
+      if(!KG || m.t !== 'ks' || !Array.isArray(m.ids) || !Array.isArray(m.ar) || !Array.isArray(m.own)) return;
+      const p = m.ids.indexOf(id); if(p < 0) return;
+      const M = KG._map(m.N), R = M.R, pol = S.kg.pol, home = 2 * p;
+      const val = r => r.k === 'capital' ? 3 : r.k === 'castle' ? 2 : 1, inc = r => r.k === 'castle' || r.k === 'capital' ? 2 : 1;
+      const A = m.ar.map(x => ({ id: x[0], p: x[1], at: x[2], n: x[3] }));
+      const enemyNear = at => { let mx = 0; R[at].adj.concat([at]).forEach(j => A.forEach(a => { if(a.p !== p && a.at === j) mx = Math.max(mx, a.n); })); return mx; };
+      const o = A.filter(a => a.p === p).map(a => {
+        let best = a.at, bv = -1e9;
+        R[a.at].adj.concat([a.at]).forEach(j => {
+          const r = R[j]; let v = 0;
+          if(m.own[j] !== p) v += val(r) * 2 + inc(r);
+          if(m.own[j] >= 0 && m.own[j] !== p && r.k === 'castle') v += pol.raid - (a.n < 12 ? 8 : 0);   // 城には守備兵がいる
+          if(j === M.CAP) v += pol.cap - (m.own[j] === -1 ? (m.gar || 0) * .6 : 0);
+          const en = enemyNear(j);
+          if(en > a.n * pol.brave) v -= 6; else if(en > 0) v += pol.hunt;
+          if(pol.guard && j === home && m.own[home] === p && enemyNear(home) > a.n) v += 5;
+          v += -(2 - r.ring) * pol.toward + rnd() * pol.noise;
+          if(v > bv){ bv = v; best = j; }
+        });
+        return [a.id, best];
+      });
+      const k = m.k;
+      later(() => send({ t: 'or', k, o, rd: 1, n: ++S.kg.n }), ri(2000, 8000));
+    }
+  };
+
+  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, kingdom, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;
