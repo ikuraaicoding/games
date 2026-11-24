@@ -157,7 +157,7 @@ const E = {
   get isHost(){ return role === 'host'; },
   get myId(){ return myId; },
   players: () => roster.filter(p => !bench.has(p.id)),
-  send(obj, rel){ obj.g = curId; if(role === 'host'){ if(game && game.hostOnMsg) game.hostOnMsg(0, obj); } else if(guest) guest.send(obj, !!rel); },
+  send(obj, rel){ obj.g = curId; obj.gn = role === 'host' ? gameNo : curGn; if(role === 'host'){ if(game && game.hostOnMsg) game.hostOnMsg(0, obj); } else if(guest) guest.send(obj, !!rel); },
   hostSend(id, obj, rel){ obj.g = curId; obj.gn = gameNo; if(id === 0){ if(game && game.onMsg) game.onMsg(obj); } else if(room) room.sendTo(id, obj, !!rel); },
   hostBcast(obj, rel){ obj.g = curId; obj.gn = gameNo; if(room) room.bcast(obj, !!rel); if(game && game.onMsg) game.onMsg(obj); },
   toLocal: t => role === 'host' ? t : (guest ? guest.hostToLocal(t) : t),
@@ -551,7 +551,7 @@ async function hostCreate(){
         pushRoster(); flashBanner(p.name + (back ? ' がもどってきたよ' : ' が参加したよ'), 2500); vibrate(60);
       },
       onLeave: hostLeave,
-      onMsg: (id, o) => { if(o && o.t === 'chat'){ hostChat(id, o); return; } if(o && o.g && o.g === curId && game && game.hostOnMsg) game.hostOnMsg(id, o); }
+      onMsg: (id, o) => { if(o && o.t === 'chat'){ hostChat(id, o); return; } if(o && o.g && o.g === curId && (!isGn(o.gn) || o.gn === gameNo) && game && game.hostOnMsg) game.hostOnMsg(id, o); }   // 前のゲームの操作は使わない
     });
   }catch(e){ role = null; flashBanner('部屋を作れなかった: ' + e.message, 5000); return; }
   drawQR(room.qr, $('l-qr'), qrSize()); $('l-code').value = room.qr;
