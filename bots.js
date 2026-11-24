@@ -219,7 +219,81 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, flip, uniq, arena, race };
+  // ---------------- FACE ----------------
+  // 見えている数字から「ほかの1人に勝つ割合」を見こんで、半分より上なら勝負(少しゆらぎ)
+  const face = {
+    begin(){},
+    msg(m){
+      const F = window.NomiGames && window.NomiGames.face;
+      if(!F || m.t !== 'deal' || !Number.isInteger(m.r) || !Array.isArray(m.see)) return;
+      const see = m.see.map(x => Array.isArray(x) ? x[1] : null).filter(Number.isInteger);
+      const s = F._share(see) > .5 + (rnd() - .5) * .24 ? 1 : 0, r = m.r;
+      later(() => send({ t: 'ch', r, s, n: 1 }), ri(2500, 12000));
+    }
+  };
+
+  // ---------------- HIDE ----------------
+  // 自分の手がかり(まわりの数)から掘る場所を選ぶ。近くを掘られたら、にげる(回数があれば)
+  const hide = {
+    begin(){ S.hd = { S: 5, obs: [], digs: [], pos: -1 }; },
+    msg(m){
+      const a = S.hd, Hn = window.NomiGames && window.NomiGames.hide; if(!Hn) return;
+      const nb = c => Hn._nb(c, a.S);
+      if(m.t === 'hs' && (m.S === 5 || m.S === 6)){
+        a.S = m.S; const c = ri(0, m.S * m.S - 1);
+        later(() => send({ t: 'hd', c }), ri(1500, 6000));
+      }else if(m.t === 'tn' && Number.isInteger(m.k) && Number.isInteger(m.pos)){
+        a.pos = m.pos; const C = a.S * a.S, w = new Array(C).fill(1);
+        a.obs.forEach(o => { const f = Math.pow(.6, m.k - o.k); nb(o.c).forEach(n => { if(o.n > 0) w[n] += o.n * 2 * f; else w[n] *= 1 - .7 * f; }); w[o.c] *= .5; });
+        a.digs.forEach(c => { if(c >= 0 && c < C) w[c] *= .6; });
+        if(!m.gh) w[a.pos] = 0;
+        let mv = -1;
+        if(!m.scan && !m.gh && m.fl > 0 && a.digs.some(c => c === a.pos || nb(a.pos).includes(c)) && rnd() < .85){ const ns = nb(a.pos); mv = ns[ri(0, ns.length - 1)]; w[mv] = 0; }
+        let best = 0, bw = -1; for(let c = 0; c < C; c++){ const v = w[c] * (.8 + rnd() * .4); if(v > bw){ bw = v; best = c; } }
+        const k = m.k;
+        later(() => send({ t: 'ac', k, d: best, m: mv }), ri(2000, 7000));
+      }else if(m.t === 'mr' && Number.isInteger(m.d) && Number.isInteger(m.n)){
+        if(m.d >= 0 && m.n >= 0) a.obs.push({ k: m.k, c: m.d, n: m.n });
+        if(Number.isInteger(m.pos)) a.pos = m.pos;
+      }else if(m.t === 'rs' && Array.isArray(m.digs)) a.digs = m.digs.filter(Number.isInteger);
+    }
+  };
+
+  // ---------------- TWIST ----------------
+  // 問題の種類ごとの考える時間 + お題が変わったときの迷い。ときどき おてつき
+  const twist = {
+    begin(){},
+    msg(m){
+      const W = window.NomiGames && window.NomiGames.twist;
+      if(!W || m.t !== 'go' || !Number.isInteger(m.seed) || !Number.isFinite(m.at)) return;
+      const G = W._gen(m.seed), base = 600 + rnd() * 350, COST = { col: 330, dir: 160, num: 380 }, prev = {}, lim = W._cfg.LIM_MS - 300;
+      let t = 0;
+      for(let k = 0; k < G.qs.length; k++){
+        const q = G.qs[k], sw = prev[q.t] && prev[q.t] !== q.mode; prev[q.t] = q.mode;
+        let rt = base + COST[q.t] + Math.abs(gauss()) * 200 + (sw ? 250 : 0), err = .06 + (sw ? .1 : 0);
+        while(rnd() < err){ const at = t + rt * .7; later(() => send({ t: 'ng', k }), m.at + at - performance.now()); rt += W._cfg.LOCK_MS + 250 + rnd() * 300; err *= .4; }
+        t += rt;
+        if(t > lim) break;
+        const ms = Math.round(t), c = q.ans;
+        later(() => send({ t: 'ok', k, c, ms }), m.at + ms - performance.now());
+      }
+    }
+  };
+
+  // ---------------- TRACE ----------------
+  // 耐える時間を、苦手〜得意のばらつきから決める(ふつう 約19秒)
+  const trace = {
+    begin(){},
+    msg(m){
+      if(m.t !== 'go' || !Number.isFinite(m.at)) return;
+      const s = Math.max(3, 19 * Math.exp(gauss() * .55));
+      if(s >= 60) return;
+      const ms = Math.round(s * 1000);
+      later(() => send({ t: 'out', ms }), m.at + ms - performance.now());
+    }
+  };
+
+  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;
