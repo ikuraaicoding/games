@@ -1,181 +1,227 @@
-/* KINGDOM 国とり オンライン(ホストが審判)
+/* KINGDOM 国づくり オンライン(ホストが審判)
  *
  * ルール
- *  1. 円い地図(人数×2の区画 × 外側・内側の2列 + まん中の王都)。外側の区画は、ひとつおきに各自の城、あいだは村
- *  2. 全員、城1つと部隊2つ(兵4ずつ)からスタート
- *  3. 毎ターン、部隊ごとに「となりへ動く」か「とどまる」をこっそり決める(30秒。ハードは20秒)。全員同時に動く
- *  4. 同じ場所に入るか、道ですれちがうと戦い。兵の多い方が勝ち、負けた側の兵の半分を捕虜として自分の部隊に入れる
- *  5. 部隊だけがいる場所は、その人の領地になる(去ったあとも、だれかが来るまで自分のもの)
- *     城には守備兵(7)と守り(+2)がいて、部隊がいなくても戦う(守備兵は部隊には加わらない)。王都には はじめ守備兵が5
- *  6. 毎ターンのはじめに、領地の数だけ兵が増えて、自分の部隊に分けて入る(城・王都は2、ほかは1)。部隊がなければ、城に新しい部隊
- *  7. 毎ターンの終わりに、持っている領地で点が入る(王都3・城2・ほか1)。決めたターン数で終わり、点の合計で順位
- *  8. 約束・同盟・うらぎりは自由(口で)
+ *  1. 円い地図(人数×2の区画 × 3列 + まん中の王宮の地)。土地は 食・木・石 の3種類で、それぞれに数字(1〜6)がある
+ *     2区画×3列の6マスのならび(数字1〜6・資源は2つずつ)を全員ぶんくり返すので、だれのまわりも同じ条件
+ *  2. 全員、村2つと 食2・木2・石1 からスタート
+ *  3. 毎ターン、サイコロを2つ振る。出た目と同じ数字の土地から、村なら1つ・町なら2つ資源が出る(ぞろ目は2倍)
+ *     さらに毎ターン、城から資源が1つ入る(ランダム)
+ *  4. 全員がこっそり計画を立てて(30秒。ハードは20秒)、同時に公開する
+ *       村: 自分の土地のとなりの空き地に建てる(食1・木2)… 1点
+ *       町: 自分の村を町にする(食1・石2)… さらに1点、資源が2倍出る
+ *       王宮: まん中に1つだけ。自分の土地のとなりなら建てられる(食2・木2・石3)… 4点
+ *       封鎖: ほかの人の土地を1つ(1ターンに1回まで)。次の2回、その土地で目が出たら、資源は自分に入る(木1・石1)
+ *       交換: 同じ資源3つを、好きな資源1つに
+ *  5. 同じ空き地に同時に村(や王宮)を建てようとしたら、どちらも建たない。使った資源は半分もどる
+ *  6. 決めたターン数で終わり。点の多い順に順位(同じ点なら、残りの資源が多い方が上)
  *
- * シミュレーション(CPU の作戦4つ: 広げる・攻める・こもる・王都をねらう。8ターン):
- *   最初の形(地域ごとに兵を置く)は動きがなかった(城が落ちるのは1〜2%)→ 部隊を動かす形に
- *   空いた城にそのまま入れて、こもる作戦が強すぎた → 城の守備兵・捕虜・王都の点を調整
- *   いまは 4人で22〜29%(平均25%)・6人で14〜19%(平均17%)・8人で10〜15%(平均13%)。城を落とされる人は約4割、戦いは1ゲーム4〜14回
+ * シミュレーション(CPU の作戦: 村を広げる・町にする・じゃま・バランス。全員が王宮を狙う。12ターン):
+ *   最初の形は「王宮を取ると毎ターン資源が増える」で、王宮ねらいが強すぎた(4人で71%)・じゃまは0%
+ *   → 王宮は点だけ・封鎖は横取りに・町を安く。いまは 4人で 35% / 13% / 23% / 28%
  *
- * 公平さ: 命令は全員がそろうまでホストだけが持つ(公開まで、だれにも見えない)。戦いの計算もホストだけ。
- *   命令は時間内に出せばよいので、押す速さや通信の遅れは関係ない。
+ * 公平さ: サイコロはホストが振る。計画は全員そろうまでホストだけが持ち、同時に行う。押す速さや通信の遅れは関係ない
  */
 (function(){
 'use strict';
 window.NomiGames = window.NomiGames || {};
 const CFG = {
-  THINK_MS: 30000, HARD_MS: 20000, FIRST_PLUS: 10000,   // 考える時間(1ターン目は少し長く)
-  GRACE: 800, SHOW_MS: 4200, READY_MS: 1200,            // 通信の遅れのぶん / 結果を見せる時間 / 全員が決定してから動くまで
-  START: 4, ARMIES: 2, GAR: 5, CG: 7, CASTLE_B: 2, PRI: .5,
-  TURNS: [6, 8, 10]
+  THINK_MS: 30000, HARD_MS: 20000, FIRST_PLUS: 10000, GRACE: 800, SHOW_MS: 4500, READY_MS: 1200,
+  START: [2, 2, 1], BASE: 1, BLK_N: 2, TURNS: ['9', '12', '15']
 };
-const INC = { castle: 2, capital: 2, village: 1, field: 1 };    // 毎ターン増える兵
-const VAL = { castle: 2, capital: 3, village: 1, field: 1 };    // 毎ターンの点
-const KNM = { castle: '城', capital: '王都', village: '村', field: '野' };
+const RES = ['食', '木', '石'], RCOL = ['#ffd60a', '#30d158', '#a9b0bd'];
+const COST = { v: [1, 2, 0], t: [1, 0, 2], p: [2, 2, 3], b: [0, 1, 1] };
+const PTS = { v: 1, t: 1, p: 4 };
+const ANM = { v: '村', t: '町', p: '王宮', b: '封鎖' };
 const COL = ['#ff453a', '#ffd60a', '#30d158', '#64d2ff', '#bf5af2', '#ff9f0a', '#ff6fb1', '#e8e8ee'];
 
-// 地図: 外側 0..S-1(偶数=城 / 奇数=村)・内側 S..2S-1(野)・王都 2S。S = 人数×2
-function mkMap(N){
-  const S = 2 * N, R = [];
-  for(let i = 0; i < S; i++) R.push({ k: i % 2 === 0 ? 'castle' : 'village', s: i, ring: 0, adj: [] });
-  for(let i = 0; i < S; i++) R.push({ k: 'field', s: i, ring: 1, adj: [] });
-  R.push({ k: 'capital', s: -1, ring: 2, adj: [] });
-  const link = (a, b) => { if(a === b || R[a].adj.includes(b)) return; R[a].adj.push(b); R[b].adj.push(a); };
-  for(let i = 0; i < S; i++){ link(i, S + i); link(i, (i + 1) % S); link(S + i, S + (i + 1) % S); link(S + i, 2 * S); }
-  return { S, R, CAP: 2 * S };
+// 地図: マス番号 = 列×S + 区画(列0=外側)。王宮の地 = 3S。pat: 6マスぶんの [数字, 資源]
+function mkMap(N, pat){
+  const S = 2 * N, C = [];
+  for(let ring = 0; ring < 3; ring++) for(let s = 0; s < S; s++){ const j = (s % 2) * 3 + ring; C.push({ ring, s, n: pat[j][0], r: pat[j][1], adj: [] }); }
+  C.push({ ring: 3, s: -1, n: 0, r: -1, adj: [] });
+  const id = (ring, s) => ring * S + ((s + S) % S);
+  const link = (a, b) => { if(a !== b && !C[a].adj.includes(b)){ C[a].adj.push(b); C[b].adj.push(a); } };
+  for(let s = 0; s < S; s++){ for(let ring = 0; ring < 3; ring++){ link(id(ring, s), id(ring, s + 1)); if(ring < 2) link(id(ring, s), id(ring + 1, s)); } link(id(2, s), 3 * S); }
+  return { S, C, CAP: 3 * S };
+}
+const okPat = pat => Array.isArray(pat) && pat.length === 6 && pat.every(x => Array.isArray(x) && Number.isInteger(x[0]) && x[0] >= 1 && x[0] <= 6 && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= 2);
+const canPay = (r, c) => r.every((v, i) => v >= c[i]);
+const pay = (r, c) => c.forEach((v, i) => { r[i] -= v; });
+// 計画を、ターンのはじめの状態から順に試す(ホストも参加者も同じ計算)。st: { own, lv, blk, pal }。返り値: 行える行動と、残りの資源
+function tryPlan(M, st, p, res0, acts){
+  const r = res0.slice(), ok = [], mine = new Set(); let blkUsed = false;
+  st.own.forEach((o, i) => { if(o === p) mine.add(i); });
+  const nearMine = i => M.C[i].adj.some(j => mine.has(j));
+  const used = new Set();
+  for(const a of acts){
+    if(!Array.isArray(a) || typeof a[0] !== 'string') continue;
+    if(a[0] === 'x'){ const g = a[1], w = a[2]; if(!Number.isInteger(g) || !Number.isInteger(w) || g < 0 || g > 2 || w < 0 || w > 2 || g === w || r[g] < 3) continue; r[g] -= 3; r[w] += 1; ok.push(['x', g, w]); continue; }
+    const i = a[1]; if(!Number.isInteger(i) || i < 0 || i >= M.C.length || used.has(a[0] + i)) continue;
+    const c = M.C[i], k = a[0];
+    if(k === 'v'){ if(i === M.CAP || st.own[i] >= 0 || !nearMine(i) || !canPay(r, COST.v)) continue; }
+    else if(k === 't'){ if(st.own[i] !== p || st.lv[i] !== 1 || i === M.CAP || !canPay(r, COST.t)) continue; }
+    else if(k === 'p'){ if(i !== M.CAP || st.pal >= 0 || st.own[i] >= 0 || !nearMine(i) || !canPay(r, COST.p)) continue; }
+    else if(k === 'b'){ if(blkUsed || i === M.CAP || st.own[i] < 0 || st.own[i] === p || st.blk[i] > 0 || !canPay(r, COST.b)) continue; blkUsed = true; }
+    else continue;
+    if(c === undefined) continue;
+    pay(r, COST[k]); used.add(k + i); ok.push([k, i]);
+  }
+  return { ok, r };
 }
 
-window.NomiGames.kingdom = { id: 'kingdom', name: 'KINGDOM', _map: mkMap, _cfg: CFG, make(E){
+window.NomiGames.kingdom = { id: 'kingdom', name: 'KINGDOM', _map: mkMap, _try: tryPlan, _cost: COST, _cfg: CFG, make(E){
   const $ = E.$, PF = E.fx, NS = 'http://www.w3.org/2000/svg';
+  const rnd32 = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]; };
+  const rndI = n => Math.floor(rnd32() / 4294967296 * n);
   let stopped = false;
   const timers = [];
   const later = (fn, ms) => { const t = setTimeout(() => { if(!stopped) fn(); }, ms); timers.push(t); return t; };
   const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 
   // =====================================================================
-  //  参加者側(表示と命令)
+  //  参加者側(表示と計画)
   // =====================================================================
-  let ph = 'wait', M = null, N = 0, ids = [], me = -1, k = 0, K = 8, own = [], ar = [], gar = 0, sc = [];
-  let orders = new Map(), selA = -1, rd = false, nonce = 0, dl = 0, barMs = 1, barT = 0, readyIds = new Set(), rev = false;
-  let svg = null, gR = null, gA = null, gT = null, gF = null, rot = 0;
-  const regEl = [];
+  let ph = 'wait', M = null, N = 0, ids = [], me = -1, k = 0, K = 12, rev = false;
+  let st = null, res = [], pts = [], dice = [0, 0], gain = [];
+  let plan = [], sel = -1, rd = false, nonce = 0, dl = 0, barMs = 1, barT = 0, readyIds = new Set(), xg = -1;
+  let svg = null, gC = null, gB = null, gP = null, gF = null, rot = 0;
+  const cellEl = [];
   const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); if(attrs) Object.keys(attrs).forEach(a => e.setAttribute(a, attrs[a])); return e; };
+  const RAD = [[72, 98], [48, 72], [26, 48]], MID = [85, 60, 37];
   const ang = s => rot + s * 2 * Math.PI / M.S;
-  function center(i){
-    const r = M.R[i]; if(r.ring === 2) return [0, 0];
-    const a = ang(r.s), rr = r.ring === 0 ? 80 : 46;
-    return [rr * Math.cos(a), rr * Math.sin(a)];
-  }
+  const center = i => { const c = M.C[i]; if(c.ring === 3) return [0, 0]; const a = ang(c.s); return [MID[c.ring] * Math.cos(a), MID[c.ring] * Math.sin(a)]; };
   function wedge(r0, r1, a0, a1){
     const p = (r, a) => (r * Math.cos(a)).toFixed(2) + ' ' + (r * Math.sin(a)).toFixed(2);
     return 'M' + p(r1, a0) + ' A' + r1 + ' ' + r1 + ' 0 0 1 ' + p(r1, a1) + ' L' + p(r0, a1) + ' A' + r0 + ' ' + r0 + ' 0 0 0 ' + p(r0, a0) + ' Z';
   }
   function build(){
-    const box = $('kg-map'); box.textContent = ''; regEl.length = 0;
+    const box = $('kg-map'); box.textContent = ''; cellEl.length = 0;
     svg = el('svg', { viewBox: '-100 -100 200 200', class: 'kg-svg' });
-    gR = el('g'); gA = el('g'); gT = el('g'); gF = el('g');
+    gC = el('g'); gB = el('g'); gP = el('g'); gF = el('g');
     const half = Math.PI / M.S;
-    M.R.forEach((r, i) => {
-      const d = r.ring === 2 ? 'M 0 -29 A 29 29 0 1 1 0 29 A 29 29 0 1 1 0 -29 Z' : r.ring === 0 ? wedge(62, 98, ang(r.s) - half, ang(r.s) + half) : wedge(30, 62, ang(r.s) - half, ang(r.s) + half);
-      const p = el('path', { d, class: 'kgr k-' + r.k });
-      p.addEventListener('click', () => tapRegion(i));
-      gR.appendChild(p);
-      const c = center(i), lb = el('text', { x: c[0].toFixed(1), y: (c[1] + (r.ring === 2 ? 15 : 13)).toFixed(1), class: 'kgl' });
-      lb.textContent = r.k === 'field' ? '' : KNM[r.k];
-      gR.appendChild(lb);
-      regEl.push({ p, lb });
+    M.C.forEach((c, i) => {
+      const d = c.ring === 3 ? 'M 0 -25 A 25 25 0 1 1 0 25 A 25 25 0 1 1 0 -25 Z' : wedge(RAD[c.ring][0], RAD[c.ring][1], ang(c.s) - half, ang(c.s) + half);
+      const p = el('path', { d, class: 'kgr' + (c.ring === 3 ? ' k-cap' : '') });
+      if(c.r >= 0){ p.style.fill = RCOL[c.r]; p.style.fillOpacity = '.13'; }
+      p.addEventListener('click', () => tapCell(i));
+      gC.appendChild(p);
+      const [x, y] = center(i), t = el('text', { x: x.toFixed(1), y: (y + (c.ring === 3 ? -10 : 2.5)).toFixed(1), class: 'kgn' });
+      t.textContent = c.ring === 3 ? '王宮' : String(c.n); if(c.r >= 0) t.style.fill = RCOL[c.r];
+      gC.appendChild(t);
+      cellEl.push(p);
     });
-    svg.appendChild(gR); svg.appendChild(gA); svg.appendChild(gT); svg.appendChild(gF);
+    svg.appendChild(gC); svg.appendChild(gB); svg.appendChild(gP); svg.appendChild(gF);
     box.appendChild(svg);
   }
   function say(big, sub){ $('kg-big').textContent = big || ''; $('kg-sub').textContent = sub || ''; }
   function chips(){
     const box = $('kg-chips'); box.textContent = '';
     ids.forEach((id, p) => {
-      const c = document.createElement('span'); c.className = 'chip kgc' + (ph === 'order' && readyIds.has(id) ? ' on' : '');
+      const c = document.createElement('span'); c.className = 'chip kgc' + (ph === 'plan' && readyIds.has(id) ? ' on' : '');
       const dot = document.createElement('i'); dot.style.background = COL[p % 8]; c.appendChild(dot);
-      const t = document.createElement('span'); t.textContent = (ph === 'order' && readyIds.has(id) ? '✓ ' : '') + E.nameOf(id) + (id === E.myId ? '(あなた)' : '') + '  ' + (sc[p] || 0) + '点';
+      const t = document.createElement('span'); t.textContent = (ph === 'plan' && readyIds.has(id) ? '✓ ' : '') + E.nameOf(id) + (id === E.myId ? '(あなた)' : '') + '  ' + (pts[p] || 0) + '点';
       c.appendChild(t); box.appendChild(c);
     });
   }
+  // 建物・封鎖・計画の表示
   function renderMap(){
-    if(!svg) return;
-    const can = new Set();
-    if(selA >= 0){ const a = ar.find(x => x.id === selA); if(a){ can.add(a.at); M.R[a.at].adj.forEach(j => can.add(j)); } }
-    M.R.forEach((r, i) => {
-      const o = own[i], e = regEl[i];
-      e.p.setAttribute('class', 'kgr k-' + r.k + (o === me && me >= 0 ? ' mine' : '') + (can.has(i) ? ' can' : ''));
-      e.p.style.fill = o >= 0 ? COL[o % 8] : '';
-      e.p.style.fillOpacity = o >= 0 ? (r.k === 'castle' && r.s === 2 * o ? '.5' : '.3') : '';
+    if(!svg || !st) return;
+    gB.textContent = ''; gP.textContent = '';
+    const pv = me >= 0 ? tryPlan(M, st, me, res[me] || [0, 0, 0], plan) : { ok: [] };
+    M.C.forEach((c, i) => {
+      cellEl[i].setAttribute('class', 'kgr' + (c.ring === 3 ? ' k-cap' : '') + (i === sel ? ' sel' : '') + (st.own[i] === me && me >= 0 ? ' mine' : ''));
+      const o = st.own[i], [x, y] = center(i);
+      if(o >= 0){
+        const g = el('g', { transform: 'translate(' + x.toFixed(1) + ' ' + (y + (c.ring === 3 ? 4 : 9)).toFixed(1) + ')', class: 'kgb' });
+        if(c.ring === 3){ const crown = el('path', { d: 'M-9 4 L-9 -4 L-4.5 0 L0 -7 L4.5 0 L9 -4 L9 4 Z' }); crown.style.fill = COL[o % 8]; g.appendChild(crown); }
+        else if(st.lv[i] >= 2){ const b = el('rect', { x: -6, y: -6, width: 12, height: 12, rx: 2 }); b.style.fill = COL[o % 8]; g.appendChild(b); const t = el('rect', { x: -2.5, y: -10, width: 5, height: 5 }); t.style.fill = COL[o % 8]; g.appendChild(t); }
+        else { const b = el('path', { d: 'M-5 5 L-5 -1 L0 -6 L5 -1 L5 5 Z' }); b.style.fill = COL[o % 8]; g.appendChild(b); }
+        gB.appendChild(g);
+      }
+      if(st.blk[i] > 0){ const t = el('text', { x: (x + 8).toFixed(1), y: (y - 4).toFixed(1), class: 'kgk' }); t.textContent = '✕' + st.blk[i]; t.style.fill = COL[st.by[i] % 8]; gB.appendChild(t); }
     });
-    // 部隊
-    gT.textContent = ''; gA.textContent = '';
-    const byAt = new Map(); ar.forEach(a => { if(!byAt.has(a.at)) byAt.set(a.at, []); byAt.get(a.at).push(a); });
-    byAt.forEach((list, at) => list.forEach((a, j) => gT.appendChild(token(a, tokPos(at, j, list.length)))));
-    // 自分の命令(矢印)
-    orders.forEach((to, aid) => {
-      const a = ar.find(x => x.id === aid); if(!a || to === a.at) return;
-      const [x0, y0] = center(a.at), [x1, y1] = center(to), dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-      const sx = x0 + ux * 11, sy = y0 + uy * 11, ex = x1 - ux * 6, ey = y1 - uy * 6;
-      gA.appendChild(el('line', { x1: sx.toFixed(1), y1: sy.toFixed(1), x2: ex.toFixed(1), y2: ey.toFixed(1), class: 'kga' }));
-      const px = -uy * 4, py = ux * 4;
-      gA.appendChild(el('polygon', { points: [ex + ux * 5, ey + uy * 5, ex + px, ey + py, ex - px, ey - py].map(v => v.toFixed(1)).join(' '), class: 'kgh' }));
+    // 自分の計画(半透明)
+    pv.ok.forEach(a => {
+      if(a[0] === 'x') return;
+      const [x, y] = center(a[1]), t = el('text', { x: x.toFixed(1), y: (y + (a[0] === 'p' ? 8 : 12)).toFixed(1), class: 'kgq' });
+      t.textContent = '+' + ANM[a[0]]; gP.appendChild(t);
     });
   }
-  function tokPos(at, j, n){
-    const c = center(at); if(n <= 1) return c;
-    const r = M.R[at], a = r.ring === 2 ? 0 : ang(r.s) + Math.PI / 2, off = (j - (n - 1) / 2) * 15;
-    return [c[0] + Math.cos(a) * off, c[1] + Math.sin(a) * off];
+  function resLine(){
+    const box = $('kg-res'); box.textContent = '';
+    if(me < 0 || !res[me]){ return; }
+    const pv = tryPlan(M, st, me, res[me], plan);
+    RES.forEach((nm, i) => {
+      const d = document.createElement('span'); d.className = 'kgres';
+      const dot = document.createElement('i'); dot.style.background = RCOL[i]; d.appendChild(dot);
+      const t = document.createElement('b'); t.textContent = nm + ' ' + pv.r[i]; d.appendChild(t);
+      const g = gain[me] && gain[me][i] ? gain[me][i] : 0;
+      if(g && ph === 'plan'){ const e = document.createElement('em'); e.textContent = '+' + g; d.appendChild(e); }
+      box.appendChild(d);
+    });
   }
-  function token(a, pos){
-    const g = el('g', { class: 'kgt' + (a.p === me ? ' mine' : '') + (a.id === selA ? ' sel' : ''), transform: 'translate(' + pos[0].toFixed(1) + ' ' + pos[1].toFixed(1) + ')' });
-    const c = el('circle', { r: 9 }); c.style.fill = COL[a.p % 8]; g.appendChild(c);
-    const t = el('text', { y: '3.6' }); t.textContent = String(a.n); g.appendChild(t);
-    return g;
+  // 選んだマスでできること
+  function actions(){
+    const box = $('kg-acts'); box.textContent = '';
+    if(ph !== 'plan' || me < 0) return;
+    const add = (label, cost, fn, on) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'kgab';
+      const t = document.createElement('b'); t.textContent = label; b.appendChild(t);
+      const s = document.createElement('small'); s.textContent = cost.map((v, i) => v ? RES[i] + v : '').filter(Boolean).join(' '); b.appendChild(s);
+      b.disabled = !on; b.addEventListener('click', fn); box.appendChild(b);
+    };
+    const pv = tryPlan(M, st, me, res[me], plan), left = pv.r;
+    if(sel >= 0){
+      const c = M.C[sel], o = st.own[sel];
+      const test = a => tryPlan(M, st, me, res[me], plan.concat([a])).ok.length > pv.ok.length;
+      if(sel === M.CAP){ if(st.pal < 0) add('王宮を建てる(4点)', COST.p, () => addAct(['p', sel]), test(['p', sel])); }
+      else if(o < 0) add('村を建てる(1点)', COST.v, () => addAct(['v', sel]), test(['v', sel]));
+      else if(o === me && st.lv[sel] === 1) add('町にする(+1点・資源2倍)', COST.t, () => addAct(['t', sel]), test(['t', sel]));
+      else if(o !== me) add('封鎖(次の2回を横取り)', COST.b, () => addAct(['b', sel]), test(['b', sel]));
+      if(!box.children.length){ const d = document.createElement('div'); d.className = 'kgnote'; d.textContent = c.ring === 3 ? 'もう王宮がある' : 'ここでは何もできない'; box.appendChild(d); }
+    }
+    // 交換(同じ資源3つ → 好きな資源1つ)
+    const xr = document.createElement('div'); xr.className = 'kgx3';
+    const lb = document.createElement('span'); lb.textContent = xg < 0 ? '交換: 3つ出す' : RES[xg] + '3つ →'; xr.appendChild(lb);
+    RES.forEach((nm, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = nm;
+      if(xg < 0) b.disabled = left[i] < 3; else b.disabled = i === xg;
+      b.addEventListener('click', () => { if(xg < 0){ xg = i; actions(); } else { addAct(['x', xg, i]); xg = -1; } });
+      xr.appendChild(b);
+    });
+    if(xg >= 0){ const c = document.createElement('button'); c.type = 'button'; c.textContent = 'やめる'; c.className = 'no'; c.addEventListener('click', () => { xg = -1; actions(); }); xr.appendChild(c); }
+    box.appendChild(xr);
+    // 計画の一覧(タップで取り消し)
+    if(plan.length){
+      const pl = document.createElement('div'); pl.className = 'kgpl';
+      pv.ok.forEach((a, j) => {
+        const b = document.createElement('button'); b.type = 'button';
+        b.textContent = (a[0] === 'x' ? RES[a[1]] + '3→' + RES[a[2]] + '1' : ANM[a[0]] + (a[0] === 'b' ? '(' + E.nameOf(ids[st.own[a[1]]]) + ')' : '')) + ' ✕';
+        b.addEventListener('click', () => { plan.splice(plan.findIndex(x => x[0] === a[0] && x[1] === a[1] && x[2] === a[2]), 1); changed(); });
+        pl.appendChild(b);
+      });
+      box.appendChild(pl);
+    }
+  }
+  function addAct(a){ if(ph !== 'plan') return; plan.push(a); sel = -1; E.audio.init(); E.audio.beep(660, .06, .14); E.vibrate(15); changed(); }
+  function changed(){
+    plan = tryPlan(M, st, me, res[me], plan).ok;        // 行えないものは外す
+    rd = false; sendPlan(); renderMap(); resLine(); actions(); panel();
+  }
+  function tapCell(i){
+    if(stopped || ph !== 'plan' || me < 0) return;
+    sel = sel === i ? -1 : i; xg = -1;
+    E.audio.init(); E.audio.beep(520, .04, .1);
+    renderMap(); actions();
   }
   function panel(){
-    const box = $('kg-list'); box.textContent = '';
-    const mine = ar.filter(a => a.p === me);
-    if(me < 0){ $('kg-ok').disabled = true; return; }
-    if(!mine.length){ const d = document.createElement('div'); d.className = 'kgo none'; d.textContent = '部隊がいない(城を持っていれば、次のターンに城で新しい部隊ができる)'; box.appendChild(d); }
-    mine.forEach((a, i) => {
-      const to = orders.has(a.id) ? orders.get(a.id) : a.at;
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'kgo' + (a.id === selA ? ' sel' : '');
-      const n = document.createElement('b'); n.textContent = '部隊' + (i + 1) + '(兵' + a.n + ')';
-      const s = document.createElement('span'); s.textContent = to === a.at ? KNM[M.R[a.at].k] + 'に とどまる' : KNM[M.R[to].k] + 'へ 動く';
-      b.appendChild(n); b.appendChild(s);
-      b.addEventListener('click', () => { if(ph !== 'order') return; selA = selA === a.id ? -1 : a.id; E.audio.init(); E.audio.beep(520, .04, .1); renderMap(); panel(); hint(); });
-      box.appendChild(b);
-    });
-    $('kg-ok').disabled = ph !== 'order';
-    $('kg-ok').textContent = rd ? '決定ずみ(変えるときは部隊をタップ)' : '決定!';
+    $('kg-ok').disabled = ph !== 'plan' || me < 0;
+    $('kg-ok').textContent = rd ? '決定ずみ(変えると取り消し)' : '決定!';
     $('kg-ok').classList.toggle('on', rd);
+    $('kg-hint').textContent = ph === 'plan' ? '地図のマスをタップして、建てる・封鎖する。計画は公開まで見えない' : '';
   }
-  function hint(){
-    let t = '';
-    if(ph === 'order') t = selA >= 0 ? '光っている場所をタップ(今いる場所なら、とどまる)' : '地図の自分の部隊(または下の一覧)をタップして、動く先を決める';
-    $('kg-hint').textContent = t;
-  }
-  function tapRegion(i){
-    if(stopped || ph !== 'order' || me < 0) return;
-    if(selA >= 0){
-      const a = ar.find(x => x.id === selA);
-      if(a && (i === a.at || M.R[a.at].adj.includes(i))){
-        orders.set(a.id, i); selA = -1; rd = false; sendOrders();
-        E.audio.init(); E.audio.beep(i === a.at ? 440 : 660, .06, .14); E.vibrate(15);
-        renderMap(); panel(); hint(); return;
-      }
-    }
-    // 自分の部隊がいる場所なら、その部隊を選ぶ(2つあれば交互に)
-    const here = ar.filter(a => a.p === me && a.at === i);
-    if(here.length){ const j = here.findIndex(a => a.id === selA); selA = here[(j + 1) % here.length].id; if(j === here.length - 1) selA = -1; E.audio.init(); E.audio.beep(520, .04, .1); }
-    else selA = -1;
-    renderMap(); panel(); hint();
-  }
-  function sendOrders(){
-    const o = Array.from(orders.entries()).filter(([aid]) => ar.some(a => a.id === aid && a.p === me));
-    E.send({ t: 'or', k, o, rd: rd ? 1 : 0, n: ++nonce }, true);
-  }
-  const onOk = () => { if(stopped || ph !== 'order') return; rd = !rd; selA = -1; sendOrders(); E.audio.init(); E.audio.beep(rd ? 880 : 440, .08, .16); E.vibrate(20); renderMap(); panel(); hint(); };
+  function sendPlan(){ E.send({ t: 'pl', k, a: plan.slice(0, 40), rd: rd ? 1 : 0, n: ++nonce }, true); }
+  const onOk = () => { if(stopped || ph !== 'plan') return; rd = !rd; sel = -1; sendPlan(); E.audio.init(); E.audio.beep(rd ? 880 : 440, .08, .16); E.vibrate(20); renderMap(); actions(); panel(); };
   $('kg-ok').addEventListener('click', onOk);
   function bar(ms){
     dl = performance.now() + ms; barMs = Math.max(1, ms);
@@ -185,102 +231,78 @@ window.NomiGames.kingdom = { id: 'kingdom', name: 'KINGDOM', _map: mkMap, _cfg: 
       if(stopped){ clearInterval(barT); return; }
       const left = Math.max(0, dl - performance.now());
       e.style.transform = 'scaleX(' + Math.min(1, left / barMs).toFixed(3) + ')';
-      if(ph === 'order') $('kg-big').textContent = 'のこり ' + Math.ceil(left / 1000) + ' 秒';
+      if(ph === 'plan') $('kg-big').textContent = 'のこり ' + Math.ceil(left / 1000) + ' 秒';
       if(left <= 0) clearInterval(barT);
     };
     tick(); barT = setInterval(tick, 200); timers.push(barT);
   }
+  function showDice(){
+    const box = $('kg-dice'); box.textContent = '';
+    dice.forEach(v => { const d = document.createElement('b'); d.textContent = String(v); box.appendChild(d); });
+  }
   function onBegin(){
-    stopped = false; ph = 'wait'; M = null; svg = null; ids = []; me = -1; k = 0; own = []; ar = []; sc = []; orders = new Map(); selA = -1; rd = false; readyIds = new Set();
-    $('kg-top').textContent = 'KINGDOM — 国とり';
-    $('kg-map').textContent = ''; $('kg-list').textContent = ''; $('kg-log').textContent = '';
-    say('準備中…', ''); chips(); E.show('s-kingdom');
+    stopped = false; ph = 'wait'; M = null; svg = null; ids = []; me = -1; k = 0; st = null; res = []; pts = []; plan = []; sel = -1; rd = false; readyIds = new Set(); xg = -1;
+    $('kg-top').textContent = 'KINGDOM — 国づくり';
+    ['kg-map', 'kg-acts', 'kg-log', 'kg-res', 'kg-dice'].forEach(id => { $(id).textContent = ''; });
+    say('準備中…', ''); chips(); panel(); E.show('s-kingdom');
     PF.load(); PF.show(true, { amb: [0xf2c14e, 0xffe08a, 0xffffff] });
   }
-  // ホストから届いた盤面を確かめる
-  function okState(m){
-    if(!isInt(m.N, 2, 8) || !Array.isArray(m.ids) || m.ids.length !== m.N || !m.ids.every(x => Number.isInteger(x))) return null;
-    const mp = mkMap(m.N), C = mp.R.length;
-    if(!Array.isArray(m.own) || m.own.length !== C || !m.own.every(o => isInt(o, -1, m.N - 1))) return null;
-    if(!Array.isArray(m.ar) || m.ar.length > 4 * m.N) return null;
-    const a = []; for(const x of m.ar){ if(!Array.isArray(x) || !isInt(x[0], 0, 1e6) || !isInt(x[1], 0, m.N - 1) || !isInt(x[2], 0, C - 1) || !isInt(x[3], 1, 9999)) return null; a.push({ id: x[0], p: x[1], at: x[2], n: x[3] }); }
-    if(!Array.isArray(m.sc) || m.sc.length !== m.N || !m.sc.every(v => isInt(v, 0, 99999)) || !isInt(m.gar, 0, 99)) return null;
-    return { mp, a };
+  // 届いた盤面を確かめる
+  function okBoard(m, n, C){
+    const arr = (a, lo, hi) => Array.isArray(a) && a.length === C && a.every(v => isInt(v, lo, hi));
+    if(!arr(m.own, -1, n - 1) || !arr(m.lv, 0, 2) || !arr(m.blk, 0, 9) || !arr(m.by, -1, n - 1) || !isInt(m.pal, -1, n - 1)) return null;
+    const okR = a => Array.isArray(a) && a.length === n && a.every(x => Array.isArray(x) && x.length === 3 && x.every(v => isInt(v, 0, 999)));
+    if(!okR(m.res) || !Array.isArray(m.pts) || m.pts.length !== n || !m.pts.every(v => isInt(v, 0, 999))) return null;
+    return { own: m.own.slice(), lv: m.lv.slice(), blk: m.blk.slice(), by: m.by.slice(), pal: m.pal };
   }
   function onState(m){
-    if(!isInt(m.k, 1, 99) || !isInt(m.K, 1, 99) || m.k <= k || !Number.isFinite(m.ms)) return;
-    const st = okState(m); if(!st) return;
-    const first = !M || M.S !== st.mp.S;
-    M = st.mp; N = m.N; ids = m.ids.slice(); me = ids.indexOf(E.myId); k = m.k; K = m.K; own = m.own.slice(); ar = st.a; gar = m.gar; sc = m.sc.slice(); rev = m.rev === 1;
+    if(!isInt(m.k, 1, 99) || !isInt(m.K, 1, 99) || m.k <= k || !Number.isFinite(m.ms) || !isInt(m.N, 2, 8) || !Array.isArray(m.ids) || m.ids.length !== m.N || !m.ids.every(Number.isInteger) || !okPat(m.pat)) return;
+    if(!Array.isArray(m.dice) || m.dice.length !== 2 || !m.dice.every(v => isInt(v, 1, 6))) return;
+    const mp = mkMap(m.N, m.pat), b = okBoard(m, m.N, mp.C.length); if(!b) return;
+    const first = !M;
+    M = mp; N = m.N; ids = m.ids.slice(); me = ids.indexOf(E.myId); k = m.k; K = m.K; rev = m.rev === 1;
+    st = b; res = m.res.map(x => x.slice()); pts = m.pts.slice(); dice = m.dice.slice();
+    gain = Array.isArray(m.gain) && m.gain.length === N ? m.gain.map(x => Array.isArray(x) && x.length === 3 && x.every(v => isInt(v, 0, 99)) ? x : [0, 0, 0]) : ids.map(() => [0, 0, 0]);
     if(first){ rot = Math.PI / 2 - (me >= 0 ? 2 * me : 0) * 2 * Math.PI / M.S; build(); }
-    ph = 'order'; orders = new Map(); selA = -1; rd = false; readyIds = new Set();
+    ph = 'plan'; plan = []; sel = -1; rd = false; xg = -1; readyIds = new Set();
     $('kg-top').textContent = 'TURN ' + k + ' / ' + K + (rev ? '(最下位決定)' : '');
-    $('kg-sub').textContent = me < 0 ? '観戦中' : '部隊の動く先を決めよう(命令は公開まで見えない)';
+    showDice();
+    const g = me >= 0 ? gain[me] : null, gt = g ? g.map((v, i) => v ? RES[i] + '+' + v : '').filter(Boolean).join(' ') : '';
+    $('kg-sub').textContent = me < 0 ? '観戦中' : 'サイコロ ' + dice.join('・') + (gt ? '  → ' + gt : '  → 今回は資源なし');
     $('kg-log').textContent = '';
-    renderMap(); panel(); hint(); chips();
+    renderMap(); resLine(); actions(); panel(); chips();
     bar(Math.max(1000, Math.min(CFG.THINK_MS + CFG.FIRST_PLUS, m.ms)));
+    PF.pop($('kg-dice'), { color: 0xf2c14e, power: 1.2 });
     E.audio.beep(660, .08, .16); later(() => E.audio.beep(880, .1, .16), 90); E.vibrate([30, 40, 30]);
   }
-  // ---- 結果: 動く → 戦い → 新しい地図 ----
   function onResult(m){
-    if(m.k !== k || ph !== 'order') return;
-    const st = okState(Object.assign({}, m, { N, ids, K })); if(!st) return;
-    const mv = Array.isArray(m.mv) ? m.mv.filter(x => Array.isArray(x) && isInt(x[0], 0, 1e6) && isInt(x[1], 0, M.R.length - 1) && isInt(x[2], 0, M.R.length - 1)) : [];
-    const bt = Array.isArray(m.bt) ? m.bt.filter(x => Array.isArray(x) && isInt(x[0], 0, M.R.length - 1) && Number.isInteger(x[1]) && Array.isArray(x[2])).slice(0, 40) : [];
-    const cap = Array.isArray(m.cap) ? m.cap.filter(x => Array.isArray(x) && isInt(x[0], 0, M.R.length - 1) && isInt(x[1], -1, N - 1) && isInt(x[2], -1, N - 1)).slice(0, 16) : [];
+    if(m.k !== k || ph !== 'plan' || !M) return;
+    const b = okBoard(m, N, M.C.length); if(!b) return;
+    const done = Array.isArray(m.done) ? m.done.filter(x => Array.isArray(x) && isInt(x[0], 0, N - 1) && typeof x[1] === 'string' && ANM[x[1]] && isInt(x[2], 0, M.C.length - 1) && (x[3] === 0 || x[3] === 1)).slice(0, 80) : [];
     ph = 'show'; clearInterval(barT); $('kg-bar').firstElementChild.style.transform = 'scaleX(0)';
-    orders = new Map(); selA = -1; panel(); hint();
-    say('オープン!', '');
-    E.audio.beep(392, .12, .2);
-    // 1) 全員の部隊が動く(前の兵の数のまま)
-    const before = ar.slice(), moves = new Map(mv.map(x => [x[0], x]));
-    gA.textContent = '';
-    gT.textContent = '';
-    const toks = before.map(a => { const g = token(a, center(a.at)); gT.appendChild(g); return { a, g, x: moves.get(a.id) }; });
-    const t0 = performance.now(), D = 900;
-    const step = () => {
-      if(stopped) return;
-      const f = Math.min(1, (performance.now() - t0) / D), e = f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
-      toks.forEach(t => {
-        const from = center(t.a.at), to = t.x ? center(t.x[2]) : from;
-        t.g.setAttribute('transform', 'translate(' + (from[0] + (to[0] - from[0]) * e).toFixed(1) + ' ' + (from[1] + (to[1] - from[1]) * e).toFixed(1) + ')');
-      });
-      if(f < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    // 2) 戦い
-    later(() => {
-      if(!bt.length) return;
-      bt.forEach(x => {
-        const c = center(x[0]), t = el('text', { x: c[0].toFixed(1), y: (c[1] + 5).toFixed(1), class: 'kgx' }); t.textContent = '⚔'; gF.appendChild(t);
-        later(() => t.remove(), 1400);
-      });
-      E.audio.boom(.35); E.vibrate([0, 80, 40, 80]);
-      say('戦い!', bt.length + 'か所');
-    }, D + 100);
-    // 3) 新しい地図と、できごと
-    later(() => {
-      own = m.own.slice(); ar = st.a; gar = m.gar; sc = m.sc.slice();
-      renderMap(); chips();
-      const log = [];
-      cap.forEach(x => {
-        const r = M.R[x[0]];
-        if(r.k === 'capital') log.push((x[2] >= 0 ? E.nameOf(ids[x[2]]) : 'だれか') + ' が王都を取った!');
-        else if(r.k === 'castle' && x[1] >= 0) log.push(E.nameOf(ids[x[1]]) + ' の城が ' + (x[2] >= 0 ? E.nameOf(ids[x[2]]) : 'だれか') + ' に落とされた!');
-      });
-      bt.forEach(x => {
-        if(M.R[x[0]].k === 'castle' && cap.some(c => c[0] === x[0])) return;
-        const sides = x[2].filter(s => Array.isArray(s) && Number.isInteger(s[0])).map(s => s[0] === -9 ? '王都の守備兵' : s[0] >= 0 && s[0] < N ? E.nameOf(ids[s[0]]) : '?');
-        const w = x[1] === -9 ? '王都の守備兵' : x[1] >= 0 && x[1] < N ? E.nameOf(ids[x[1]]) : '';
-        log.push(KNM[M.R[x[0]].k] + 'で ' + sides.join(' vs ') + (w ? ' → ' + w + ' の勝ち' : ' → 相打ち'));
-      });
-      const lb = $('kg-log'); lb.textContent = '';
-      log.slice(0, 6).forEach(t => { const d = document.createElement('div'); d.textContent = t; lb.appendChild(d); });
-      const myCastle = cap.some(x => M.R[x[0]].k === 'castle' && x[1] === me && me >= 0), iTook = cap.some(x => x[2] === me && me >= 0);
-      if(myCastle){ PF.slam('落城…', { color: 0xff453a, size: 56 }); E.audio.scare(); E.vibrate([0, 200, 80, 400]); }
-      else if(iTook){ PF.slam(cap.some(x => x[2] === me && M.R[x[0]].k === 'capital') ? '王都を取った!' : '城を落とした!', { color: 0xf2c14e, size: 48 }); E.audio.beep(1175, .2, .25); E.vibrate([0, 60, 40, 120]); }
-      say(m.over ? 'おわり!' : 'TURN ' + k + ' おわり', me >= 0 ? 'あなた ' + (sc[me] || 0) + '点 / 領地 ' + own.filter(o => o === me).length : '');
-    }, D + 1100);
+    plan = []; sel = -1; xg = -1;
+    st = b; res = m.res.map(x => x.slice()); pts = m.pts.slice();
+    renderMap(); resLine(); actions(); panel(); chips();
+    // できごと
+    const log = [], who = p => p === me ? 'あなた' : E.nameOf(ids[p]);
+    done.forEach(x => {
+      const [x0, y0] = center(x[2]);
+      if(x[3] === 1){
+        const t = el('text', { x: x0.toFixed(1), y: (y0 - 6).toFixed(1), class: 'kgfx' }); t.textContent = x[1] === 'b' ? '✕' : '★'; t.style.fill = COL[x[0] % 8]; gF.appendChild(t); later(() => t.remove(), 1600);
+        if(x[1] === 'p') log.push(who(x[0]) + ' が王宮を建てた!');
+        else if(x[1] === 'b') log.push(who(x[0]) + ' が ' + who(m.own[x[2]]) + ' の土地を封鎖');
+      }else if(x[1] === 'v' || x[1] === 'p') log.push(who(x[0]) + ' の' + ANM[x[1]] + 'は、かぶって建たなかった');
+    });
+    const cnt = ids.map(() => ({ v: 0, t: 0 }));
+    done.forEach(x => { if(x[3] === 1 && (x[1] === 'v' || x[1] === 't')) cnt[x[0]][x[1]]++; });
+    cnt.forEach((c, p) => { if(c.v || c.t) log.push(who(p) + ': ' + [c.v ? '村+' + c.v : '', c.t ? '町+' + c.t : ''].filter(Boolean).join(' ')); });
+    const lb = $('kg-log'); lb.textContent = '';
+    log.slice(0, 8).forEach(t => { const d = document.createElement('div'); d.textContent = t; lb.appendChild(d); });
+    const myPal = done.some(x => x[0] === me && x[1] === 'p' && x[3] === 1), hitMe = done.some(x => x[1] === 'b' && x[3] === 1 && m.own[x[2]] === me);
+    if(myPal){ PF.slam('王宮!', { color: 0xf2c14e, size: 60 }); PF.confetti(80); E.audio.beep(1175, .2, .25); E.vibrate([0, 60, 40, 120]); }
+    else if(hitMe){ E.audio.beep(220, .2, .2); E.vibrate([0, 120, 60, 120]); }
+    else E.audio.beep(784, .1, .16);
+    say(m.over ? 'おわり!' : 'TURN ' + k + ' おわり', me >= 0 ? 'あなた ' + (pts[me] || 0) + '点' : '');
   }
   function onMsg(m){
     if(stopped || !m || typeof m.t !== 'string') return;
@@ -290,18 +312,18 @@ window.NomiGames.kingdom = { id: 'kingdom', name: 'KINGDOM', _map: mkMap, _cfg: 
     else if(m.t === 'res' && Array.isArray(m.rows)) showRes(m);
   }
   function showRes(m){
-    const rows = m.rows.filter(x => Array.isArray(x) && Number.isInteger(x[0]) && isInt(x[1], 0, 99999) && isInt(x[2], 0, 99)).slice(0, 8);
+    const rows = m.rows.filter(x => Array.isArray(x) && Number.isInteger(x[0]) && isInt(x[1], 0, 999) && isInt(x[2], 0, 9999)).slice(0, 8);
     if(!rows.length) return;
     ph = 'end'; clearInterval(barT);
     const rv = m.rev === 1, lines = []; let pl = 0;
-    rows.forEach((x, i) => { if(i === 0 || x[1] !== rows[i - 1][1] || x[2] !== rows[i - 1][2]) pl = i + 1; lines.push({ pl, id: x[0], a: pl + '位  ' + E.nameOf(x[0]), b: x[1] + '点  領地' + x[2], cls: '' }); });
+    rows.forEach((x, i) => { if(i === 0 || x[1] !== rows[i - 1][1] || x[2] !== rows[i - 1][2]) pl = i + 1; lines.push({ pl, id: x[0], a: pl + '位  ' + E.nameOf(x[0]), b: x[1] + '点' + (isInt(x[3], 0, 99) ? '  村' + x[3] : '') + (isInt(x[4], 0, 99) ? '・町' + x[4] : '') + (x[5] === 1 ? '・王宮' : ''), cls: '' }); });
     const maxPl = lines[lines.length - 1].pl;
     lines.forEach(l => { l.cls = rv ? (l.pl === maxPl && maxPl > 1 ? 'lose' : '') : (l.pl === 1 ? 'win' : ''); });
     const tops = lines.filter(l => l.pl === 1), lasts = lines.filter(l => l.pl === maxPl && maxPl > 1);
     const iWin = tops.some(l => l.id === E.myId), iLast = lasts.some(l => l.id === E.myId);
     const pen = rv ? (!lasts.length ? '最下位なし' : iLast ? 'あなたが最下位…' : lasts.map(l => E.nameOf(l.id)).join('・') + ' が最下位!')
-      : (tops.length > 1 ? '同率1位: ' + tops.map(l => E.nameOf(l.id)).join('・') : iWin ? 'あなたの天下!' : E.nameOf(tops[0].id) + ' の天下!');
-    E.showResult({ title: 'KINGDOM', reason: '全' + K + 'ターン' + (rv ? ' — 最下位決定' : ''), pen, lines, stats: '点は毎ターン、持っている領地で入る(王都3・城2・ほか1)。\n同じ点なら、最後の領地が多い方が上。' });
+      : (tops.length > 1 ? '同率1位: ' + tops.map(l => E.nameOf(l.id)).join('・') : iWin ? 'あなたの国が一番!' : E.nameOf(tops[0].id) + ' の国が一番!');
+    E.showResult({ title: 'KINGDOM', reason: '全' + K + 'ターン' + (rv ? ' — 最下位決定' : ''), pen, lines, stats: '村1点・町2点・王宮4点。\n同じ点なら、残りの資源が多い方が上。' });
     PF.show(true);
     if(rv){ E.audio.scare(); E.vibrate(iLast ? [0, 200, 80, 400] : [0, 120]); later(() => PF.doom($('r-pen')), 200); }
     else{ if(iWin) E.vibrate([80, 60, 80, 60, 300]); later(() => { const r = $('r-lines').firstElementChild; PF.confetti(140); if(r && tops.length === 1) PF.rowIn(r, 'win'); }, 200); }
@@ -310,124 +332,93 @@ window.NomiGames.kingdom = { id: 'kingdom', name: 'KINGDOM', _map: mkMap, _cfg: 
   // =====================================================================
   //  ホスト(審判)
   // =====================================================================
-  const H = { deadline: 0, ph: 'idle', M: null, N: 0, ids: [], own: [], A: [], gar: 0, k: 0, K: 8, ms: CFG.THINK_MS, sc: [], ord: new Map(), aid: 0, t: 0, rev: false };
+  const H = { ph: 'idle', M: null, N: 0, ids: [], pat: null, own: [], lv: [], blk: [], by: [], pal: -1, res: [], pts: [], gain: [], k: 0, K: 12, ms: CFG.THINK_MS, plan: new Map(), t: 0, deadline: 0, rev: false };
   const readOn = (key, ok, d) => { try{ const b = document.querySelector('#l-kingdom button[data-' + key + '].on'); const v = b ? b.dataset[key] : null; return ok(v) ? v : d; }catch(e){ return d; } };
   const presentSlots = () => { const h = new Set(E.players().map(p => p.id)); return H.ids.map((id, p) => h.has(id) ? p : -1).filter(p => p >= 0); };
+  const board = () => ({ own: H.own.slice(), lv: H.lv.slice(), blk: H.blk.slice(), by: H.by.slice(), pal: H.pal, res: H.res.map(r => r.slice()), pts: H.pts.slice() });
   function hostStart(){
-    H.K = +readOn('t', v => ['6', '8', '10'].includes(v), '8');
+    H.K = +readOn('t', v => CFG.TURNS.includes(v), '12');
     H.ms = readOn('h', v => v === '0' || v === '1', '0') === '1' ? CFG.HARD_MS : CFG.THINK_MS;
     H.rev = readOn('v', v => v === 'top' || v === 'last', 'top') === 'last';
-    H.ids = E.players().map(p => p.id).slice(0, 8); H.N = H.ids.length; H.M = mkMap(H.N);
-    H.own = H.M.R.map(() => -1); H.A = []; H.aid = 0; H.gar = CFG.GAR; H.k = 0; H.sc = H.ids.map(() => 0);
-    for(let p = 0; p < H.N; p++){ H.own[2 * p] = p; for(let j = 0; j < CFG.ARMIES; j++) H.A.push({ id: ++H.aid, p, at: 2 * p, n: CFG.START }); }
+    H.ids = E.players().map(p => p.id).slice(0, 8); H.N = H.ids.length;
+    // 6マスのならび: 数字1〜6を1つずつ、資源は2つずつ
+    const nums = [1, 2, 3, 4, 5, 6], rs = [0, 0, 1, 1, 2, 2];
+    for(const a of [nums, rs]) for(let i = a.length - 1; i > 0; i--){ const j = rndI(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+    H.pat = nums.map((n, i) => [n, rs[i]]);
+    H.M = mkMap(H.N, H.pat);
+    const C = H.M.C.length;
+    H.own = new Array(C).fill(-1); H.lv = new Array(C).fill(0); H.blk = new Array(C).fill(0); H.by = new Array(C).fill(-1); H.pal = -1;
+    for(let p = 0; p < H.N; p++){ [2 * p, H.M.S + 2 * p].forEach(i => { H.own[i] = p; H.lv[i] = 1; }); }
+    H.res = H.ids.map(() => CFG.START.slice()); H.pts = H.ids.map(() => 2); H.k = 0;
     beginTurn();
   }
-  const pack = () => ({ N: H.N, ids: H.ids, own: H.own.slice(), ar: H.A.map(a => [a.id, a.p, a.at, a.n]), gar: H.gar, sc: H.sc.slice() });
   function beginTurn(){
     if(stopped) return;
-    H.k++; H.ph = 'order'; H.ord = new Map();
-    // 兵が増える: 領地のぶんを、自分の部隊に分けて入れる。部隊がなく、城を持っていれば、城に新しい部隊
-    presentSlots().forEach(p => {
-      const g = H.M.R.reduce((s, r, i) => s + (H.own[i] === p ? INC[r.k] : 0), 0), mine = H.A.filter(a => a.p === p);
-      if(!g) return;
-      if(!mine.length){
-        const home = H.own[2 * p] === p ? 2 * p : H.M.R.findIndex((r, i) => r.k === 'castle' && H.own[i] === p);
-        if(home >= 0) H.A.push({ id: ++H.aid, p, at: home, n: g });
-        return;
-      }
-      mine.forEach((a, i) => { a.n += Math.floor(g / mine.length) + (i < g % mine.length ? 1 : 0); });
+    H.k++; H.ph = 'plan'; H.plan = new Map();
+    const d = [1 + rndI(6), 1 + rndI(6)];
+    H.gain = H.ids.map(() => [0, 0, 0]);
+    const here = new Set(presentSlots());
+    H.M.C.forEach((c, i) => {
+      const o = H.own[i]; if(o < 0 || c.ring === 3) return;
+      const n = d.filter(x => x === c.n).length; if(!n) return;
+      const amt = n * H.lv[i];
+      if(H.blk[i] > 0){ H.blk[i]--; const b = H.by[i]; if(H.blk[i] === 0) H.by[i] = -1; if(b >= 0 && here.has(b)){ H.res[b][c.r] += amt; H.gain[b][c.r] += amt; } return; }
+      if(here.has(o)){ H.res[o][c.r] += amt; H.gain[o][c.r] += amt; }
     });
+    here.forEach(p => { const r = rndI(3); H.res[p][r] += CFG.BASE; H.gain[p][r] += CFG.BASE; });
+    H.res = H.res.map(r => r.map(v => Math.min(999, v)));
     const ms = H.ms + (H.k === 1 ? CFG.FIRST_PLUS : 0);
-    E.hostBcast(Object.assign({ t: 'ks', k: H.k, K: H.K, ms, rev: H.rev ? 1 : 0 }, pack()), true);
+    E.hostBcast(Object.assign({ t: 'ks', k: H.k, K: H.K, ms, rev: H.rev ? 1 : 0, N: H.N, ids: H.ids, pat: H.pat, dice: d, gain: H.gain }, board()), true);
     H.deadline = performance.now() + ms + CFG.GRACE;
     clearTimeout(H.t); H.t = setTimeout(resolve, ms + CFG.GRACE);
   }
-  // 部隊のない人は、決定ずみとあつかう
-  const allReady = () => presentSlots().every(p => !H.A.some(a => a.p === p) || (H.ord.get(H.ids[p]) || {}).rd);
+  const allReady = () => presentSlots().every(p => (H.plan.get(H.ids[p]) || {}).rd);
   function hostOnMsg(id, m){
-    if(!m || m.t !== 'or' || H.ph !== 'order' || m.k !== H.k || !Array.isArray(m.o) || !Number.isInteger(m.n)) return;
+    if(!m || m.t !== 'pl' || H.ph !== 'plan' || m.k !== H.k || !Array.isArray(m.a) || !Number.isInteger(m.n)) return;
     const p = H.ids.indexOf(id); if(p < 0) return;
-    const was = H.ord.get(id); if(was && m.n <= was.n) return;
-    const mv = new Map();
-    m.o.slice(0, 8).forEach(x => {
-      if(!Array.isArray(x) || !Number.isInteger(x[0]) || !Number.isInteger(x[1])) return;
-      const a = H.A.find(y => y.id === x[0] && y.p === p);
-      if(a && (x[1] === a.at || H.M.R[a.at].adj.includes(x[1]))) mv.set(a.id, x[1]);
-    });
-    H.ord.set(id, { mv, rd: m.rd === 1, n: m.n });
-    E.hostBcast({ t: 'kp', k: H.k, ids: Array.from(H.ord.entries()).filter(([, o]) => o.rd).map(([i]) => i) }, false);
+    const was = H.plan.get(id); if(was && m.n <= was.n) return;
+    H.plan.set(id, { a: m.a.slice(0, 40), rd: m.rd === 1, n: m.n });
+    E.hostBcast({ t: 'kp', k: H.k, ids: Array.from(H.plan.entries()).filter(([, o]) => o.rd).map(([i]) => i) }, false);
     clearTimeout(H.t);
-    if(allReady()) H.t = setTimeout(resolve, CFG.READY_MS);
-    else H.t = setTimeout(resolve, Math.max(0, H.deadline - performance.now()));
+    H.t = setTimeout(resolve, allReady() ? CFG.READY_MS : Math.max(0, H.deadline - performance.now()));
   }
   function hostOnLeave(id){
     const p = H.ids.indexOf(id); if(p < 0) return;
-    H.A = H.A.filter(a => a.p !== p);
-    H.own = H.own.map(o => o === p ? -1 : o);
-    if(H.ph === 'order' && allReady()){ clearTimeout(H.t); H.t = setTimeout(resolve, CFG.READY_MS); }
+    if(H.ph === 'plan' && presentSlots().length && allReady()){ clearTimeout(H.t); H.t = setTimeout(resolve, CFG.READY_MS); }
   }
   function resolve(){
-    if(H.ph !== 'order') return;
+    if(H.ph !== 'plan') return;
     H.ph = 'show'; clearTimeout(H.t);
-    const R = H.M.R, CAP = H.M.CAP;
-    const from = new Map(H.A.map(a => [a.id, a.at]));
-    H.A.forEach(a => { const o = H.ord.get(H.ids[a.p]); a.to = o && o.mv.has(a.id) ? o.mv.get(a.id) : a.at; });
-    const mv = H.A.map(a => [a.id, a.at, a.to]);
-    const bt = [], cap = [];
-    // すれちがい(A→B と B→A)は道の上で戦う
-    for(let i = 0; i < H.A.length; i++) for(let j = i + 1; j < H.A.length; j++){
-      const a = H.A[i], b = H.A[j]; if(a.p === b.p || a.n <= 0 || b.n <= 0) continue;
-      if(a.to === from.get(b.id) && b.to === from.get(a.id) && a.to !== a.at){
-        const m = Math.min(a.n, b.n), an = a.n, bn = b.n; a.n -= m; b.n -= m;
-        bt.push([a.to, a.n > 0 ? a.p : b.n > 0 ? b.p : -1, [[a.p, an], [b.p, bn]]]);
-      }
-    }
-    H.A.forEach(a => { if(a.n > 0) a.at = a.to; });
-    // 同じ場所に入ったら戦う(城の持ち主には 守備兵 + 守り。王都は、だれも取っていなければ守備兵)
-    const byAt = new Map(); H.A.forEach(a => { if(a.n <= 0) return; if(!byAt.has(a.at)) byAt.set(a.at, []); byAt.get(a.at).push(a); });
-    byAt.forEach((list, at) => {
-      const r = R[at], side = new Map();
-      list.forEach(a => side.set(a.p, (side.get(a.p) || 0) + a.n));
-      if(at === CAP && H.own[at] === -1 && H.gar > 0) side.set(-9, H.gar);
-      const castleOwner = r.k === 'castle' && H.own[at] >= 0 ? H.own[at] : -1;
-      if(castleOwner >= 0) side.set(castleOwner, (side.get(castleOwner) || 0) + CFG.CG);
-      if(side.size < 2) return;
-      const f = Array.from(side.entries()).map(([p, n]) => ({ p, n: n + (p === castleOwner ? CFG.CASTLE_B : 0) })).sort((x, y) => y.n - x.n);
-      const w = f[0], lose = f[1].n;
-      if(w.n === lose){ list.forEach(a => { a.n = 0; }); if(at === CAP) H.gar = 0; bt.push([at, -1, f.map(x => [x.p, x.n])]); return; }
-      bt.push([at, w.p, f.map(x => [x.p, x.n])]);
-      list.forEach(a => { if(a.p !== w.p) a.n = 0; });
-      if(at === CAP && w.p === -9){ H.gar = Math.max(1, w.n - lose); return; }
-      if(at === CAP) H.gar = 0;
-      const mine = list.filter(a => a.p === w.p);
-      if(!mine.length) return;                                         // 城の守備兵だけで守りきった
-      // 城の守備兵と守りは先に戦う(部隊には加わらない)。勝つと、負けた側の兵の半分が捕虜として加わる
-      const extra = w.p === castleOwner ? CFG.CG + CFG.CASTLE_B : 0, armyN = w.n - extra;
-      const prisoners = Math.floor(f.slice(1).reduce((s, x) => s + (x.p === -9 ? 0 : x.n - (x.p === castleOwner ? CFG.CG + CFG.CASTLE_B : 0)), 0) * CFG.PRI);
-      const left = Math.max(1, armyN - Math.max(0, lose - extra)) + prisoners, tot = mine.reduce((s, a) => s + a.n, 0);
-      mine.forEach(a => { a.n = Math.max(1, Math.round(a.n * left / tot)); });
+    const st0 = { own: H.own.slice(), lv: H.lv.slice(), blk: H.blk.slice(), pal: H.pal };
+    const plans = new Map();
+    presentSlots().forEach(p => { const o = H.plan.get(H.ids[p]); const r = tryPlan(H.M, st0, p, H.res[p], o ? o.a : []); plans.set(p, r); });
+    // 同じ空き地への村・王宮は、どれも建たない(使った資源は半分もどる)
+    const want = new Map();
+    plans.forEach((r, p) => r.ok.forEach(a => { if(a[0] === 'v' || a[0] === 'p'){ if(!want.has(a[1])) want.set(a[1], []); want.get(a[1]).push(p); } }));
+    const done = [];
+    plans.forEach((r, p) => {
+      H.res[p] = r.r;
+      r.ok.forEach(a => {
+        const kd = a[0], i = a[1];
+        if(kd === 'x') return;
+        if(kd === 'v' || kd === 'p'){
+          if(want.get(i).length > 1){ COST[kd].forEach((v, j) => { H.res[p][j] += Math.floor(v / 2); }); done.push([p, kd, i, 0]); return; }
+          H.own[i] = p; H.lv[i] = 1; H.pts[p] += PTS[kd]; if(kd === 'p') H.pal = p;
+        }else if(kd === 't'){ H.lv[i] = 2; H.pts[p] += PTS.t; }
+        else if(kd === 'b'){ H.blk[i] = CFG.BLK_N; H.by[i] = p; }
+        done.push([p, kd, i, 1]);
+      });
     });
-    H.A = H.A.filter(a => a.n > 0);
-    H.A.forEach(a => { delete a.to; });
-    // 部隊が1人分だけいる場所は、その人の領地になる
-    const occ = new Map(); H.A.forEach(a => { if(!occ.has(a.at)) occ.set(a.at, new Set()); occ.get(a.at).add(a.p); });
-    occ.forEach((ps, at) => {
-      if(ps.size !== 1) return;
-      const p = Array.from(ps)[0];
-      if(at === CAP && H.gar > 0) return;
-      if(H.own[at] !== p){ if(R[at].k === 'castle' || R[at].k === 'capital') cap.push([at, H.own[at], p]); H.own[at] = p; }
-    });
-    // 点: 持っている領地で
-    const here = new Set(presentSlots());
-    R.forEach((r, i) => { const o = H.own[i]; if(o >= 0 && here.has(o)) H.sc[o] += VAL[r.k]; });
     const over = H.k >= H.K;
-    E.hostBcast(Object.assign({ t: 'kr', k: H.k, mv, bt, cap, over: over ? 1 : 0 }, pack()), true);
+    E.hostBcast(Object.assign({ t: 'kr', k: H.k, done, over: over ? 1 : 0 }, board()), true);
     clearTimeout(H.t); H.t = setTimeout(over ? final : beginTurn, CFG.SHOW_MS);
   }
   function final(){
     if(H.ph === 'done') return;
     H.ph = 'done'; clearTimeout(H.t);
-    const rows = presentSlots().map(p => [H.ids[p], H.sc[p], H.own.filter(o => o === p).length]).sort((a, b) => (b[1] - a[1]) || (b[2] - a[2]));
+    const sum = p => H.res[p].reduce((a, b) => a + b, 0);
+    const rows = presentSlots().map(p => [H.ids[p], H.pts[p], sum(p), H.own.filter((o, i) => o === p && H.lv[i] === 1 && i !== H.M.CAP).length, H.own.filter((o, i) => o === p && H.lv[i] === 2).length, H.pal === p ? 1 : 0])
+      .sort((a, b) => (b[1] - a[1]) || (b[2] - a[2]));
     E.hostBcast({ t: 'res', rows, rev: H.rev ? 1 : 0 }, true);
   }
   function stop(){
