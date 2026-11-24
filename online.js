@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#hide': 'hide', '#twist': 'twist', '#trace': 'trace', '#kingdom': 'kingdom', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#hide': 'hide', '#twist': 'twist', '#trace': 'trace', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
@@ -265,16 +265,6 @@ const RULES = [
     'コースはレースの直前に発表(運)。スキル選びのときに天気予報(雨の確率)が出る。予報ははずれることもある。レースは全員同時。操作はニトロを押すタイミングだけ(1レース1回)',
     'ゴール順にポイント(10・7・5・4・3・2・1・0)。1戦か3戦の合計で順位が決まる',
     'ホストの設定で「優勝を決める」か「最下位を決める」かが変わる'] },
-  { g: 'kingdom', nm: 'KINGDOM', sub: '国づくり', ic: 'i-kingdom', r: [
-    '円い地図に、食・木・石の土地がある。土地にはそれぞれ数字(1〜6)。だれのまわりも同じ並び',
-    '全員、村2つと 食2・木2・石1 からスタート',
-    '毎ターン、サイコロを2つ振る。出た目と同じ数字の土地から、村なら1つ・町なら2つ資源が出る(ぞろ目は2倍)。さらに城から資源が1つ(ランダム)',
-    '全員がこっそり計画を立てて(30秒。ハードは20秒)、同時に公開する',
-    '村: 自分の土地のとなりの空き地に(食1・木2)1点 / 町: 自分の村を町に(食1・石2)+1点、資源が2倍 / 王宮: まん中に1つだけ(食2・木2・石3)4点',
-    '封鎖: ほかの人の土地を1つ(1ターン1回・木1・石1)。次の2回、その土地で目が出たら、資源は自分に入る',
-    '交換: 同じ資源3つを、好きな資源1つに',
-    '同じ空き地に同時に建てようとしたら、どちらも建たない(使った資源は半分もどる)',
-    '決めたターン数で終わり。点の多い順(同じ点なら、残りの資源が多い方が上)。ホストの設定で「優勝」か「最下位」を決める'] },
   { g: 'flip', nm: 'FLIP', sub: '数字めくり', ic: 'i-flip', r: [
     '1〜30の数字が書かれたカードが30枚、ばらばらに並ぶ',
     '最初の30秒だけ、全部のカードが表向き。どこに何があるか覚えよう',
@@ -826,7 +816,7 @@ function guestMsg(o){
 //  ボタン
 // =====================================================================
 function saveName(){ myName = clean($('name').value) || 'ゲスト'; $('name').value = myName; try{ localStorage.setItem('nomi-name', myName); }catch(e){} }
-function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-kingdom').classList.toggle('hide', g !== 'kingdom'); $('l-core').classList.toggle('hide', g !== 'core'); $('l-mix').classList.toggle('hide', g !== 'mix'); bcastWant(); }
+function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; document.querySelectorAll('#seg-game button, #l-seg button').forEach(b => b.classList.toggle('on', b.dataset.g === g)); $('l-arena').classList.toggle('hide', g !== 'arena'); $('l-race').classList.toggle('hide', g !== 'race'); $('l-core').classList.toggle('hide', g !== 'core'); $('l-mix').classList.toggle('hide', g !== 'mix'); bcastWant(); }
 // ARENA の育成タイム
 (function(){
   const get = (k, d) => { try{ return localStorage.getItem(k) || d; }catch(e){ return d; } };
@@ -870,19 +860,6 @@ function setWant(g){ wantGame = g; if(!curId) document.body.dataset.game = g; do
   one('r', 'race-n', ['1', '3'], '3');
   one('h', 'race-hard', ['0', '1'], '0');
   one('v', 'race-mode', ['top', 'last'], 'top');
-})();
-// KINGDOM: ターン数 / 考える時間 / 決めるのは
-(function(){
-  const one = (key, store, ok, d) => {
-    const bs = document.querySelectorAll('#l-kingdom button[data-' + key + ']');
-    let v = d; try{ v = localStorage.getItem(store) || d; }catch(e){}
-    if(!ok.includes(v)) v = d;
-    const set = x => { bs.forEach(b => b.classList.toggle('on', b.dataset[key] === x)); try{ localStorage.setItem(store, x); }catch(e){} };
-    set(v); bs.forEach(b => b.addEventListener('click', () => set(b.dataset[key])));
-  };
-  one('t', 'kingdom-turns2', ['9', '12', '15'], '12');
-  one('h', 'kingdom-hard', ['0', '1'], '0');
-  one('v', 'kingdom-mode', ['top', 'last'], 'top');
 })();
 // MIX: 戦数
 (function(){
