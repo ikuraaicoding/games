@@ -293,38 +293,7 @@ function make(id, send, chat){
     }
   };
 
-  // ---------------- KINGDOM ----------------
-  // シミュレーションと同じ作戦(村を広げる・町にする・じゃま・バランス)から1つ。王宮はだれでも狙う。足りなければ 3→1 で交換
-  const KORD = [['p', 'v', 't'], ['p', 't', 'v'], ['p', 'b', 'v', 't'], ['p', 'v', 'b', 't']];
-  const kingdom = {
-    begin(){ S.kg = { ord: KORD[ri(0, KORD.length - 1)], n: 0 }; },
-    msg(m){
-      const KG = window.NomiGames && window.NomiGames.kingdom;
-      if(!KG || m.t !== 'ks' || !Array.isArray(m.ids) || !Array.isArray(m.res)) return;
-      const p = m.ids.indexOf(id); if(p < 0 || !Array.isArray(m.res[p])) return;
-      const M = KG._map(m.N, m.pat), COST = KG._cost, st = { own: m.own, lv: m.lv, blk: m.blk, pal: m.pal };
-      const plan = [], r = () => KG._try(M, st, p, m.res[p], plan).r;
-      const fits = a => KG._try(M, st, p, m.res[p], plan.concat([a])).ok.length > KG._try(M, st, p, m.res[p], plan).ok.length;
-      // 足りないものを 3→1 で補う(いちばん多いものから)
-      const trade = c => { for(let n = 0; n < 3; n++){ const rr = r(), miss = c.map((v, i) => Math.max(0, v - rr[i])), w = miss.indexOf(Math.max(...miss)); if(miss[w] <= 0) return; const g = rr.indexOf(Math.max(...rr)); if(g === w || rr[g] - c[g] < 3) return; plan.push(['x', g, w]); } };
-      const tryAdd = (a, c) => { if(!fits(a)) trade(c); if(fits(a)){ plan.push(a); return true; } return false; };
-      const mine = []; m.own.forEach((o, i) => { if(o === p) mine.push(i); });
-      S.kg.ord.forEach(kd => {
-        if(kd === 'p') tryAdd(['p', M.CAP], COST.p);
-        else if(kd === 't') mine.filter(i => m.lv[i] === 1 && i !== M.CAP).forEach(i => tryAdd(['t', i], COST.t));
-        else if(kd === 'v'){ const es = new Set(); mine.forEach(i => M.C[i].adj.forEach(j => { if(m.own[j] < 0 && j !== M.CAP) es.add(j); })); Array.from(es).sort(() => rnd() - .5).forEach(i => tryAdd(['v', i], COST.v)); }
-        else if(kd === 'b'){
-          let best = -1, bv = 0;
-          m.own.forEach((o, i) => { if(o >= 0 && o !== p && i !== M.CAP && !m.blk[i]){ const v = m.lv[i] * ((m.pts && m.pts[o]) || 0) + rnd(); if(v > bv){ bv = v; best = i; } } });
-          if(best >= 0 && fits(['b', best])) plan.push(['b', best]);
-        }
-      });
-      const k = m.k, a = KG._try(M, st, p, m.res[p], plan).ok;
-      later(() => send({ t: 'pl', k, a, rd: 1, n: ++S.kg.n }), ri(2500, 9000));
-    }
-  };
-
-  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, kingdom, arena, race };
+  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;
