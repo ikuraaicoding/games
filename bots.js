@@ -294,40 +294,33 @@ function make(id, send, chat){
   };
 
   // ---------------- KINGDOM ----------------
-  // シミュレーションと同じ4つの作戦(広げる・攻める・こもる・王都ねらい)から1つ。部隊ごとに、となりの場所を点数で選ぶ
-  const KPOL = [
-    { raid: 2, cap: 4, brave: .9, hunt: 0, guard: 1, toward: .3, noise: 3 },
-    { raid: 8, cap: 4, brave: .7, hunt: 4, guard: 0, toward: .5, noise: 3 },
-    { raid: 0, cap: 0, brave: 1.3, hunt: -2, guard: 1, toward: 0, noise: 2 },
-    { raid: 0, cap: 14, brave: 1, hunt: 0, guard: 1, toward: 2, noise: 3 }
-  ];
+  // シミュレーションと同じ作戦(村を広げる・町にする・じゃま・バランス)から1つ。王宮はだれでも狙う。足りなければ 3→1 で交換
+  const KORD = [['p', 'v', 't'], ['p', 't', 'v'], ['p', 'b', 'v', 't'], ['p', 'v', 'b', 't']];
   const kingdom = {
-    begin(){ S.kg = { pol: KPOL[ri(0, KPOL.length - 1)], n: 0 }; },
+    begin(){ S.kg = { ord: KORD[ri(0, KORD.length - 1)], n: 0 }; },
     msg(m){
       const KG = window.NomiGames && window.NomiGames.kingdom;
-      if(!KG || m.t !== 'ks' || !Array.isArray(m.ids) || !Array.isArray(m.ar) || !Array.isArray(m.own)) return;
-      const p = m.ids.indexOf(id); if(p < 0) return;
-      const M = KG._map(m.N), R = M.R, pol = S.kg.pol, home = 2 * p;
-      const val = r => r.k === 'capital' ? 3 : r.k === 'castle' ? 2 : 1, inc = r => r.k === 'castle' || r.k === 'capital' ? 2 : 1;
-      const A = m.ar.map(x => ({ id: x[0], p: x[1], at: x[2], n: x[3] }));
-      const enemyNear = at => { let mx = 0; R[at].adj.concat([at]).forEach(j => A.forEach(a => { if(a.p !== p && a.at === j) mx = Math.max(mx, a.n); })); return mx; };
-      const o = A.filter(a => a.p === p).map(a => {
-        let best = a.at, bv = -1e9;
-        R[a.at].adj.concat([a.at]).forEach(j => {
-          const r = R[j]; let v = 0;
-          if(m.own[j] !== p) v += val(r) * 2 + inc(r);
-          if(m.own[j] >= 0 && m.own[j] !== p && r.k === 'castle') v += pol.raid - (a.n < 12 ? 8 : 0);   // 城には守備兵がいる
-          if(j === M.CAP) v += pol.cap - (m.own[j] === -1 ? (m.gar || 0) * .6 : 0);
-          const en = enemyNear(j);
-          if(en > a.n * pol.brave) v -= 6; else if(en > 0) v += pol.hunt;
-          if(pol.guard && j === home && m.own[home] === p && enemyNear(home) > a.n) v += 5;
-          v += -(2 - r.ring) * pol.toward + rnd() * pol.noise;
-          if(v > bv){ bv = v; best = j; }
-        });
-        return [a.id, best];
+      if(!KG || m.t !== 'ks' || !Array.isArray(m.ids) || !Array.isArray(m.res)) return;
+      const p = m.ids.indexOf(id); if(p < 0 || !Array.isArray(m.res[p])) return;
+      const M = KG._map(m.N, m.pat), COST = KG._cost, st = { own: m.own, lv: m.lv, blk: m.blk, pal: m.pal };
+      const plan = [], r = () => KG._try(M, st, p, m.res[p], plan).r;
+      const fits = a => KG._try(M, st, p, m.res[p], plan.concat([a])).ok.length > KG._try(M, st, p, m.res[p], plan).ok.length;
+      // 足りないものを 3→1 で補う(いちばん多いものから)
+      const trade = c => { for(let n = 0; n < 3; n++){ const rr = r(), miss = c.map((v, i) => Math.max(0, v - rr[i])), w = miss.indexOf(Math.max(...miss)); if(miss[w] <= 0) return; const g = rr.indexOf(Math.max(...rr)); if(g === w || rr[g] - c[g] < 3) return; plan.push(['x', g, w]); } };
+      const tryAdd = (a, c) => { if(!fits(a)) trade(c); if(fits(a)){ plan.push(a); return true; } return false; };
+      const mine = []; m.own.forEach((o, i) => { if(o === p) mine.push(i); });
+      S.kg.ord.forEach(kd => {
+        if(kd === 'p') tryAdd(['p', M.CAP], COST.p);
+        else if(kd === 't') mine.filter(i => m.lv[i] === 1 && i !== M.CAP).forEach(i => tryAdd(['t', i], COST.t));
+        else if(kd === 'v'){ const es = new Set(); mine.forEach(i => M.C[i].adj.forEach(j => { if(m.own[j] < 0 && j !== M.CAP) es.add(j); })); Array.from(es).sort(() => rnd() - .5).forEach(i => tryAdd(['v', i], COST.v)); }
+        else if(kd === 'b'){
+          let best = -1, bv = 0;
+          m.own.forEach((o, i) => { if(o >= 0 && o !== p && i !== M.CAP && !m.blk[i]){ const v = m.lv[i] * ((m.pts && m.pts[o]) || 0) + rnd(); if(v > bv){ bv = v; best = i; } } });
+          if(best >= 0 && fits(['b', best])) plan.push(['b', best]);
+        }
       });
-      const k = m.k;
-      later(() => send({ t: 'or', k, o, rd: 1, n: ++S.kg.n }), ri(2000, 8000));
+      const k = m.k, a = KG._try(M, st, p, m.res[p], plan).ok;
+      later(() => send({ t: 'pl', k, a, rd: 1, n: ++S.kg.n }), ri(2500, 9000));
     }
   };
 
