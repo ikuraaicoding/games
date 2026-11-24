@@ -322,7 +322,7 @@ async function join(qrText, h){
   const gid = await gidOf(kp.pub);
   const key = await pairKey(kp.priv, hostPub, roomId);
   const base = PREFIX + roomId, hostBox = base + '/h', myBox = base + '/g/' + gid;
-  const G = { id: -1, welcomed: false, closed: false, lastHb: Date.now(), clock: { offset: 0, rtt: Infinity, n: 0 } };
+  const G = { id: -1, welcomed: false, closed: false, lastHb: Date.now(), clock: { offset: 0, rtt: Infinity, n: 0, from: 0 } };
   const win = new Win(), rel = new Rel(), bwin = new Win(), gkeys = new Map(); let out = 0, stalled = false, vk = null;
   const bcTopic = base + '/b';
   const net = new Net(NomiMQTT.BROKERS, { onMessage, onStatus: s => { if(h.onNet) h.onNet(s); }, onOpen: () => { if(G.welcomed) hb(); } });
@@ -370,7 +370,7 @@ async function join(qrText, h){
   }
   function dispatch(o){
     G.lastHb = Date.now();
-    if(stalled){ stalled = false; if(h.onResume) h.onResume(); }
+    if(stalled){ stalled = false; resync(); if(h.onResume) h.onResume(); }
     switch(o.t){
       case 'welcome':
         if(!G.welcomed && Number.isInteger(o.id)){ G.welcomed = true; G.id = o.id; startSync(); if(h.onWelcome) h.onWelcome(o.id); }
@@ -405,21 +405,28 @@ async function join(qrText, h){
   }, 1500);
   sendRaw('J', { t: 'join', name: clean(h.name) || 'ゲスト' }, false);
 
-  // 時計合わせ(ホストの performance.now() との差を測る。往復が一番短かったものを採用)
+  // 時計合わせ(ホストの performance.now() との差を測る。最近の12回のうち、往復が一番短かったものを採用)
+  // スマホが眠ると performance.now() が止まって差が変わるので、ずっと前の結果には頼らない。
+  // 自分やホストのアプリが止まっていたら、それまでの結果を捨てて測り直す
+  const samples = [];
   function onPong(o){
     if(!Number.isFinite(o.c) || !Number.isFinite(o.h)) return;
     const now = performance.now(), rtt = now - o.c;
-    if(rtt < 0 || rtt > 5000) return;
+    if(rtt < 0 || rtt > 5000 || o.c < G.clock.from) return;
     G.clock.n++;
-    if(rtt < G.clock.rtt){ G.clock.rtt = rtt; G.clock.offset = o.h - (o.c + now) / 2; }
+    samples.push({ rtt, off: o.h - (o.c + now) / 2 });
+    if(samples.length > 12) samples.shift();
+    const b = samples.reduce((a, x) => x.rtt < a.rtt ? x : a);
+    G.clock.rtt = b.rtt; G.clock.offset = b.off;
   }
   function ping(){ if(!G.closed) sendRaw('M', { t: 'ping', c: performance.now() }, false); }
-  let syncT = null;
+  let syncT = null, burstT = null;
+  function burst(n){ clearInterval(burstT); let k = 0; burstT = setInterval(() => { ping(); if(++k >= n) clearInterval(burstT); }, 250); }
   function startSync(){
-    let k = 0;
-    const burst = setInterval(() => { ping(); if(++k >= 10) clearInterval(burst); }, 250);
+    burst(10);
     syncT = setInterval(() => { for(let i = 0; i < 3; i++) setTimeout(ping, i * 250); }, 8000);
   }
+  function resync(){ if(!G.welcomed || G.closed) return; samples.length = 0; G.clock.from = performance.now(); burst(6); }
   G.hostToLocal = t => t - G.clock.offset;
   const hb = () => { if(G.welcomed && !G.closed) sendRaw('M', { t: 'hb', rtt: Number.isFinite(G.clock.rtt) ? Math.round(G.clock.rtt) : 0 }, false); };
   const hbT = setInterval(hb, 3000);
@@ -427,17 +434,17 @@ async function join(qrText, h){
   let lastDog = Date.now();
   const dogT = setInterval(() => {
     const now = Date.now();
-    if(now - lastDog > 5000) G.lastHb = now;           // 自分のアプリが止まっていた → 数え直す
+    if(now - lastDog > 5000){ G.lastHb = now; resync(); }   // 自分のアプリが止まっていた → 数え直す・時計を合わせ直す
     lastDog = now;
     if(G.welcomed && now - G.lastHb > 7000){ stalled = true; if(h.onStall) h.onStall(now - G.lastHb); }
   }, 1500);
   // アプリにもどったら、すぐホストに「いるよ」と伝える
-  const onVis = () => { if(document.visibilityState !== 'hidden') hb(); };
+  const onVis = () => { if(document.visibilityState !== 'hidden'){ hb(); resync(); } };
   document.addEventListener('visibilitychange', onVis);
 
   function end(why){
     if(G.closed) return;
-    G.closed = true; clearInterval(joinT); clearInterval(hbT); clearInterval(dogT); clearInterval(syncT); clearInterval(relT);
+    G.closed = true; clearInterval(joinT); clearInterval(hbT); clearInterval(dogT); clearInterval(syncT); clearInterval(burstT); clearInterval(relT);
     document.removeEventListener('visibilitychange', onVis);
     net.close();
     if(h.onEnd) h.onEnd(why);
@@ -445,7 +452,7 @@ async function join(qrText, h){
   G.close = () => {
     if(G.closed) return;
     sendRaw('M', { t: 'bye' }, true);
-    setTimeout(() => { G.closed = true; clearInterval(joinT); clearInterval(hbT); clearInterval(dogT); clearInterval(syncT); clearInterval(relT); document.removeEventListener('visibilitychange', onVis); net.close(); }, 700);
+    setTimeout(() => { G.closed = true; clearInterval(joinT); clearInterval(hbT); clearInterval(dogT); clearInterval(syncT); clearInterval(burstT); clearInterval(relT); document.removeEventListener('visibilitychange', onVis); net.close(); }, 700);
   };
   return G;
 }
