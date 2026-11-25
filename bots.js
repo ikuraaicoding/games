@@ -232,33 +232,6 @@ function make(id, send, chat){
     }
   };
 
-  // ---------------- HIDE ----------------
-  // 自分の手がかり(まわりの数)から掘る場所を選ぶ。近くを掘られたら、にげる(回数があれば)
-  const hide = {
-    begin(){ S.hd = { S: 5, obs: [], digs: [], pos: -1 }; },
-    msg(m){
-      const a = S.hd, Hn = window.NomiGames && window.NomiGames.hide; if(!Hn) return;
-      const nb = c => Hn._nb(c, a.S);
-      if(m.t === 'hs' && (m.S === 5 || m.S === 6)){
-        a.S = m.S; const c = ri(0, m.S * m.S - 1);
-        later(() => send({ t: 'hd', c }), ri(1500, 6000));
-      }else if(m.t === 'tn' && Number.isInteger(m.k) && Number.isInteger(m.pos)){
-        a.pos = m.pos; const C = a.S * a.S, w = new Array(C).fill(1);
-        a.obs.forEach(o => { const f = Math.pow(.6, m.k - o.k); nb(o.c).forEach(n => { if(o.n > 0) w[n] += o.n * 2 * f; else w[n] *= 1 - .7 * f; }); w[o.c] *= .5; });
-        a.digs.forEach(c => { if(c >= 0 && c < C) w[c] *= .6; });
-        if(!m.gh) w[a.pos] = 0;
-        let mv = -1;
-        if(!m.scan && !m.gh && m.fl > 0 && a.digs.some(c => c === a.pos || nb(a.pos).includes(c)) && rnd() < .85){ const ns = nb(a.pos); mv = ns[ri(0, ns.length - 1)]; w[mv] = 0; }
-        let best = 0, bw = -1; for(let c = 0; c < C; c++){ const v = w[c] * (.8 + rnd() * .4); if(v > bw){ bw = v; best = c; } }
-        const k = m.k;
-        later(() => send({ t: 'ac', k, d: best, m: mv }), ri(2000, 7000));
-      }else if(m.t === 'mr' && Number.isInteger(m.d) && Number.isInteger(m.n)){
-        if(m.d >= 0 && m.n >= 0) a.obs.push({ k: m.k, c: m.d, n: m.n });
-        if(Number.isInteger(m.pos)) a.pos = m.pos;
-      }else if(m.t === 'rs' && Array.isArray(m.digs)) a.digs = m.digs.filter(Number.isInteger);
-    }
-  };
-
   // ---------------- TWIST ----------------
   // 問題の種類ごとの考える時間 + お題が変わったときの迷い。ときどき おてつき
   const twist = {
@@ -293,7 +266,7 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, flip, uniq, face, hide, twist, trace, arena, race };
+  const G = { tap, stop, ise, core, flip, uniq, face, twist, trace, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;

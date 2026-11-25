@@ -17,7 +17,7 @@ function qrSize(){ return Math.min(window.innerWidth - 80, 300); }
 let myName = '';
 try{ myName = clean(localStorage.getItem('nomi-name') || ''); }catch(e){}
 $('name').value = myName;
-let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#hide': 'hide', '#twist': 'twist', '#trace': 'trace', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
+let wantGame = ({ '#tap': 'tap', '#stop': 'stop', '#ise': 'ise', '#flip': 'flip', '#uniq': 'uniq', '#face': 'face', '#twist': 'twist', '#trace': 'trace', '#arena': 'arena', '#race': 'race', '#mix': 'mix' })[location.hash] || 'core';
 
 // ---------- 音 ----------
 // 音の出口は sound.js がまとめて持つ(画面から抜けると作り直されるので、使うたびに取り直す)
@@ -281,14 +281,6 @@ const RULES = [
     '勝負した人どうしで1人ずつ比べる。自分より小さい人1人につき+2点、大きい人1人につき−2点。降りた人は点が動かない',
     '口で何を言ってもいい(うそも作戦)。ただし、自分の画面を人に見せるのは禁止',
     '全5回。はじめは20点。点の多い順に順位'] },
-  { g: 'hide', nm: 'HIDE', sub: 'かくれんぼ宝さがし', ic: 'i-hide', r: [
-    'マス目(2〜3人は5×5、4人以上は6×6)に、全員が自分の宝をこっそり1つ埋める',
-    '1ターン目は「調べる」だけ。選んだマスのまわり8マスに、ほかの人の宝がいくつあるかが自分だけに出る',
-    '2ターン目から、毎ターン掘るマスを1つ選ぶ。宝をとなりのマスへ にげさせることもできる(1ゲーム3回まで)',
-    '全員同時に、にげてから掘る。掘ったマスにだれかの宝があれば、その人はアウト。掘った人には、まわり8マスの宝の数が出る(自分だけ)',
-    '掘った場所と、見つかった人は全員に見える。アウトになった人は「鬼」として掘り続けられる(順位は変わらない)',
-    '最後まで残った人の勝ち。先に見つかった人ほど下の順位(同じターンなら、見つけた数が多い方が上)。10ターンで終わり',
-    '口で何を言ってもいい(うそも作戦)。ただし、自分の画面を人に見せるのは禁止'] },
   { g: 'twist', nm: 'TWIST', sub: 'ひっかけ早押し', ic: 'i-twist', r: [
     '全員同時に、同じ12問を解く早押しレース',
     '問題は「色」「向き」「数」の3種類。上に出る お題 に答える',
@@ -314,7 +306,7 @@ const RULES = [
     '合計ポイントで最終順位が決まる(同点は同じ順位)'] }
 ];
 // ミニゲーム(MIX の抽選に入る)。ミニゲームを足すときは、ここと RULES に入れて、ホスト側で結果が出たときに E.rank() を呼ぶ
-const MINI = ['tap', 'stop', 'ise', 'core', 'flip', 'uniq', 'face', 'hide', 'twist', 'trace'];
+const MINI = ['tap', 'stop', 'ise', 'core', 'flip', 'uniq', 'face', 'twist', 'trace'];
 let hostWant = '';                 // 参加者側: ホストがいま選んでいるゲーム
 let rulesTouched = false;          // 参加者が自分でルールを開いたか(開いたら、勝手に開き直さない)
 function buildRules(){

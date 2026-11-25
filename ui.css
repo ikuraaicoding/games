@@ -6,7 +6,7 @@
   --surface:rgba(255,255,255,.045); --surface2:rgba(255,255,255,.08);
   --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
   --text:#f4f4f6; --sub:#9a9aa6; --dim:#5f5f6a;
-  --c-core:#ff453a; --c-draw:#ffd60a; --c-blind:#8e7bff; --c-thumbs:#30e0a1; --c-arena:#ff9f0a; --c-race:#4fa3ff; --c-mix:#ff6fb5; --c-flip:#64d2ff; --c-uniq:#c6f432; --c-face:#ff7a59; --c-hide:#2ed3c6; --c-twist:#e36bff; --c-trace:#8ce65a;
+  --c-core:#ff453a; --c-draw:#ffd60a; --c-blind:#8e7bff; --c-thumbs:#30e0a1; --c-arena:#ff9f0a; --c-race:#4fa3ff; --c-mix:#ff6fb5; --c-flip:#64d2ff; --c-uniq:#c6f432; --c-face:#ff7a59; --c-twist:#e36bff; --c-trace:#8ce65a;
   --acc:#f4f4f6; --acc2:#ffffff; --acc-ink:#09090b;
   --red:#ff453a; --green:#30d158;
   --amber:var(--acc); --amber2:var(--acc2);
@@ -21,7 +21,6 @@ body[data-game="ise"], .g-ise{ --acc:var(--c-thumbs); --acc2:#8af0c8; --acc-ink:
 body[data-game="flip"], .g-flip{ --acc:var(--c-flip); --acc2:#b3ecff; --acc-ink:#021018; }
 body[data-game="uniq"], .g-uniq{ --acc:var(--c-uniq); --acc2:#e2fa94; --acc-ink:#121a00; }
 body[data-game="face"], .g-face{ --acc:var(--c-face); --acc2:#ffb39e; --acc-ink:#1a0703; }
-body[data-game="hide"], .g-hide{ --acc:var(--c-hide); --acc2:#9df0e8; --acc-ink:#02150f; }
 body[data-game="twist"], .g-twist{ --acc:var(--c-twist); --acc2:#f0b0ff; --acc-ink:#16021c; }
 body[data-game="trace"], .g-trace{ --acc:var(--c-trace); --acc2:#c6f5a8; --acc-ink:#071503; }
 body[data-game="arena"], .g-arena{ --acc:var(--c-arena); --acc2:#ffc266; --acc-ink:#1a0d00; }
