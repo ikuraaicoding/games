@@ -162,8 +162,8 @@ summary{ font-size:.76rem; color:var(--sub); }
 #picker .list button:active{ background:var(--acc); color:var(--acc-ink); }
 
 /* ゲーム画面の共通 */
-#t-top,#p-top,#i-top,#f-top,#fa-top,#h-top,#w-top,#tr-top{ font-size:.72rem; font-weight:700; letter-spacing:.26em; color:var(--acc); min-height:20px; margin:4px 0 10px; text-transform:uppercase; }
-#t-chips,#p-chips,#i-chips,#f-chips,#fa-chips,#h-chips,#tr-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px; min-height:30px; }
+#t-top,#p-top,#i-top,#f-top,#fa-top,#w-top,#tr-top{ font-size:.72rem; font-weight:700; letter-spacing:.26em; color:var(--acc); min-height:20px; margin:4px 0 10px; text-transform:uppercase; }
+#t-chips,#p-chips,#i-chips,#f-chips,#fa-chips,#tr-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px; min-height:30px; }
 .pad{ position:relative; flex:1; width:100%; max-width:460px; border:1px solid var(--line2); border-radius:28px; background:var(--surface); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; touch-action:none; padding:24px; transition:background .15s, border-color .15s, box-shadow .15s; min-height:280px; }
 .pad .big{ font-size:1.8rem; font-weight:800; margin-bottom:10px; line-height:1.35; white-space:pre-line; pointer-events:none; letter-spacing:-.01em; }
 .pad .small{ font-size:.8rem; color:var(--sub); line-height:1.8; white-space:pre-line; pointer-events:none; }
@@ -262,11 +262,11 @@ summary{ font-size:.76rem; color:var(--sub); }
 #u-rows div.pop{ animation:rowpop .35s cubic-bezier(.2,1.4,.4,1); }
 
 /* FACE */
-#s-face, #s-hide, #s-twist{ padding-bottom:max(18px,env(safe-area-inset-bottom)); }
-#fa-bar, #h-bar{ width:100%; max-width:420px; height:4px; background:var(--surface2); border-radius:99px; margin:2px 0 10px; overflow:hidden; flex:none; }
-#fa-bar i, #h-bar i{ display:block; height:100%; width:100%; background:var(--acc); transform-origin:left; }
-#fa-big, #h-big{ font-size:1.5rem; font-weight:800; min-height:36px; line-height:1.3; white-space:pre-line; font-variant-numeric:tabular-nums; }
-#fa-sub, #h-sub{ font-size:.82rem; color:var(--acc); font-weight:600; min-height:22px; margin-bottom:8px; line-height:1.6; white-space:pre-line; }
+#s-face, #s-twist{ padding-bottom:max(18px,env(safe-area-inset-bottom)); }
+#fa-bar{ width:100%; max-width:420px; height:4px; background:var(--surface2); border-radius:99px; margin:2px 0 10px; overflow:hidden; flex:none; }
+#fa-bar i{ display:block; height:100%; width:100%; background:var(--acc); transform-origin:left; }
+#fa-big{ font-size:1.5rem; font-weight:800; min-height:36px; line-height:1.3; white-space:pre-line; font-variant-numeric:tabular-nums; }
+#fa-sub{ font-size:.82rem; color:var(--acc); font-weight:600; min-height:22px; margin-bottom:8px; line-height:1.6; white-space:pre-line; }
 .fa-me{ width:112px; height:150px; flex:none; border-radius:18px; border:2px dashed color-mix(in srgb, var(--acc) 60%, transparent); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; margin:2px 0 12px; background:var(--surface); }
 .fa-me small{ font-size:.66rem; color:var(--sub); font-weight:700; }
 .fa-me b{ font-size:3.6rem; font-weight:900; line-height:1; font-variant-numeric:tabular-nums; color:var(--acc); }
@@ -283,23 +283,7 @@ summary{ font-size:.76rem; color:var(--sub); }
 .fa-act .btn.on{ outline:3px solid var(--acc); outline-offset:2px; }
 #fa-go.on{ background:var(--acc); color:var(--acc-ink); }
 .fa-act.locked .btn{ opacity:.35; pointer-events:none; }
-#fa-hint, #h-hint{ font-size:.72rem; color:var(--sub); min-height:18px; margin-top:8px; line-height:1.6; }
-
-/* HIDE */
-#h-grid{ width:100%; max-width:min(400px, calc(100dvh - 300px)); display:grid; gap:5px; flex:none; margin-bottom:10px; }
-.hc{ aspect-ratio:1; padding:0; border-radius:10px; border:1px solid var(--line2); background:linear-gradient(145deg, color-mix(in srgb, var(--acc) 16%, #17171b), #111114); font-size:1.15rem; font-weight:800; color:var(--text); display:flex; align-items:center; justify-content:center; position:relative; font-variant-numeric:tabular-nums; transition:background .2s, opacity .2s; }
-.hc.dug{ background:#0b0b0d; border-color:var(--line); color:var(--dim); }
-.hc.got{ background:rgba(255,69,58,.35); border-color:var(--red); color:#fff; }
-.hc.rad{ color:var(--acc); }
-.hc.rad.old{ opacity:.55; }
-.hc.mine{ box-shadow:inset 0 0 0 2px var(--acc); color:var(--acc); }
-.hc.sel{ outline:3px solid #fff; outline-offset:1px; }
-.hc.fsel{ outline:3px dashed var(--acc); outline-offset:1px; }
-.hc.can{ border-color:var(--acc); background:color-mix(in srgb, var(--acc) 22%, #111114); }
-.hc em{ position:absolute; top:1px; right:4px; font-style:normal; font-size:.55rem; color:var(--acc); }
-.h-act{ width:100%; max-width:420px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.h-act .btn{ margin-top:0; }
-#h-flee.on{ border-color:var(--acc); color:var(--acc); }
+#fa-hint{ font-size:.72rem; color:var(--sub); min-height:18px; margin-top:8px; line-height:1.6; }
 
 /* TWIST */
 #w-lanes{ width:100%; max-width:420px; display:grid; gap:4px; margin-bottom:10px; }
@@ -741,7 +725,6 @@ body:not(.solo) .solo-only{ display:none; }
   <symbol id="i-flip" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M10.5 9.5l2-1.5v8"/></symbol>
   <symbol id="i-mix" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01" stroke-width="2.6"/></symbol>
   <symbol id="i-face" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M10 9.5a2 2 0 1 1 3 1.7c-.7.4-1 .9-1 1.6"/><path d="M12 16.2h.01" stroke-width="2.4"/></symbol>
-  <symbol id="i-hide" viewBox="0 0 24 24"><path d="M14 4l6 6"/><path d="M17 7l-7.5 7.5"/><path d="M9.5 14.5l-4.2 1-1.3 4.5 4.5-1.3 1-4.2"/></symbol>
   <symbol id="i-twist" viewBox="0 0 24 24"><path d="M4 7h11l-3-3M20 17H9l3 3"/><path d="M15 7c3 0 5 2 5 5M9 17c-3 0-5-2-5-5"/></symbol>
   <symbol id="i-trace" viewBox="0 0 24 24"><circle cx="15.5" cy="8.5" r="4"/><path d="M3.5 19.5c3-1 4.5-4 7-7"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
@@ -771,7 +754,7 @@ body:not(.solo) .solo-only{ display:none; }
   <h1 class="t">ONLINE</h1>
   <div class="sub">各自のスマホで遊ぶ。</div>
   <div class="field"><label for="name">ニックネーム(8文字まで・本名はNG)</label><input type="text" id="name" maxlength="8" placeholder="例: たろう" autocomplete="off"></div>
-  <div class="gsel" id="seg-game"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="flip" class="g-flip"><span class="tile"><svg class="ic"><use href="#i-flip"/></svg></span><span><b>FLIP</b><small>数字めくり</small></span></button><button data-g="uniq" class="g-uniq"><span class="tile"><svg class="ic"><use href="#i-uniq"/></svg></span><span><b>UNIQUE</b><small>数字かぶり</small></span></button><button data-g="face" class="g-face"><span class="tile"><svg class="ic"><use href="#i-face"/></svg></span><span><b>FACE</b><small>おでこカード</small></span></button><button data-g="hide" class="g-hide"><span class="tile"><svg class="ic"><use href="#i-hide"/></svg></span><span><b>HIDE</b><small>かくれんぼ宝さがし</small></span></button><button data-g="twist" class="g-twist"><span class="tile"><svg class="ic"><use href="#i-twist"/></svg></span><span><b>TWIST</b><small>ひっかけ早押し</small></span></button><button data-g="trace" class="g-trace"><span class="tile"><svg class="ic"><use href="#i-trace"/></svg></span><span><b>TRACE</b><small>なぞり耐久</small></span></button><button data-g="mix" class="g-mix"><span class="tile"><svg class="ic"><use href="#i-mix"/></svg></span><span><b>MIX</b><small>ミニゲーム連戦(ランダム)</small></span></button></div>
+  <div class="gsel" id="seg-game"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="flip" class="g-flip"><span class="tile"><svg class="ic"><use href="#i-flip"/></svg></span><span><b>FLIP</b><small>数字めくり</small></span></button><button data-g="uniq" class="g-uniq"><span class="tile"><svg class="ic"><use href="#i-uniq"/></svg></span><span><b>UNIQUE</b><small>数字かぶり</small></span></button><button data-g="face" class="g-face"><span class="tile"><svg class="ic"><use href="#i-face"/></svg></span><span><b>FACE</b><small>おでこカード</small></span></button><button data-g="twist" class="g-twist"><span class="tile"><svg class="ic"><use href="#i-twist"/></svg></span><span><b>TWIST</b><small>ひっかけ早押し</small></span></button><button data-g="trace" class="g-trace"><span class="tile"><svg class="ic"><use href="#i-trace"/></svg></span><span><b>TRACE</b><small>なぞり耐久</small></span></button><button data-g="mix" class="g-mix"><span class="tile"><svg class="ic"><use href="#i-mix"/></svg></span><span><b>MIX</b><small>ミニゲーム連戦(ランダム)</small></span></button></div>
   <div class="help" style="margin-top:8px">ホストが遊ぶゲーム(ロビーでも変えられます)</div>
   <button class="btn main" id="b-host">部屋を作る(ホスト)</button>
   <button class="btn" id="b-join">参加する(QRを読む)</button>
@@ -808,7 +791,7 @@ body:not(.solo) .solo-only{ display:none; }
   <div class="plist" id="l-list"></div>
   <div class="help" id="l-help"></div>
   <div id="l-hostctl" class="hide" style="width:100%;flex-direction:column;align-items:center">
-    <div class="gsel" id="l-seg"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="flip" class="g-flip"><span class="tile"><svg class="ic"><use href="#i-flip"/></svg></span><span><b>FLIP</b><small>数字めくり</small></span></button><button data-g="uniq" class="g-uniq"><span class="tile"><svg class="ic"><use href="#i-uniq"/></svg></span><span><b>UNIQUE</b><small>数字かぶり</small></span></button><button data-g="face" class="g-face"><span class="tile"><svg class="ic"><use href="#i-face"/></svg></span><span><b>FACE</b><small>おでこカード</small></span></button><button data-g="hide" class="g-hide"><span class="tile"><svg class="ic"><use href="#i-hide"/></svg></span><span><b>HIDE</b><small>かくれんぼ宝さがし</small></span></button><button data-g="twist" class="g-twist"><span class="tile"><svg class="ic"><use href="#i-twist"/></svg></span><span><b>TWIST</b><small>ひっかけ早押し</small></span></button><button data-g="trace" class="g-trace"><span class="tile"><svg class="ic"><use href="#i-trace"/></svg></span><span><b>TRACE</b><small>なぞり耐久</small></span></button><button data-g="mix" class="g-mix"><span class="tile"><svg class="ic"><use href="#i-mix"/></svg></span><span><b>MIX</b><small>ミニゲーム連戦(ランダム)</small></span></button></div>
+    <div class="gsel" id="l-seg"><button data-g="arena" class="g-arena"><span class="tile"><svg class="ic"><use href="#i-arena"/></svg></span><span><b>ARENA</b><small>育成バトル</small></span></button><button data-g="race" class="g-race"><span class="tile"><svg class="ic"><use href="#i-race"/></svg></span><span><b>RACE</b><small>育成レース</small></span></button><div class="gsel-h">MINI GAMES<small>ミニゲーム</small></div><button data-g="tap" class="g-tap"><span class="tile"><svg class="ic"><use href="#i-draw"/></svg></span><span><b>DRAW</b><small>早撃ち</small></span></button><button data-g="stop" class="g-stop"><span class="tile"><svg class="ic"><use href="#i-blind"/></svg></span><span><b>BLIND</b><small>見えないタイマー</small></span></button><button data-g="ise" class="g-ise"><span class="tile"><svg class="ic"><use href="#i-thumbs"/></svg></span><span><b>THUMBS</b><small>いっせーのーせ</small></span></button><button data-g="core" class="g-core"><span class="tile"><svg class="ic"><use href="#i-core"/></svg></span><span><b>CORE</b><small>爆弾リレー</small></span></button><button data-g="flip" class="g-flip"><span class="tile"><svg class="ic"><use href="#i-flip"/></svg></span><span><b>FLIP</b><small>数字めくり</small></span></button><button data-g="uniq" class="g-uniq"><span class="tile"><svg class="ic"><use href="#i-uniq"/></svg></span><span><b>UNIQUE</b><small>数字かぶり</small></span></button><button data-g="face" class="g-face"><span class="tile"><svg class="ic"><use href="#i-face"/></svg></span><span><b>FACE</b><small>おでこカード</small></span></button><button data-g="twist" class="g-twist"><span class="tile"><svg class="ic"><use href="#i-twist"/></svg></span><span><b>TWIST</b><small>ひっかけ早押し</small></span></button><button data-g="trace" class="g-trace"><span class="tile"><svg class="ic"><use href="#i-trace"/></svg></span><span><b>TRACE</b><small>なぞり耐久</small></span></button><button data-g="mix" class="g-mix"><span class="tile"><svg class="ic"><use href="#i-mix"/></svg></span><span><b>MIX</b><small>ミニゲーム連戦(ランダム)</small></span></button></div>
     <div id="l-arena" class="hide" style="width:100%;max-width:420px">
       <div class="aopt"><span>育成タイム</span><div class="seg2"><button data-m="1">1分</button><button data-m="3">3分</button><button data-m="5" class="on">5分</button><button data-m="10">10分</button></div></div>
       <div class="aopt"><span>ゲージ</span><div class="seg2"><button data-h="0" class="on">ふつう(10秒)</button><button data-h="1">ハード(5秒)</button></div></div>
@@ -916,18 +899,6 @@ body:not(.solo) .solo-only{ display:none; }
   <div id="fa-cards"></div>
   <div class="fa-act" id="fa-act"><button class="btn" id="fa-fold" type="button">降りる</button><button class="btn" id="fa-go" type="button">勝負</button></div>
   <div id="fa-hint"></div>
-</div>
-
-<!-- HIDE かくれんぼ宝さがし -->
-<div class="screen" id="s-hide">
-  <div id="h-top"></div>
-  <div id="h-chips"></div>
-  <div id="h-bar"><i></i></div>
-  <div id="h-big"></div>
-  <div id="h-sub"></div>
-  <div id="h-grid"></div>
-  <div class="h-act"><button class="btn" id="h-flee" type="button" disabled>にげる</button><button class="btn main" id="h-ok" type="button" disabled>決定!</button></div>
-  <div id="h-hint"></div>
 </div>
 
 <!-- TWIST ひっかけ早押し -->
@@ -1054,7 +1025,6 @@ body:not(.solo) .solo-only{ display:none; }
 <script src="g-flip.js"></script>
 <script src="g-uniq.js"></script>
 <script src="g-face.js"></script>
-<script src="g-hide.js"></script>
 <script src="g-twist.js"></script>
 <script src="g-trace.js"></script>
 <script src="avatar.js"></script>
