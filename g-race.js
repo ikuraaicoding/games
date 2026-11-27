@@ -1,8 +1,8 @@
 /* RACE — 体力を見ながら車をきたえて、全員同時にレース(ホストが審判)
  *
  * 流れ
- *  1. 車の種類を選ぶ(バランス型 / 最高速型 / 加速型 / コーナー型。最初のステータスと、レースでの見た目が変わる)
- *     続けてスキル選び: ランダムな4つから1つ選ぶ(レース中に自動で発動)
+ *  1. スキル選び: ランダムな4つから1つ選ぶ(レース中に自動で発動)
+ *     ステータスは全員同じ(最高速3・加速3・コーナー3)から。車の見た目はランダム(性能は同じ)
  *  2. ガレージタイム(1/3/5分・ロビーで選ぶ)。体力100からスタート
  *     10秒ごと(ハードモードは5秒ごと)に「行動」が1回たまる(ためておけるのは1回だけ。使わないまま次がたまると、あふれて無駄になる)
  *       エンジン強化 / ターボ強化 / タイヤ強化: 成功で 最高速 / 加速 / コーナー +2、失敗で −1。体力を20〜30使う
@@ -91,13 +91,13 @@ const TR = {
 };
 const TR_KEYS = Object.keys(TR);
 const SK_N = 4;                              // スキルの候補の数
-// 車の種類: 最初のステータス(合計はどれも9)とレースでの見た目
-// シミュレーション(6台・まんべんなく育てた場合): 勝率はどれも16〜17%(平均16.7%)
+// 車の見た目(ホストがランダムに決める。性能はみんな同じ)
+// 前は種類ごとに最初のステータスがちがったが、育ちが浅いと加速型が有利になるなど、ずれが出るのでやめた
 const CT = {
-  bal: { nm: 'バランス型', st: [3, 3, 3], d: 'くせがなく、どのコースでも走れる' },
-  spd: { nm: '最高速型',   st: [5, 2, 2], d: '直線が速い。フォーミュラカー' },
-  acc: { nm: '加速型',     st: [2, 5, 2], d: '立ち上がりが速い。マッスルカー' },
-  crn: { nm: 'コーナー型', st: [2, 2, 5], d: 'カーブが速い。小回りのきくカート' }
+  bal: { nm: 'セダン' },
+  spd: { nm: 'フォーミュラカー' },
+  acc: { nm: 'マッスルカー' },
+  crn: { nm: 'カート' }
 };
 const CT_KEYS = Object.keys(CT);
 
@@ -155,8 +155,7 @@ function courseInfo(c){
 
 // ---------------- 車 ----------------
 // 車: { st: [最高速, 加速, コーナー], hp: 体力, sk: スキル }
-function starterCar(){ return { st: [PH.start, PH.start, PH.start], hp: PH.hpMax, sk: '', ty: '' }; }
-function setType(car, k){ car.ty = k; car.st = CT[k].st.slice(); }
+function starterCar(ty){ return { st: [PH.start, PH.start, PH.start], hp: PH.hpMax, sk: '', ty: ty && CT[ty] ? ty : '' }; }
 // 失敗する確率(体力が safe 以上なら 0)
 const failP = hp => hp >= PH.safe ? 0 : Math.min(PH.failMax, (PH.safe - hp) * PH.failK / 100);
 // 強化(k: どのステータス)。成功なら true
@@ -292,7 +291,7 @@ function skillOn(R, r){
 function finalOrder(R){
   return R.r.filter(r => !r.out).sort((a, b) => (a.fin >= 0 && b.fin >= 0) ? a.fin - b.fin : a.fin >= 0 ? -1 : b.fin >= 0 ? 1 : b.d - a.d);
 }
-const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, setType, CT, train, rest, rollHp, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, skillOn, finalOrder, TR };
+const SIM = { PH, CFG, genCourse, courseLen, courseInfo, starterCar, CT, train, rest, rollHp, failP, rollHot, skillChoices, carStats, carTraits, mkRacer, newRace, segIdx, capOf, stepRace, useNitro, skillOn, finalOrder, TR };
 
 // 受け取ったデータの形チェック(ホストから届くもの)
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
@@ -337,7 +336,7 @@ function showCatalog(){
   const body = elx('div', 'cat-b');
   const sec = (t, note) => { body.appendChild(elx('div', 'eyebrow', t)); if(note) body.appendChild(elx('p', 'cat-note', note)); };
   const rows = list => { const b = elx('div', 'cat-sec'); list.forEach(([a, t]) => { const r = elx('div', 'cat-row'); r.appendChild(elx('b', '', a)); r.appendChild(elx('span', '', t)); b.appendChild(r); }); body.appendChild(b); };
-  sec('ステータス', '最初は全部' + PH.start + '。' + PH.soft + 'を超えると伸びがゆるやかになる。コースは運なので、どれかに寄せるか、まんべんなく上げるかは作戦しだい');
+  sec('ステータス', '最初は全員、全部' + PH.start + '(車の見た目はランダムで、性能は同じ)。' + PH.soft + 'を超えると伸びがゆるやかになる。コースは運なので、どれかに寄せるか、まんべんなく上げるかは作戦しだい');
   rows([['最高速', '直線・坂・ダートでの速さの上限'], ['加速', 'コーナーのあとやスタートの立ち上がり'], ['コーナー', 'コーナーでの速さの上限(きついコーナーほど大事)']]);
   sec('ガレージでできること', CFG.TICK_MS / 1000 + '秒ごと(ハードモードは' + CFG.HARD_MS / 1000 + '秒ごと)に行動が1回たまる。ためておけるのは' + CFG.CAP + '回だけ');
   rows(TRN.map((nm, i) => [nm, '成功で ' + ST[i] + ' +' + PH.gain + '、失敗で −' + PH.loss + '。体力 −' + rng(PH.costs)]).concat([['休む', '体力 +' + rng(PH.rests) + '(最大' + PH.hpMax + ')']]));
@@ -345,9 +344,7 @@ function showCatalog(){
   sec('体力と失敗', '体力が' + PH.safe + '以上なら必ず成功。' + PH.safe + 'を切ると失敗することがある(体力が1下がるごとに失敗率 +' + PH.failK + '%)');
   rows([PH.safe - 10, PH.safe - 20, PH.safe - 30, PH.safe - 40].map(h => ['体力' + h, '失敗率 ' + pc(failP(h)) + '%']));
   sec('好調', '行動のたびに ' + pc(PH.hotP) + '% の確率で、強化のどれか1つが「好調」になる。好調の強化は成功で +' + PH.hotGain + '(失敗は同じく −' + PH.loss + ')。体力が少し足りなくても賭ける価値があるかも');
-  sec('車の種類', '最初に選ぶ。最初のステータス(合計はどれも9)と、レースでの見た目が変わる');
-  rows(CT_KEYS.map(k => [CT[k].nm, ST.map((n, i) => n + CT[k].st[i]).join(' ') + '。' + CT[k].d]));
-  sec('スキル', '車の種類のつぎに、ランダムな' + SK_N + 'つから1つ選ぶ。レース中に自動で発動する');
+  sec('スキル', '最初に、ランダムな' + SK_N + 'つから1つ選ぶ。レース中に自動で発動する');
   rows(TR_KEYS.map(k => [TR[k].nm, TR[k].d()]));
   sec('ニトロ', 'レース中にボタンで使う(1レース1回)。直線でよく効き、コーナーではほとんど効かない。強さは全員同じ');
   sec('コース', '区間を8〜12個つないだもの。どんなコースかはレースの直前に発表。天気は晴れか雨(雨: コーナーの上限 ×' + PH.rainC + ')。スキル選びのときに天気予報(雨の確率)が出る。予報ははずれることもある');
@@ -359,7 +356,7 @@ function showCatalog(){
 
 const CAR_COL = ['#ff453a', '#ffd60a', '#30d158', '#64d2ff', '#bf5af2', '#ff9f0a', '#ff6fb1', '#e8e8ee'];
 
-// ---------------- 車の見た目(上から見た形。種類ごとにちがう) ----------------
+// ---------------- 車の見た目(上から見た形。4種類。性能は同じ) ----------------
 function rrPath(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 const CAR_LEN = { spd: 2.05, acc: 1.7, crn: 1.35 };
 const carLen = (ty, w) => w * (CAR_LEN[ty] || 1.75);
@@ -394,7 +391,7 @@ function drawCar(c, ty, col, w, mine, glow){
     c.fillStyle = '#f4f4f6'; c.beginPath(); c.arc(0, h * .08, bw * .27, 0, Math.PI * 2); c.fill();
     c.fillStyle = dark; c.fillRect(-bw * .19, h * .08 - bw * .25, bw * .38, bw * .13);
   }else{
-    // バランス型: ふつうの車
+    // セダン: ふつうの車
     body(() => rrPath(c, -w / 2, -h / 2, w, h, w * .28));
     c.fillStyle = dark; rrPath(c, -w * .34, -h * .2, w * .68, h * .26, 3); c.fill();
     c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(-w * .08, -h * .46, w * .16, h * .22);
@@ -525,14 +522,8 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     uiMode = 'busy'; renderPanel();
     E.send(o, true);
   }
-  function pickType(k){
-    if(ph !== 'sk' || !me || me.car.ty || !CT[k]) return;
-    E.audio.init(); E.vibrate(20); E.audio.beep(660, .1, .2);
-    me.car.ty = k; me.car.st = CT[k].st.slice(); renderGar();
-    E.send({ t: 'ctp', k, n: ++nonce }, true);
-  }
   function pickSkill(k){
-    if(ph !== 'sk' || !me || !me.car.ty || me.car.sk || !me.skc.includes(k)) return;
+    if(ph !== 'sk' || !me || me.car.sk || !me.skc.includes(k)) return;
     E.audio.init(); E.vibrate(20); E.audio.beep(740, .1, .2);
     me.car.sk = k; uiMode = 'busy'; renderGar();
     E.send({ t: 'skp', k, n: ++nonce }, true);
@@ -565,22 +556,9 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const note = $('rc-note');
     note.classList.remove('over');
     if(ph === 'sk'){
-      if(me.car.sk && me.car.ty){ note.textContent = 'ほかの人が選ぶのを待っています…'; return; }
-      box.appendChild(forecastEl());
-      if(!me.car.ty){
-        note.textContent = 'まずは車の種類を選ぼう(最初のステータスと見た目が変わる)';
-        const g = el('div', 'agrid');
-        CT_KEYS.forEach(k => {
-          const t = CT[k], b = el('button', 'abtn rg-tyb');
-          b.appendChild(carPic(k, '#4fa3ff', 34, 52));
-          const tx = el('span', 'abtn-t'); tx.appendChild(el('b', '', t.nm)); tx.appendChild(el('small', '', t.d)); tx.appendChild(el('small', 'rg-tys', ST.map((n, i) => n + ' ' + t.st[i]).join(' / ')));
-          b.appendChild(tx); b.onclick = () => pickType(k); g.appendChild(b);
-        });
-        box.appendChild(g);
-        return;
-      }
       if(me.car.sk){ note.textContent = 'ほかの人が選ぶのを待っています…'; return; }
-      note.textContent = 'つぎにスキルを1つ選ぼう(レース中に自動で発動する)';
+      box.appendChild(forecastEl());
+      note.textContent = 'スキルを1つ選ぼう(レース中に自動で発動する)';
       me.skc.forEach(k => box.appendChild(bigBtn('★ ' + TR[k].nm, TR[k].d(), true, () => pickSkill(k))));
       return;
     }
@@ -619,7 +597,7 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     if(m.end){ ph = 'gend'; $('rc-note').textContent = 'ガレージおわり! まもなくレースへ…'; $('rc-panel').textContent = ''; $('rc-time').textContent = '0:00'; const b = $('rc-car'); b.textContent = ''; b.appendChild(carCard(me.car)); return; }
     const wasSk = ph === 'sk';
     ph = m.sk ? 'sk' : 'gar';
-    $('rc-time').previousElementSibling.textContent = ph === 'sk' ? '車とスキル選び' : '残り時間';
+    $('rc-time').previousElementSibling.textContent = ph === 'sk' ? 'スキル選び' : '残り時間';
     if(wasSk && ph === 'gar'){ E.audio.beep(660, .1, .2); later(() => E.audio.beep(990, .14, .2), 120); E.vibrate([40, 40, 40]); }
     if(uiMode === 'busy' && !(ph === 'sk' && me.car.sk)) uiMode = '';
     const rv = m.rv;
@@ -1054,16 +1032,16 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     H.names = E.players().map(p => [p.id, p.name]);
     H.crs = Array.from({ length: H.R }, () => genCourse(rndF));
     H.skEnd = performance.now() + CFG.SK_MS; H.endAt = 0; H.nextTick = 0;
-    E.players().forEach(p => H.P.set(p.id, { car: starterCar(), skc: skillChoices(rndF), tk: 0, lost: 0, hot: -1, hc: rollHp(rndF), n: 0, nn: 0, rv: null, pts: 0, res: [] }));
+    E.players().forEach(p => H.P.set(p.id, { car: starterCar(CT_KEYS[Math.floor(rndF() * CT_KEYS.length)]), skc: skillChoices(rndF), tk: 0, lost: 0, hot: -1, hc: rollHp(rndF), n: 0, nn: 0, rv: null, pts: 0, res: [] }));
     H.P.forEach((_, id) => sendMe(id));
     H.skT = setTimeout(startGarage, CFG.SK_MS);
   }
-  // 車の種類とスキルが全員そろったら(または時間切れで)ガレージタイム開始。選ばなかった人はランダム
-  const allPicked = () => Array.from(H.P.values()).every(x => x.car.sk && x.car.ty);
+  // スキルが全員そろったら(または時間切れで)ガレージタイム開始。選ばなかった人はランダム
+  const allPicked = () => Array.from(H.P.values()).every(x => x.car.sk);
   function startGarage(){
     if(H.phase !== 'sk') return;
     clearTimeout(H.skT);
-    H.P.forEach(p => { if(!p.car.ty) setType(p.car, CT_KEYS[Math.floor(rndF() * CT_KEYS.length)]); if(!p.car.sk) p.car.sk = p.skc[Math.floor(rndF() * p.skc.length)]; });
+    H.P.forEach(p => { if(!p.car.sk) p.car.sk = p.skc[Math.floor(rndF() * p.skc.length)]; });
     H.phase = 'gar';
     const ms = CFG.GARAGE_MS || H.mins * 60000, now = performance.now();
     H.endAt = now + ms; H.nextTick = now + H.TICK;
@@ -1080,11 +1058,10 @@ window.NomiGames.race = { id: 'race', name: 'RACE', _cfg: CFG, _sim: SIM, showCa
     const p = H.P.get(id); if(!p) return;
     if(m.t === 'nit'){ onNit(id, p, m); return; }
     if(!Number.isInteger(m.n) || m.n <= p.n) return;
-    if(m.t === 'ctp' || m.t === 'skp'){
+    if(m.t === 'skp'){
       if(H.phase !== 'sk') return;
       p.n = m.n;
-      if(m.t === 'ctp' && !p.car.ty && typeof m.k === 'string' && CT[m.k]) setType(p.car, m.k);
-      if(m.t === 'skp' && !p.car.sk && typeof m.k === 'string' && p.skc.includes(m.k)) p.car.sk = m.k;
+      if(!p.car.sk && typeof m.k === 'string' && p.skc.includes(m.k)) p.car.sk = m.k;
       sendMe(id);
       if(allPicked()) startGarage();
       return;
