@@ -80,21 +80,6 @@ function make(id, send, chat){
     }
   };
 
-  // ---------------- UNIQUE ----------------
-  // 大きい数字ほど出しやすいが、みんなが大きいのを出しそうなときは、わざと少し下げる(ランダム)
-  const uniq = {
-    begin(){},
-    msg(m){
-      if(m.t !== 'trn' || !Number.isInteger(m.r) || !Array.isArray(m.alive) || !m.alive.includes(id) || !Array.isArray(m.hs)) return;
-      const me = m.hs.find(x => x && x.id === id); if(!me || !Array.isArray(me.h) || !me.h.length) return;
-      const h = me.h.slice().sort((a, b) => b - a);
-      let i = 0; while(i < h.length - 1 && rnd() < .45) i++;
-      const v = h[i], r = m.r;
-      if(rnd() < .03) return;                                   // たまに時間ぎれ(いちばん小さいカードが出る)
-      later(() => send({ t: 'pk', r, v }), ri(1200, 7500));
-    }
-  };
-
   // ---------------- FLIP ----------------
   // 人間らしく: 小さい数字ほどよく覚えている(大きい数字はうろ覚え)。ほかの人のまちがいも少し覚える
   const flipMem = v => .97 * Math.pow(.9, v - 1);
@@ -217,19 +202,6 @@ function make(id, send, chat){
     }
   };
 
-  // ---------------- FACE ----------------
-  // 見えている数字から「ほかの1人に勝つ割合」を見こんで、半分より上なら勝負(少しゆらぎ)
-  const face = {
-    begin(){},
-    msg(m){
-      const F = window.NomiGames && window.NomiGames.face;
-      if(!F || m.t !== 'deal' || !Number.isInteger(m.r) || !Array.isArray(m.see)) return;
-      const see = m.see.map(x => Array.isArray(x) ? x[1] : null).filter(Number.isInteger);
-      const s = F._share(see) > .5 + (rnd() - .5) * .24 ? 1 : 0, r = m.r;
-      later(() => send({ t: 'ch', r, s, n: 1 }), ri(2500, 12000));
-    }
-  };
-
   // ---------------- TWIST ----------------
   // 問題の種類ごとの考える時間 + お題が変わったときの迷い。ときどき おてつき
   const twist = {
@@ -264,7 +236,7 @@ function make(id, send, chat){
     }
   };
 
-  const G = { tap, stop, ise, core, flip, uniq, face, twist, trace, arena, race };
+  const G = { tap, stop, ise, core, flip, twist, trace, arena, race };
   // チャット: 人(CPU以外)がスタンプや一言を送ったら、たまにスタンプで返す(連投はしない)
   const REPLY = ['😂', '😭', '😱', '🔥', '👏', '🙏', '😎', '🤯'];
   let lastChat = 0;
